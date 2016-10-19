@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/xmlpath.v1"
 
-	"github.com/antongulenko/data2go/sample"
+	"github.com/antongulenko/data2go"
 	"github.com/antongulenko/golib"
 	"github.com/rgbkrk/libvirt-go"
 )
@@ -264,15 +264,15 @@ func NewVmGeneralReader(factory *ValueRingFactory) *vmGeneralReader {
 
 type LogbackCpuVal uint64
 
-func (val LogbackCpuVal) DiffValue(logback LogbackValue, interval time.Duration) sample.Value {
+func (val LogbackCpuVal) DiffValue(logback LogbackValue, interval time.Duration) data2go.Value {
 	switch previous := logback.(type) {
 	case LogbackCpuVal:
-		return sample.Value(val-previous) / sample.Value(interval.Nanoseconds())
+		return data2go.Value(val-previous) / data2go.Value(interval.Nanoseconds())
 	case *LogbackCpuVal:
-		return sample.Value(val-*previous) / sample.Value(interval.Nanoseconds())
+		return data2go.Value(val-*previous) / data2go.Value(interval.Nanoseconds())
 	default:
 		log.Errorf("Cannot diff %v (%T) and %v (%T)", val, val, logback, logback)
-		return sample.Value(0)
+		return data2go.Value(0)
 	}
 }
 
@@ -307,12 +307,12 @@ func (reader *vmGeneralReader) update(domain libvirt.VirDomain) (err error) {
 	return
 }
 
-func (reader *vmGeneralReader) readMaxMem() sample.Value {
-	return sample.Value(reader.info.GetMaxMem())
+func (reader *vmGeneralReader) readMaxMem() data2go.Value {
+	return data2go.Value(reader.info.GetMaxMem())
 }
 
-func (reader *vmGeneralReader) readMem() sample.Value {
-	return sample.Value(reader.info.GetMemory())
+func (reader *vmGeneralReader) readMem() data2go.Value {
+	return data2go.Value(reader.info.GetMemory())
 }
 
 // ==================== Memory Stats ====================
@@ -363,20 +363,20 @@ func (reader *memoryStatReader) update(domain libvirt.VirDomain) error {
 	}
 }
 
-func (reader *memoryStatReader) readSwap() sample.Value {
-	return sample.Value(reader.swap)
+func (reader *memoryStatReader) readSwap() data2go.Value {
+	return data2go.Value(reader.swap)
 }
 
-func (reader *memoryStatReader) readAvailable() sample.Value {
-	return sample.Value(reader.available)
+func (reader *memoryStatReader) readAvailable() data2go.Value {
+	return data2go.Value(reader.available)
 }
 
-func (reader *memoryStatReader) readBalloon() sample.Value {
-	return sample.Value(reader.balloon)
+func (reader *memoryStatReader) readBalloon() data2go.Value {
+	return data2go.Value(reader.balloon)
 }
 
-func (reader *memoryStatReader) readRss() sample.Value {
-	return sample.Value(reader.rss)
+func (reader *memoryStatReader) readRss() data2go.Value {
+	return data2go.Value(reader.rss)
 }
 
 // ==================== CPU Stats ====================
@@ -484,23 +484,23 @@ func (reader *blockStatReader) update(domain libvirt.VirDomain) error {
 	return resErr
 }
 
-func (reader *blockStatReader) readAllocation() (result sample.Value) {
+func (reader *blockStatReader) readAllocation() (result data2go.Value) {
 	for _, info := range reader.info {
-		result += sample.Value(info.Allocation())
+		result += data2go.Value(info.Allocation())
 	}
 	return
 }
 
-func (reader *blockStatReader) readCapacity() (result sample.Value) {
+func (reader *blockStatReader) readCapacity() (result data2go.Value) {
 	for _, info := range reader.info {
-		result += sample.Value(info.Capacity())
+		result += data2go.Value(info.Capacity())
 	}
 	return
 }
 
-func (reader *blockStatReader) readPhysical() (result sample.Value) {
+func (reader *blockStatReader) readPhysical() (result data2go.Value) {
 	for _, info := range reader.info {
-		result += sample.Value(info.Physical())
+		result += data2go.Value(info.Physical())
 	}
 	return
 }

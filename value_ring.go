@@ -5,8 +5,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/antongulenko/data2go/sample"
+	"github.com/antongulenko/data2go"
 )
 
 type ValueRingFactory struct {
@@ -27,14 +26,14 @@ type ValueRing struct {
 	head     int // actually head+1
 
 	aggregator   LogbackValue
-	previousDiff sample.Value
+	previousDiff data2go.Value
 
 	// Serializes GetDiff() and FlushHead()
 	lock sync.Mutex
 }
 
 type LogbackValue interface {
-	DiffValue(previousValue LogbackValue, interval time.Duration) sample.Value
+	DiffValue(previousValue LogbackValue, interval time.Duration) data2go.Value
 	AddValue(val LogbackValue) LogbackValue
 }
 
@@ -69,7 +68,7 @@ func (ring *ValueRing) Add(val LogbackValue) {
 	ring.FlushHead()
 }
 
-func (ring *ValueRing) GetDiff() sample.Value {
+func (ring *ValueRing) GetDiff() data2go.Value {
 	ring.lock.Lock()
 	defer ring.lock.Unlock()
 
@@ -86,20 +85,20 @@ func (ring *ValueRing) GetDiff() sample.Value {
 
 // ============================ Internal functions ============================
 
-func (ring *ValueRing) getDiffInterval(before time.Duration) sample.Value {
+func (ring *ValueRing) getDiffInterval(before time.Duration) data2go.Value {
 	head := ring.getHead()
 	if head.val == nil {
 		// Probably empty ring
-		return sample.Value(0)
+		return data2go.Value(0)
 	}
 	beforeTime := head.Time.Add(-before)
 	previous := ring.get(beforeTime)
 	if previous.val == nil {
-		return sample.Value(0)
+		return data2go.Value(0)
 	}
 	interval := head.Time.Sub(previous.Time)
 	if interval == 0 {
-		return sample.Value(0)
+		return data2go.Value(0)
 	}
 	return head.val.DiffValue(previous.val, interval)
 }
@@ -158,17 +157,17 @@ func (ring *ValueRing) flush(start int) {
 	}
 }
 
-type StoredValue sample.Value
+type StoredValue data2go.Value
 
-func (val StoredValue) DiffValue(logback LogbackValue, interval time.Duration) sample.Value {
+func (val StoredValue) DiffValue(logback LogbackValue, interval time.Duration) data2go.Value {
 	switch previous := logback.(type) {
 	case StoredValue:
-		return sample.Value(val-previous) / sample.Value(interval.Seconds())
+		return data2go.Value(val-previous) / data2go.Value(interval.Seconds())
 	case *StoredValue:
-		return sample.Value(val-*previous) / sample.Value(interval.Seconds())
+		return data2go.Value(val-*previous) / data2go.Value(interval.Seconds())
 	default:
 		log.Errorf("Cannot diff %v (%T) and %v (%T)", val, val, logback, logback)
-		return sample.Value(0)
+		return data2go.Value(0)
 	}
 }
 
