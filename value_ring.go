@@ -5,7 +5,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/antongulenko/data2go"
+	"github.com/antongulenko/go-bitflow"
 )
 
 type ValueRingFactory struct {
@@ -26,14 +26,14 @@ type ValueRing struct {
 	head     int // actually head+1
 
 	aggregator   LogbackValue
-	previousDiff data2go.Value
+	previousDiff bitflow.Value
 
 	// Serializes GetDiff() and FlushHead()
 	lock sync.Mutex
 }
 
 type LogbackValue interface {
-	DiffValue(previousValue LogbackValue, interval time.Duration) data2go.Value
+	DiffValue(previousValue LogbackValue, interval time.Duration) bitflow.Value
 	AddValue(val LogbackValue) LogbackValue
 }
 
@@ -68,7 +68,7 @@ func (ring *ValueRing) Add(val LogbackValue) {
 	ring.FlushHead()
 }
 
-func (ring *ValueRing) GetDiff() data2go.Value {
+func (ring *ValueRing) GetDiff() bitflow.Value {
 	ring.lock.Lock()
 	defer ring.lock.Unlock()
 
@@ -85,20 +85,20 @@ func (ring *ValueRing) GetDiff() data2go.Value {
 
 // ============================ Internal functions ============================
 
-func (ring *ValueRing) getDiffInterval(before time.Duration) data2go.Value {
+func (ring *ValueRing) getDiffInterval(before time.Duration) bitflow.Value {
 	head := ring.getHead()
 	if head.val == nil {
 		// Probably empty ring
-		return data2go.Value(0)
+		return bitflow.Value(0)
 	}
 	beforeTime := head.Time.Add(-before)
 	previous := ring.get(beforeTime)
 	if previous.val == nil {
-		return data2go.Value(0)
+		return bitflow.Value(0)
 	}
 	interval := head.Time.Sub(previous.Time)
 	if interval == 0 {
-		return data2go.Value(0)
+		return bitflow.Value(0)
 	}
 	return head.val.DiffValue(previous.val, interval)
 }
@@ -157,17 +157,17 @@ func (ring *ValueRing) flush(start int) {
 	}
 }
 
-type StoredValue data2go.Value
+type StoredValue bitflow.Value
 
-func (val StoredValue) DiffValue(logback LogbackValue, interval time.Duration) data2go.Value {
+func (val StoredValue) DiffValue(logback LogbackValue, interval time.Duration) bitflow.Value {
 	switch previous := logback.(type) {
 	case StoredValue:
-		return data2go.Value(val-previous) / data2go.Value(interval.Seconds())
+		return bitflow.Value(val-previous) / bitflow.Value(interval.Seconds())
 	case *StoredValue:
-		return data2go.Value(val-*previous) / data2go.Value(interval.Seconds())
+		return bitflow.Value(val-*previous) / bitflow.Value(interval.Seconds())
 	default:
 		log.Errorf("Cannot diff %v (%T) and %v (%T)", val, val, logback, logback)
-		return data2go.Value(0)
+		return bitflow.Value(0)
 	}
 }
 

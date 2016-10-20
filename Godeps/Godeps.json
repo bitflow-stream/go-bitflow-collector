@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/antongulenko/data-collection-agent",
+	"ImportPath": "github.com/antongulenko/go-bitflow-collector",
 	"GoVersion": "go1.6",
 	"GodepVersion": "v67",
 	"Packages": [
@@ -16,8 +16,8 @@
 			"Rev": "f3e2bae1e0cb5aef83e319133eabfee30013a4a5"
 		},
 		{
-			"ImportPath": "github.com/antongulenko/data2go",
-			"Rev": "3772698000085468cbdc5822840230038eab93ff"
+			"ImportPath": "github.com/antongulenko/go-bitflow",
+			"Rev": "4d14dfd9d719e95ddc4997553c31e650a3a2bb33"
 		},
 		{
 			"ImportPath": "github.com/antongulenko/golib",

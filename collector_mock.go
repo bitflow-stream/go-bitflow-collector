@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antongulenko/data2go"
+	"github.com/antongulenko/go-bitflow"
 )
 
 const _max_mock_val = 15
@@ -18,7 +18,7 @@ func RegisterMockCollector(factory *ValueRingFactory) {
 // ==================== Memory ====================
 type MockCollector struct {
 	AbstractCollector
-	val       data2go.Value
+	val       bitflow.Value
 	ring      *ValueRing
 	startOnce sync.Once
 }

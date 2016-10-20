@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antongulenko/data-collection-agent"
-	"github.com/antongulenko/data2go"
+	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/golib"
 )
 
@@ -74,7 +74,7 @@ func do_main() int {
 	flag.DurationVar(&collect_local_interval, "ci", collect_local_interval, "Interval for collecting local samples")
 	flag.DurationVar(&sink_interval, "si", sink_interval, "Interval for sinking (sending/printing/...) data when collecting local samples")
 
-	var p data2go.CmdSamplePipeline
+	var p bitflow.CmdSamplePipeline
 	p.ParseFlags()
 	flag.Parse()
 	defer golib.ProfileCpu()()

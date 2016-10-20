@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/xmlpath.v1"
 
-	"github.com/antongulenko/data2go"
+	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/golib"
 	"github.com/rgbkrk/libvirt-go"
 )
@@ -264,15 +264,15 @@ func NewVmGeneralReader(factory *ValueRingFactory) *vmGeneralReader {
 
 type LogbackCpuVal uint64
 
-func (val LogbackCpuVal) DiffValue(logback LogbackValue, interval time.Duration) data2go.Value {
+func (val LogbackCpuVal) DiffValue(logback LogbackValue, interval time.Duration) bitflow.Value {
 	switch previous := logback.(type) {
 	case LogbackCpuVal:
-		return data2go.Value(val-previous) / data2go.Value(interval.Nanoseconds())
+		return bitflow.Value(val-previous) / bitflow.Value(interval.Nanoseconds())
 	case *LogbackCpuVal:
-		return data2go.Value(val-*previous) / data2go.Value(interval.Nanoseconds())
+		return bitflow.Value(val-*previous) / bitflow.Value(interval.Nanoseconds())
 	default:
 		log.Errorf("Cannot diff %v (%T) and %v (%T)", val, val, logback, logback)
-		return data2go.Value(0)
+		return bitflow.Value(0)
 	}
 }
 
@@ -307,12 +307,12 @@ func (reader *vmGeneralReader) update(domain libvirt.VirDomain) (err error) {
 	return
 }
 
-func (reader *vmGeneralReader) readMaxMem() data2go.Value {
-	return data2go.Value(reader.info.GetMaxMem())
+func (reader *vmGeneralReader) readMaxMem() bitflow.Value {
+	return bitflow.Value(reader.info.GetMaxMem())
 }
 
-func (reader *vmGeneralReader) readMem() data2go.Value {
-	return data2go.Value(reader.info.GetMemory())
+func (reader *vmGeneralReader) readMem() bitflow.Value {
+	return bitflow.Value(reader.info.GetMemory())
 }
 
 // ==================== Memory Stats ====================
@@ -363,20 +363,20 @@ func (reader *memoryStatReader) update(domain libvirt.VirDomain) error {
 	}
 }
 
-func (reader *memoryStatReader) readSwap() data2go.Value {
-	return data2go.Value(reader.swap)
+func (reader *memoryStatReader) readSwap() bitflow.Value {
+	return bitflow.Value(reader.swap)
 }
 
-func (reader *memoryStatReader) readAvailable() data2go.Value {
-	return data2go.Value(reader.available)
+func (reader *memoryStatReader) readAvailable() bitflow.Value {
+	return bitflow.Value(reader.available)
 }
 
-func (reader *memoryStatReader) readBalloon() data2go.Value {
-	return data2go.Value(reader.balloon)
+func (reader *memoryStatReader) readBalloon() bitflow.Value {
+	return bitflow.Value(reader.balloon)
 }
 
-func (reader *memoryStatReader) readRss() data2go.Value {
-	return data2go.Value(reader.rss)
+func (reader *memoryStatReader) readRss() bitflow.Value {
+	return bitflow.Value(reader.rss)
 }
 
 // ==================== CPU Stats ====================
@@ -484,23 +484,23 @@ func (reader *blockStatReader) update(domain libvirt.VirDomain) error {
 	return resErr
 }
 
-func (reader *blockStatReader) readAllocation() (result data2go.Value) {
+func (reader *blockStatReader) readAllocation() (result bitflow.Value) {
 	for _, info := range reader.info {
-		result += data2go.Value(info.Allocation())
+		result += bitflow.Value(info.Allocation())
 	}
 	return
 }
 
-func (reader *blockStatReader) readCapacity() (result data2go.Value) {
+func (reader *blockStatReader) readCapacity() (result bitflow.Value) {
 	for _, info := range reader.info {
-		result += data2go.Value(info.Capacity())
+		result += bitflow.Value(info.Capacity())
 	}
 	return
 }
 
-func (reader *blockStatReader) readPhysical() (result data2go.Value) {
+func (reader *blockStatReader) readPhysical() (result bitflow.Value) {
 	for _, info := range reader.info {
-		result += data2go.Value(info.Physical())
+		result += bitflow.Value(info.Physical())
 	}
 	return
 }

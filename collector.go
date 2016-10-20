@@ -10,12 +10,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	data2go "github.com/antongulenko/data2go"
+	bitflow "github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/golib"
 )
 
 // Can be used to modify collected headers and samples
-var CollectedSampleHandler data2go.ReadSampleHandler
+var CollectedSampleHandler bitflow.ReadSampleHandler
 
 const CollectorSampleSource = "collected"
 
@@ -23,10 +23,10 @@ const CollectorSampleSource = "collected"
 type Metric struct {
 	Name   string
 	index  int
-	sample []data2go.Value
+	sample []bitflow.Value
 }
 
-func (metric *Metric) Set(val data2go.Value) {
+func (metric *Metric) Set(val bitflow.Value) {
 	metric.sample[metric.index] = val
 }
 
@@ -63,7 +63,7 @@ type CollectorSource struct {
 	failedCollectors   []Collector
 	filteredCollectors []Collector
 
-	data2go.AbstractMetricSource
+	bitflow.AbstractMetricSource
 	loopTask *golib.LoopTask
 }
 
@@ -71,7 +71,7 @@ func (source *CollectorSource) String() string {
 	return "CollectorSource"
 }
 
-func (source *CollectorSource) SetSink(sink data2go.MetricSink) {
+func (source *CollectorSource) SetSink(sink bitflow.MetricSink) {
 	source.OutgoingSink = sink
 }
 
@@ -193,11 +193,11 @@ func (source *CollectorSource) collectorFor(metric string) Collector {
 	return nil
 }
 
-func (source *CollectorSource) constructSample(metrics []string) (*data2go.Header, []data2go.Value, map[Collector]bool) {
+func (source *CollectorSource) constructSample(metrics []string) (*bitflow.Header, []bitflow.Value, map[Collector]bool) {
 	set := make(map[Collector]bool)
 
 	fields := make([]string, len(metrics))
-	values := make([]data2go.Value, len(metrics))
+	values := make([]bitflow.Value, len(metrics))
 	for i, metricName := range metrics {
 		collector := source.collectorFor(metricName)
 		if collector == nil {
@@ -213,7 +213,7 @@ func (source *CollectorSource) constructSample(metrics []string) (*data2go.Heade
 		}
 		set[collector] = true
 	}
-	header := &data2go.Header{Fields: fields}
+	header := &bitflow.Header{Fields: fields}
 	if handler := CollectedSampleHandler; handler != nil {
 		handler.HandleHeader(header, CollectorSampleSource)
 	}
@@ -251,7 +251,7 @@ func (source *CollectorSource) watchFailedCollector(wg *sync.WaitGroup, collecto
 	}
 }
 
-func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, header *data2go.Header, values []data2go.Value, sink data2go.MetricSink, stopper *golib.Stopper) {
+func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, header *bitflow.Header, values []bitflow.Value, sink bitflow.MetricSink, stopper *golib.Stopper) {
 	defer wg.Done()
 	for {
 		if err := sink.Header(header); err != nil {
@@ -261,7 +261,7 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, header *data2go.H
 				return
 			}
 			for {
-				sample := &data2go.Sample{
+				sample := &bitflow.Sample{
 					Time:   time.Now(),
 					Values: values,
 				}
@@ -318,7 +318,7 @@ type CollectedMetric struct {
 }
 
 type CollectNotification func()
-type MetricReader func() data2go.Value
+type MetricReader func() bitflow.Value
 
 func (source *AbstractCollector) Reset(parent interface{}) {
 	source.metrics = nil

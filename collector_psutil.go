@@ -13,7 +13,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/antongulenko/data2go"
+	"github.com/antongulenko/go-bitflow"
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
@@ -59,16 +59,16 @@ func (col *PsutilMemCollector) Update() (err error) {
 	return
 }
 
-func (col *PsutilMemCollector) readFreeMem() data2go.Value {
-	return data2go.Value(col.memory.Available)
+func (col *PsutilMemCollector) readFreeMem() bitflow.Value {
+	return bitflow.Value(col.memory.Available)
 }
 
-func (col *PsutilMemCollector) readUsedMem() data2go.Value {
-	return data2go.Value(col.memory.Used)
+func (col *PsutilMemCollector) readUsedMem() bitflow.Value {
+	return bitflow.Value(col.memory.Used)
 }
 
-func (col *PsutilMemCollector) readUsedPercentMem() data2go.Value {
-	return data2go.Value(col.memory.UsedPercent)
+func (col *PsutilMemCollector) readUsedPercentMem() bitflow.Value {
+	return bitflow.Value(col.memory.UsedPercent)
 }
 
 func hostProcFile(parts ...string) string {
@@ -119,7 +119,7 @@ func (t *cpuTime) getAllBusy() (float64, float64) {
 	return busy + t.Idle + t.Iowait, busy
 }
 
-func (t *cpuTime) DiffValue(logback LogbackValue, _ time.Duration) data2go.Value {
+func (t *cpuTime) DiffValue(logback LogbackValue, _ time.Duration) bitflow.Value {
 	if previous, ok := logback.(*cpuTime); ok {
 		// Calculation based on https://github.com/shirou/gopsutil/blob/master/cpu/cpu_unix.go
 		t1All, t1Busy := previous.getAllBusy()
@@ -131,10 +131,10 @@ func (t *cpuTime) DiffValue(logback LogbackValue, _ time.Duration) data2go.Value
 		if t2All <= t1All {
 			return 1
 		}
-		return data2go.Value((t2Busy - t1Busy) / (t2All - t1All) * 100)
+		return bitflow.Value((t2Busy - t1Busy) / (t2All - t1All) * 100)
 	} else {
 		log.Errorf("Cannot diff %v (%T) and %v (%T)", t, t, logback, logback)
-		return data2go.Value(0)
+		return bitflow.Value(0)
 	}
 }
 
@@ -185,16 +185,16 @@ func (col *PsutilLoadCollector) Update() (err error) {
 	return
 }
 
-func (col *PsutilLoadCollector) readLoad1() data2go.Value {
-	return data2go.Value(col.load.Load1)
+func (col *PsutilLoadCollector) readLoad1() bitflow.Value {
+	return bitflow.Value(col.load.Load1)
 }
 
-func (col *PsutilLoadCollector) readLoad5() data2go.Value {
-	return data2go.Value(col.load.Load5)
+func (col *PsutilLoadCollector) readLoad5() bitflow.Value {
+	return bitflow.Value(col.load.Load5)
 }
 
-func (col *PsutilLoadCollector) readLoad15() data2go.Value {
-	return data2go.Value(col.load.Load15)
+func (col *PsutilLoadCollector) readLoad15() bitflow.Value {
+	return bitflow.Value(col.load.Load15)
 }
 
 // ==================== Net IO Counters ====================
@@ -377,7 +377,7 @@ type protoStatReader struct {
 
 	// Only one of the following 2 fields is used
 	ring  *ValueRing
-	value data2go.Value
+	value bitflow.Value
 }
 
 func (reader *protoStatReader) update() error {
@@ -386,7 +386,7 @@ func (reader *protoStatReader) update() error {
 			if reader.ring != nil {
 				reader.ring.Add(StoredValue(val))
 			} else {
-				reader.value = data2go.Value(val)
+				reader.value = bitflow.Value(val)
 			}
 			return nil
 		} else {
@@ -397,7 +397,7 @@ func (reader *protoStatReader) update() error {
 	}
 }
 
-func (reader *protoStatReader) read() data2go.Value {
+func (reader *protoStatReader) read() bitflow.Value {
 	if ring := reader.ring; ring != nil {
 		return ring.GetDiff()
 	} else {
@@ -499,72 +499,72 @@ func (reader *diskIOReader) checkDisk() *disk.IOCountersStat {
 	}
 }
 
-func (reader *diskIOReader) value(val uint64, ring *ValueRing) data2go.Value {
+func (reader *diskIOReader) value(val uint64, ring *ValueRing) bitflow.Value {
 	ring.Add(StoredValue(val))
 	return ring.GetDiff()
 }
 
-func (reader *diskIOReader) readRead() data2go.Value {
+func (reader *diskIOReader) readRead() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.ReadCount, reader.readRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskIOReader) readWrite() data2go.Value {
+func (reader *diskIOReader) readWrite() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.WriteCount, reader.writeRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskIOReader) readIo() data2go.Value {
+func (reader *diskIOReader) readIo() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.ReadCount+disk.WriteCount, reader.ioRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskIOReader) readReadBytes() data2go.Value {
+func (reader *diskIOReader) readReadBytes() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.ReadBytes, reader.readBytesRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskIOReader) readWriteBytes() data2go.Value {
+func (reader *diskIOReader) readWriteBytes() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.WriteBytes, reader.writeBytesRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskIOReader) readIoBytes() data2go.Value {
+func (reader *diskIOReader) readIoBytes() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.ReadBytes+disk.WriteBytes, reader.ioBytesRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskIOReader) readReadTime() data2go.Value {
+func (reader *diskIOReader) readReadTime() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.ReadTime, reader.readTimeRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskIOReader) readWriteTime() data2go.Value {
+func (reader *diskIOReader) readWriteTime() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.WriteTime, reader.writeTimeRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskIOReader) readIoTime() data2go.Value {
+func (reader *diskIOReader) readIoTime() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
 		return reader.value(disk.IoTime, reader.ioTimeRing)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
 // ==================== Disk Usage ====================
@@ -673,18 +673,18 @@ func (reader *diskUsageReader) checkDisk() *disk.UsageStat {
 	}
 }
 
-func (reader *diskUsageReader) readFree() data2go.Value {
+func (reader *diskUsageReader) readFree() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
-		return data2go.Value(disk.Free)
+		return bitflow.Value(disk.Free)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
-func (reader *diskUsageReader) readPercent() data2go.Value {
+func (reader *diskUsageReader) readPercent() bitflow.Value {
 	if disk := reader.checkDisk(); disk != nil {
-		return data2go.Value(disk.UsedPercent)
+		return bitflow.Value(disk.UsedPercent)
 	}
-	return data2go.Value(0)
+	return bitflow.Value(0)
 }
 
 // ==================== Misc OS Metrics ====================
@@ -723,8 +723,8 @@ func (col *PsutilMiscCollector) Update() error {
 	return nil
 }
 
-func (col *PsutilMiscCollector) readNumProcs() data2go.Value {
-	return data2go.Value(len(osInformation.pids))
+func (col *PsutilMiscCollector) readNumProcs() bitflow.Value {
+	return bitflow.Value(len(osInformation.pids))
 }
 
 // ==================== Process Metrics ====================
@@ -863,168 +863,168 @@ func (col *PsutilProcessCollector) updateProcesses() {
 	}
 }
 
-func (col *PsutilProcessCollector) readNumProc() data2go.Value {
-	return data2go.Value(len(col.pids))
+func (col *PsutilProcessCollector) readNumProc() bitflow.Value {
+	return bitflow.Value(len(col.pids))
 }
 
-func (col *PsutilProcessCollector) readCpu() (res data2go.Value) {
+func (col *PsutilProcessCollector) readCpu() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.cpu.GetDiff())
+		res += bitflow.Value(proc.cpu.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readIoRead() (res data2go.Value) {
+func (col *PsutilProcessCollector) readIoRead() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ioRead.GetDiff())
+		res += bitflow.Value(proc.ioRead.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readIoWrite() (res data2go.Value) {
+func (col *PsutilProcessCollector) readIoWrite() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ioWrite.GetDiff())
+		res += bitflow.Value(proc.ioWrite.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readIo() (res data2go.Value) {
+func (col *PsutilProcessCollector) readIo() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ioTotal.GetDiff())
+		res += bitflow.Value(proc.ioTotal.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readBytesRead() (res data2go.Value) {
+func (col *PsutilProcessCollector) readBytesRead() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ioReadBytes.GetDiff())
+		res += bitflow.Value(proc.ioReadBytes.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readBytesWrite() (res data2go.Value) {
+func (col *PsutilProcessCollector) readBytesWrite() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ioWriteBytes.GetDiff())
+		res += bitflow.Value(proc.ioWriteBytes.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readBytes() (res data2go.Value) {
+func (col *PsutilProcessCollector) readBytes() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ioBytesTotal.GetDiff())
+		res += bitflow.Value(proc.ioBytesTotal.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readCtxSwitchVoluntary() (res data2go.Value) {
+func (col *PsutilProcessCollector) readCtxSwitchVoluntary() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ctxSwitchVoluntary.GetDiff())
+		res += bitflow.Value(proc.ctxSwitchVoluntary.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readCtxSwitchInvoluntary() (res data2go.Value) {
+func (col *PsutilProcessCollector) readCtxSwitchInvoluntary() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ctxSwitchInvoluntary.GetDiff())
+		res += bitflow.Value(proc.ctxSwitchInvoluntary.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readCtxSwitch() (res data2go.Value) {
+func (col *PsutilProcessCollector) readCtxSwitch() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.ctxSwitchInvoluntary.GetDiff())
-		res += data2go.Value(proc.ctxSwitchVoluntary.GetDiff())
+		res += bitflow.Value(proc.ctxSwitchInvoluntary.GetDiff())
+		res += bitflow.Value(proc.ctxSwitchVoluntary.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readMemRss() (res data2go.Value) {
+func (col *PsutilProcessCollector) readMemRss() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.mem_rss)
+		res += bitflow.Value(proc.mem_rss)
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readMemVms() (res data2go.Value) {
+func (col *PsutilProcessCollector) readMemVms() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.mem_vms)
+		res += bitflow.Value(proc.mem_vms)
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readMemSwap() (res data2go.Value) {
+func (col *PsutilProcessCollector) readMemSwap() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.mem_swap)
+		res += bitflow.Value(proc.mem_swap)
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readFds() (res data2go.Value) {
+func (col *PsutilProcessCollector) readFds() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.numFds)
+		res += bitflow.Value(proc.numFds)
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readThreads() (res data2go.Value) {
+func (col *PsutilProcessCollector) readThreads() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.numThreads)
+		res += bitflow.Value(proc.numThreads)
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readNetBytes() (res data2go.Value) {
+func (col *PsutilProcessCollector) readNetBytes() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.net.bytes.GetDiff())
+		res += bitflow.Value(proc.net.bytes.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readNetPackets() (res data2go.Value) {
+func (col *PsutilProcessCollector) readNetPackets() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.net.packets.GetDiff())
+		res += bitflow.Value(proc.net.packets.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readNetRxBytes() (res data2go.Value) {
+func (col *PsutilProcessCollector) readNetRxBytes() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.net.rx_bytes.GetDiff())
+		res += bitflow.Value(proc.net.rx_bytes.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readNetRxPackets() (res data2go.Value) {
+func (col *PsutilProcessCollector) readNetRxPackets() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.net.rx_packets.GetDiff())
+		res += bitflow.Value(proc.net.rx_packets.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readNetTxBytes() (res data2go.Value) {
+func (col *PsutilProcessCollector) readNetTxBytes() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.net.tx_bytes.GetDiff())
+		res += bitflow.Value(proc.net.tx_bytes.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readNetTxPackets() (res data2go.Value) {
+func (col *PsutilProcessCollector) readNetTxPackets() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.net.tx_packets.GetDiff())
+		res += bitflow.Value(proc.net.tx_packets.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readNetErrors() (res data2go.Value) {
+func (col *PsutilProcessCollector) readNetErrors() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.net.errors.GetDiff())
+		res += bitflow.Value(proc.net.errors.GetDiff())
 	}
 	return
 }
 
-func (col *PsutilProcessCollector) readNetDropped() (res data2go.Value) {
+func (col *PsutilProcessCollector) readNetDropped() (res bitflow.Value) {
 	for _, proc := range col.pids {
-		res += data2go.Value(proc.net.dropped.GetDiff())
+		res += bitflow.Value(proc.net.dropped.GetDiff())
 	}
 	return
 }
