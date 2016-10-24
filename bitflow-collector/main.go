@@ -9,15 +9,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow"
+	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/golib"
 )
 
 var (
 	collect_local_interval = 500 * time.Millisecond
 	sink_interval          = 500 * time.Millisecond
-	collect_local          = false
 
 	all_metrics           = false
 	include_basic_metrics = false
@@ -70,12 +69,14 @@ func do_main() int {
 	flag.BoolVar(&proc_show_errors, "proc_err", proc_show_errors, "Verbose: show errors encountered while getting process metrics")
 	flag.DurationVar(&proc_update_pids, "proc_interval", proc_update_pids, "Interval for updating list of observed pids")
 
-	flag.BoolVar(&collect_local, "c", collect_local, "Data source: collect local samples")
 	flag.DurationVar(&collect_local_interval, "ci", collect_local_interval, "Interval for collecting local samples")
 	flag.DurationVar(&sink_interval, "si", sink_interval, "Interval for sinking (sending/printing/...) data when collecting local samples")
 
 	var p bitflow.CmdSamplePipeline
-	p.ParseFlags()
+	p.ParseFlags(map[string]bool{
+		// Suppress configuring the data input. Only local samples will be generated
+		"i": true, "C": true, "F": true, "L": true, "D": true, "FR": true, "robust": true,
+	})
 	flag.Parse()
 	defer golib.ProfileCpu()()
 
@@ -134,9 +135,7 @@ func do_main() int {
 		col.PrintMetrics()
 		return 0
 	}
-	if collect_local {
-		p.SetSource(col)
-	}
+	p.SetSource(col)
 
 	p.Init()
 	return p.StartAndWait()
