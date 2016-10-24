@@ -32,8 +32,9 @@ var (
 	libvirt_uri   = collector.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
 	ovsdb_host    = ""
 
-	valueFactory = collector.ValueRingFactory{
-		Interval: time.Second,
+	ringFactory = collector.ValueRingFactory{
+		// This is an important package-wide constant: time-window for all aggregated values
+		Interval: 1000 * time.Millisecond,
 	}
 )
 
@@ -56,6 +57,38 @@ var (
 )
 
 func do_main() int {
+	// Register and parse command line flags
+	registerCollectorFlags()
+	var p bitflow.CmdSamplePipeline
+	p.RegisterFlags(map[string]bool{
+		// Suppress configuring the data input. Only local samples will be generated
+		"i": true, "C": true, "F": true, "L": true, "D": true, "FR": true, "robust": true,
+	})
+	golib.RegisterLogFlags()
+	flag.Parse()
+	golib.ConfigureLogging()
+	defer golib.ProfileCpu()()
+	if !p.HasOutputFlag() {
+		// Make sure to at least output on the console
+		p.FlagOutputConsole = true
+	}
+
+	// Configure and start the data collector
+	col := createCollectorSource()
+	if print_metrics {
+		col.PrintMetrics()
+		return 0
+	}
+	p.SetSource(col)
+	p.Init()
+	return p.StartAndWait()
+}
+
+func main() {
+	os.Exit(do_main())
+}
+
+func registerCollectorFlags() {
 	flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
 	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(collector.DefaultOvsdbPort))
 	flag.BoolVar(&print_metrics, "metrics", print_metrics, "Print all available metrics and exit")
@@ -71,21 +104,14 @@ func do_main() int {
 
 	flag.DurationVar(&collect_local_interval, "ci", collect_local_interval, "Interval for collecting local samples")
 	flag.DurationVar(&sink_interval, "si", sink_interval, "Interval for sinking (sending/printing/...) data when collecting local samples")
+}
 
-	var p bitflow.CmdSamplePipeline
-	p.ParseFlags(map[string]bool{
-		// Suppress configuring the data input. Only local samples will be generated
-		"i": true, "C": true, "F": true, "L": true, "D": true, "FR": true, "robust": true,
-	})
-	flag.Parse()
-	defer golib.ProfileCpu()()
-
-	// ====== Configure collectors
-	valueFactory.Length = int(valueFactory.Interval/collect_local_interval) * 3 // Make sure enough samples can be buffered
-	collector.RegisterMockCollector(&valueFactory)
-	collector.RegisterPsutilCollectors(collect_local_interval*3/2, &valueFactory) // Update PIDs more often then metrics
-	collector.RegisterLibvirtCollector(libvirt_uri, &valueFactory)
-	collector.RegisterOvsdbCollector(ovsdb_host, &valueFactory)
+func createCollectorSource() *collector.CollectorSource {
+	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 3 // Make sure enough samples can be buffered
+	collector.RegisterMockCollector(&ringFactory)
+	collector.RegisterPsutilCollectors(collect_local_interval*3/2, &ringFactory) // Update PIDs less often then metrics
+	collector.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
+	collector.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
 	if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
 		regexes := make(map[string][]*regexp.Regexp)
 		for _, substr := range proc_collectors {
@@ -105,7 +131,7 @@ func do_main() int {
 				GroupName:         key,
 				PrintErrors:       proc_show_errors,
 				PidUpdateInterval: proc_update_pids,
-				Factory:           &valueFactory,
+				Factory:           &ringFactory,
 			})
 		}
 	}
@@ -125,24 +151,12 @@ func do_main() int {
 			regexp.MustCompile(regexp.QuoteMeta(include)))
 	}
 
-	col := &collector.CollectorSource{
+	return &collector.CollectorSource{
 		CollectInterval: collect_local_interval,
 		SinkInterval:    sink_interval,
 		ExcludeMetrics:  excludeMetricsRegexes,
 		IncludeMetrics:  includeMetricsRegexes,
 	}
-	if print_metrics {
-		col.PrintMetrics()
-		return 0
-	}
-	p.SetSource(col)
-
-	p.Init()
-	return p.StartAndWait()
-}
-
-func main() {
-	os.Exit(do_main())
 }
 
 func splitKeyValue(pair string) (string, string) {
