@@ -35,6 +35,7 @@ func do_main() int {
 	}
 	p.SetSource(col)
 	p.Init()
+	replaceAnomalyFileOutput(&p)
 	return p.StartAndWait()
 }
 
