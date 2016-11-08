@@ -6,8 +6,6 @@ import (
 	"github.com/antongulenko/go-bitflow"
 )
 
-const storeSampleTag = "...store-sample..." // Should not collide with regular tags
-
 var filterAnomalies bool
 
 func init() {
@@ -21,8 +19,8 @@ type storeAnomalyData struct {
 }
 
 func (s *storeAnomalyData) Sample(outSample *bitflow.Sample, header *bitflow.Header) error {
-	if outSample.HasTag(storeSampleTag) {
-		outSample.DeleteTag(storeSampleTag)
+	httpTagsEnabled := currentHttpTags != nil
+	if httpTagsEnabled {
 		return s.FileSink.Sample(outSample, header)
 	}
 	return nil

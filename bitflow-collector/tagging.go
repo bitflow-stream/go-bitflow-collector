@@ -12,10 +12,9 @@ type collectedSampleHandler struct {
 }
 
 func (tagger *collectedSampleHandler) register() {
-	if len(tagger.taggerFuncs) == 0 {
-		return
+	if len(tagger.taggerFuncs) > 0 {
+		collector.CollectedSampleHandler = tagger
 	}
-	collector.CollectedSampleHandler = tagger
 }
 
 func (*collectedSampleHandler) HandleHeader(header *bitflow.Header, _ string) {

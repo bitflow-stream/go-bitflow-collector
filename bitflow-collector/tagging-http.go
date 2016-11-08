@@ -101,9 +101,6 @@ func checkTimeoutLoop() {
 
 func httpTagger(s *bitflow.Sample) {
 	if current := currentHttpTags; current != nil {
-		if filterAnomalies {
-			s.SetTag(storeSampleTag, "")
-		}
 		for tag, val := range current {
 			s.SetTag(tag, val)
 		}
