@@ -1,33 +1,19 @@
-package collector
+package ovsdb
 
 import (
 	"fmt"
 	"sync"
-	"time"
 
+	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/socketplane/libovsdb"
 )
 
-const (
-	OvsdbLogback  = 50
-	OvsdbInterval = 5 * time.Second
-
-	DefaultOvsdbPort = libovsdb.DefaultPort
-)
-
-func RegisterOvsdbCollector(Host string, factory *ValueRingFactory) {
-	RegisterOvsdbCollectorPort(Host, 0, factory)
-}
-
-func RegisterOvsdbCollectorPort(host string, port int, factory *ValueRingFactory) {
-	RegisterCollector(&OvsdbCollector{Host: host, Port: port, Factory: factory})
-}
-
 type OvsdbCollector struct {
-	AbstractCollector
+	collector.AbstractCollector
 	Host    string
 	Port    int
-	Factory *ValueRingFactory
+	Factory *collector.ValueRingFactory
 
 	client           *libovsdb.OvsdbClient
 	lastUpdateError  error
@@ -46,9 +32,9 @@ func (col *OvsdbCollector) Init() error {
 		return err
 	}
 
-	col.readers = make(map[string]MetricReader)
+	col.Readers = make(map[string]collector.MetricReader)
 	for _, reader := range col.interfaceReaders {
-		reader.counters.Register(col.readers, "ovsdb/"+reader.name)
+		reader.counters.Register(col.Readers, "ovsdb/"+reader.name)
 	}
 	return nil
 }
@@ -60,7 +46,7 @@ func (col *OvsdbCollector) getReader(name string) *ovsdbInterfaceReader {
 	reader := &ovsdbInterfaceReader{
 		col:      col,
 		name:     name,
-		counters: NewNetIoCounters(col.Factory),
+		counters: psutil.NewNetIoCounters(col.Factory),
 	}
 	col.interfaceReaders[name] = reader
 	return reader
@@ -141,7 +127,7 @@ func (col *OvsdbCollector) updateTables(checkChange bool, updates map[string]lib
 		} else {
 			if checkChange {
 				if _, ok := col.interfaceReaders[name]; !ok {
-					return MetricsChanged
+					return collector.MetricsChanged
 				}
 			}
 			col.getReader(name).update(stats)
@@ -174,64 +160,4 @@ func (col *OvsdbCollector) parseRowUpdate(row *libovsdb.Row) (name string, stats
 		}
 	}
 	return
-}
-
-// ==================== Interface Update Collector ====================
-
-type ovsdbInterfaceReader struct {
-	name     string
-	col      *OvsdbCollector
-	counters netIoCounters
-}
-
-func (col *ovsdbInterfaceReader) fillValues(stats map[string]float64, names []string, ring *ValueRing) {
-	for _, name := range names {
-		if value, ok := stats[name]; ok {
-			ring.AddToHead(StoredValue(value))
-		}
-	}
-	ring.FlushHead()
-}
-
-func (col *ovsdbInterfaceReader) update(stats map[string]float64) {
-	col.fillValues(stats, []string{
-		"collisions",
-		"rx_crc_err",
-		"rx_errors",
-		"rx_frame_err",
-		"rx_over_err",
-		"tx_errors",
-	}, col.counters.errors)
-	col.fillValues(stats, []string{"rx_dropped", "tx_dropped"}, col.counters.dropped)
-	col.fillValues(stats, []string{"rx_bytes", "tx_bytes"}, col.counters.bytes)
-	col.fillValues(stats, []string{"rx_packets", "tx_packets"}, col.counters.packets)
-	col.fillValues(stats, []string{"rx_bytes"}, col.counters.rx_bytes)
-	col.fillValues(stats, []string{"rx_packets"}, col.counters.rx_packets)
-	col.fillValues(stats, []string{"tx_bytes"}, col.counters.tx_bytes)
-	col.fillValues(stats, []string{"tx_packets"}, col.counters.tx_packets)
-}
-
-// ==================== OVSDB Notifications ====================
-
-type ovsdbNotifier struct {
-	col *OvsdbCollector
-}
-
-func (n *ovsdbNotifier) Update(_ interface{}, tableUpdates libovsdb.TableUpdates) {
-	// Note: Do not call n.col.client.Disconnect() from here (deadlock)
-	if n.col.lastUpdateError != nil {
-		return
-	}
-	if err := n.col.updateTables(true, tableUpdates.Updates); err != nil {
-		n.col.lastUpdateError = err
-	}
-}
-func (n *ovsdbNotifier) Locked([]interface{}) {
-}
-func (n *ovsdbNotifier) Stolen([]interface{}) {
-}
-func (n *ovsdbNotifier) Echo([]interface{}) {
-}
-func (n *ovsdbNotifier) Disconnected(client *libovsdb.OvsdbClient) {
-	n.col.client = nil
 }

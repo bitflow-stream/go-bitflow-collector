@@ -9,6 +9,10 @@ import (
 	"time"
 
 	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/antongulenko/go-bitflow-collector/libvirt"
+	"github.com/antongulenko/go-bitflow-collector/mock"
+	"github.com/antongulenko/go-bitflow-collector/ovsdb"
+	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/antongulenko/golib"
 )
 
@@ -27,7 +31,7 @@ var (
 	proc_update_pids     = 1500 * time.Millisecond
 
 	print_metrics = false
-	libvirt_uri   = collector.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
+	libvirt_uri   = libvirt.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
 	ovsdb_host    = ""
 
 	ringFactory = collector.ValueRingFactory{
@@ -56,7 +60,7 @@ var (
 
 func init() {
 	flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
-	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(collector.DefaultOvsdbPort))
+	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
 	flag.BoolVar(&print_metrics, "metrics", print_metrics, "Print all available metrics and exit")
 	flag.BoolVar(&all_metrics, "a", all_metrics, "Disable built-in filters on available metrics")
 	flag.Var(&user_exclude_metrics, "exclude", "Metrics to exclude (only with -c, substring match)")
@@ -74,10 +78,10 @@ func init() {
 
 func createCollectorSource() *collector.CollectorSource {
 	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 3 // Make sure enough samples can be buffered
-	collector.RegisterMockCollector(&ringFactory)
-	collector.RegisterPsutilCollectors(collect_local_interval*3/2, &ringFactory) // Update PIDs less often then metrics
-	collector.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
-	collector.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
+	mock.RegisterMockCollector(&ringFactory)
+	psutil.RegisterPsutilCollectors(collect_local_interval*3/2, &ringFactory) // Update PIDs less often then metrics
+	libvirt.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
+	ovsdb.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
 	if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
 		regexes := make(map[string][]*regexp.Regexp)
 		for _, substr := range proc_collectors {
@@ -92,7 +96,7 @@ func createCollectorSource() *collector.CollectorSource {
 			regexes[key] = append(regexes[key], regex)
 		}
 		for key, list := range regexes {
-			collector.RegisterCollector(&collector.PsutilProcessCollector{
+			collector.RegisterCollector(&psutil.PsutilProcessCollector{
 				CmdlineFilter:     list,
 				GroupName:         key,
 				PrintErrors:       proc_show_errors,

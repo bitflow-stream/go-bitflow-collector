@@ -1,31 +1,31 @@
-package collector
+package mock
 
 import (
 	"sync"
 	"time"
 
 	"github.com/antongulenko/go-bitflow"
+	"github.com/antongulenko/go-bitflow-collector"
 )
 
 const _max_mock_val = 15
 
-func RegisterMockCollector(factory *ValueRingFactory) {
-	RegisterCollector(&MockCollector{
+func RegisterMockCollector(factory *collector.ValueRingFactory) {
+	collector.RegisterCollector(&MockCollector{
 		ring: factory.NewValueRing(),
 	})
 }
 
-// ==================== Memory ====================
 type MockCollector struct {
-	AbstractCollector
+	collector.AbstractCollector
 	val       bitflow.Value
-	ring      *ValueRing
+	ring      *collector.ValueRing
 	startOnce sync.Once
 }
 
 func (col *MockCollector) Init() error {
 	col.Reset(col)
-	col.readers = map[string]MetricReader{
+	col.Readers = map[string]collector.MetricReader{
 		"mock": col.ring.GetDiff,
 	}
 	col.startOnce.Do(func() {
@@ -43,7 +43,7 @@ func (col *MockCollector) Init() error {
 }
 
 func (col *MockCollector) Update() error {
-	col.ring.Add(StoredValue(col.val))
+	col.ring.Add(collector.StoredValue(col.val))
 	col.UpdateMetrics()
 	return nil
 }
