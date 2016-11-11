@@ -317,26 +317,28 @@ func (reader *vmGeneralReader) readMem() bitflow.Value {
 
 // ==================== Memory Stats ====================
 const (
-	VIR_DOMAIN_MEMORY_STAT_SWAP_OUT       = 1
-	VIR_DOMAIN_MEMORY_STAT_AVAILABLE      = 5 // Max usable memory
-	VIR_DOMAIN_MEMORY_STAT_ACTUAL_BALLOON = 6 // Used memory?
-	VIR_DOMAIN_MEMORY_STAT_RSS            = 7 // Occuppied by VM process
-	MAX_NUM_MEMORY_STATS                  = 8
+	//VIR_DOMAIN_MEMORY_STAT_SWAP_IN  = 0
+	//VIR_DOMAIN_MEMORY_STAT_SWAP_OUT = 1
+	//VIR_DOMAIN_MEMORY_STAT_MAJOR_FAULT = 2
+	//VIR_DOMAIN_MEMORY_STAT_MINOR_FAULT = 3
+	//VIR_DOMAIN_MEMORY_STAT_ACTUAL_BALLOON = 6
+	//VIR_DOMAIN_MEMORY_STAT_RSS            = 7
+
+	VIR_DOMAIN_MEMORY_STAT_UNUSED    = 4
+	VIR_DOMAIN_MEMORY_STAT_AVAILABLE = 5
+	MAX_NUM_MEMORY_STATS             = 8
 )
 
 type memoryStatReader struct {
-	swap      uint64
+	unused    uint64
 	available uint64
-	balloon   uint64
-	rss       uint64
 }
 
 func (reader *memoryStatReader) register(domainName string) map[string]MetricReader {
 	return map[string]MetricReader{
-		"libvirt/" + domainName + "/mem/swap":      reader.readSwap,
 		"libvirt/" + domainName + "/mem/available": reader.readAvailable,
-		"libvirt/" + domainName + "/mem/balloon":   reader.readBalloon,
-		"libvirt/" + domainName + "/mem/rss":       reader.readRss,
+		"libvirt/" + domainName + "/mem/used":      reader.readUsed,
+		"libvirt/" + domainName + "/mem/percent":   reader.readPercent,
 	}
 }
 
@@ -347,36 +349,40 @@ func (reader *memoryStatReader) update(domain libvirt.VirDomain) error {
 	if memStats, err := domain.MemoryStats(MAX_NUM_MEMORY_STATS, NO_FLAGS); err != nil {
 		return err
 	} else {
+		foundAvailable := false
+		foundUnused := false
+		var available, unused uint64
 		for _, stat := range memStats {
 			switch stat.Tag {
-			case VIR_DOMAIN_MEMORY_STAT_SWAP_OUT:
-				reader.swap = stat.Val
 			case VIR_DOMAIN_MEMORY_STAT_AVAILABLE:
-				reader.available = stat.Val
-			case VIR_DOMAIN_MEMORY_STAT_ACTUAL_BALLOON:
-				reader.balloon = stat.Val
-			case VIR_DOMAIN_MEMORY_STAT_RSS:
-				reader.rss = stat.Val
+				available = stat.Val
+				foundAvailable = true
+			case VIR_DOMAIN_MEMORY_STAT_UNUSED:
+				unused = stat.Val
+				foundUnused = true
 			}
 		}
+		if !foundAvailable || !foundUnused {
+			unused = 0
+			available = 0
+		}
+		reader.unused = unused
+		reader.available = available
 		return nil
 	}
-}
-
-func (reader *memoryStatReader) readSwap() bitflow.Value {
-	return bitflow.Value(reader.swap)
 }
 
 func (reader *memoryStatReader) readAvailable() bitflow.Value {
 	return bitflow.Value(reader.available)
 }
 
-func (reader *memoryStatReader) readBalloon() bitflow.Value {
-	return bitflow.Value(reader.balloon)
+func (reader *memoryStatReader) readUsed() bitflow.Value {
+	return bitflow.Value(reader.available - reader.unused)
 }
 
-func (reader *memoryStatReader) readRss() bitflow.Value {
-	return bitflow.Value(reader.rss)
+func (reader *memoryStatReader) readPercent() bitflow.Value {
+	used := reader.available - reader.unused
+	return bitflow.Value(used) / bitflow.Value(reader.available)
 }
 
 // ==================== CPU Stats ====================
