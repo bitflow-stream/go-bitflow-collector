@@ -15,6 +15,7 @@ type blockStatReader struct {
 	parsedDevices bool
 	devices       []string
 	info          []lib.VirDomainBlockInfo
+	stats         []lib.VirDomainBlockStats
 }
 
 func (reader *blockStatReader) register(domainName string) map[string]collector.MetricReader {
@@ -22,6 +23,8 @@ func (reader *blockStatReader) register(domainName string) map[string]collector.
 		"libvirt/" + domainName + "/block/allocation": reader.readAllocation,
 		"libvirt/" + domainName + "/block/capacity":   reader.readCapacity,
 		"libvirt/" + domainName + "/block/physical":   reader.readPhysical,
+		"libvirt/" + domainName + "/block/io":         reader.readIo,
+		"libvirt/" + domainName + "/block/ioBytes":    reader.readIoBytes,
 	}
 }
 
@@ -40,11 +43,17 @@ func (reader *blockStatReader) update(domain lib.VirDomain) error {
 	}
 	var resErr error
 	for _, dev := range reader.devices {
-		// More detailed alternative: domain.BlockStatsFlags()
 		if info, err := domain.GetBlockInfo(dev, NO_FLAGS); err == nil {
 			reader.info = append(reader.info, info)
 		} else {
 			return fmt.Errorf("Failed to get block-device info for %s: %v", dev, err)
+		}
+
+		// More detailed alternative: domain.BlockStatsFlags()
+		if stats, err := domain.BlockStats(dev); err == nil {
+			reader.stats = append(reader.stats, stats)
+		} else {
+			return fmt.Errorf("Failed to get block-device stats for %s: %v", dev, err)
 		}
 	}
 	return resErr
@@ -67,6 +76,20 @@ func (reader *blockStatReader) readCapacity() (result bitflow.Value) {
 func (reader *blockStatReader) readPhysical() (result bitflow.Value) {
 	for _, info := range reader.info {
 		result += bitflow.Value(info.Physical())
+	}
+	return
+}
+
+func (reader *blockStatReader) readIo() (result bitflow.Value) {
+	for _, stats := range reader.stats {
+		result += bitflow.Value(stats.RdReq + stats.WrReq)
+	}
+	return
+}
+
+func (reader *blockStatReader) readIoBytes() (result bitflow.Value) {
+	for _, stats := range reader.stats {
+		result += bitflow.Value(stats.RdBytes + stats.WrBytes)
 	}
 	return
 }
