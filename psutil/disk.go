@@ -1,6 +1,8 @@
 package psutil
 
 import (
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
@@ -11,43 +13,60 @@ type PsutilDiskIOCollector struct {
 	collector.AbstractCollector
 	Factory *collector.ValueRingFactory
 
-	disks map[string]disk.IOCountersStat
+	disks     map[string]disk.IOCountersStat
+	diskNames []string
 }
 
 func (col *PsutilDiskIOCollector) Init() error {
 	col.Reset(col)
 	col.disks = make(map[string]disk.IOCountersStat)
+	col.diskNames = col.diskNames[:]
 
 	if err := col.update(false); err != nil {
 		return err
 	}
 	col.Readers = make(map[string]collector.MetricReader)
 	for disk, _ := range col.disks {
-		name := "disk-io/" + disk + "/"
-		reader := &diskIOReader{
-			col:            col,
-			disk:           disk,
-			readRing:       col.Factory.NewValueRing(),
-			writeRing:      col.Factory.NewValueRing(),
-			ioRing:         col.Factory.NewValueRing(),
-			readBytesRing:  col.Factory.NewValueRing(),
-			writeBytesRing: col.Factory.NewValueRing(),
-			ioBytesRing:    col.Factory.NewValueRing(),
-			readTimeRing:   col.Factory.NewValueRing(),
-			writeTimeRing:  col.Factory.NewValueRing(),
-			ioTimeRing:     col.Factory.NewValueRing(),
-		}
-		col.Readers[name+"read"] = reader.readRead
-		col.Readers[name+"write"] = reader.readWrite
-		col.Readers[name+"io"] = reader.readIo
-		col.Readers[name+"readBytes"] = reader.readReadBytes
-		col.Readers[name+"writeBytes"] = reader.readWriteBytes
-		col.Readers[name+"ioBytes"] = reader.readIoBytes
-		col.Readers[name+"readTime"] = reader.readReadTime
-		col.Readers[name+"writeTime"] = reader.readWriteTime
-		col.Readers[name+"ioTime"] = reader.readIoTime
+		col.addSimpleReader(disk)
 	}
+	col.addReader("all", func() []string {
+		return col.diskNames
+	})
 	return nil
+}
+
+func (col *PsutilDiskIOCollector) addSimpleReader(disk string) {
+	getdisks := func() []string {
+		return []string{disk}
+	}
+	col.addReader(disk, getdisks)
+}
+
+func (col *PsutilDiskIOCollector) addReader(name string, getdisks func() []string) {
+	name = "disk-io/" + name + "/"
+	reader := &diskIOReader{
+		col:            col,
+		getdisks:       getdisks,
+		readRing:       col.Factory.NewValueRing(),
+		writeRing:      col.Factory.NewValueRing(),
+		ioRing:         col.Factory.NewValueRing(),
+		readBytesRing:  col.Factory.NewValueRing(),
+		writeBytesRing: col.Factory.NewValueRing(),
+		ioBytesRing:    col.Factory.NewValueRing(),
+		readTimeRing:   col.Factory.NewValueRing(),
+		writeTimeRing:  col.Factory.NewValueRing(),
+		ioTimeRing:     col.Factory.NewValueRing(),
+	}
+
+	col.Readers[name+"read"] = reader.makeReader(reader.readRing, reader.readRead)
+	col.Readers[name+"write"] = reader.makeReader(reader.writeRing, reader.readWrite)
+	col.Readers[name+"io"] = reader.makeReader(reader.ioRing, reader.readIo)
+	col.Readers[name+"readBytes"] = reader.makeReader(reader.readBytesRing, reader.readReadBytes)
+	col.Readers[name+"writeBytes"] = reader.makeReader(reader.writeBytesRing, reader.readWriteBytes)
+	col.Readers[name+"ioBytes"] = reader.makeReader(reader.ioBytesRing, reader.readIoBytes)
+	col.Readers[name+"readTime"] = reader.makeReader(reader.readTimeRing, reader.readReadTime)
+	col.Readers[name+"writeTime"] = reader.makeReader(reader.writeTimeRing, reader.readWriteTime)
+	col.Readers[name+"ioTime"] = reader.makeReader(reader.ioTimeRing, reader.readIoTime)
 }
 
 func (col *PsutilDiskIOCollector) update(checkChange bool) error {
@@ -66,7 +85,19 @@ func (col *PsutilDiskIOCollector) update(checkChange bool) error {
 		}
 	}
 	col.disks = disks
+	if len(col.diskNames) == 0 {
+		for name := range col.disks {
+			if !col.isPartition(name) {
+				col.diskNames = append(col.diskNames, name)
+			}
+		}
+	}
 	return nil
+}
+
+func (*PsutilDiskIOCollector) isPartition(name string) bool {
+	// TODO very platform specific, but don't see other
+	return strings.ContainsRune("0123456789", rune(name[len(name)-1]))
 }
 
 func (col *PsutilDiskIOCollector) Update() (err error) {
@@ -77,8 +108,8 @@ func (col *PsutilDiskIOCollector) Update() (err error) {
 }
 
 type diskIOReader struct {
-	col  *PsutilDiskIOCollector
-	disk string
+	col      *PsutilDiskIOCollector
+	getdisks func() []string
 
 	readRing       *collector.ValueRing
 	writeRing      *collector.ValueRing
@@ -91,79 +122,60 @@ type diskIOReader struct {
 	ioTimeRing     *collector.ValueRing
 }
 
-func (reader *diskIOReader) checkDisk() *disk.IOCountersStat {
-	if disk, ok := reader.col.disks[reader.disk]; ok {
+func (reader *diskIOReader) getDisk(diskName string) *disk.IOCountersStat {
+	if disk, ok := reader.col.disks[diskName]; ok {
 		return &disk
 	} else {
-		log.Warnf("disk-io counters for disk %v not found", reader.disk)
+		log.Warnf("disk-io counters for disk %v not found", diskName)
 		return nil
 	}
 }
 
-func (reader *diskIOReader) value(val uint64, ring *collector.ValueRing) bitflow.Value {
-	ring.Add(collector.StoredValue(val))
-	return ring.GetDiff()
+func (reader *diskIOReader) makeReader(ring *collector.ValueRing, getter func(*disk.IOCountersStat) uint64) collector.MetricReader {
+	return func() bitflow.Value {
+		for _, diskName := range reader.getdisks() {
+			if disk := reader.getDisk(diskName); disk != nil {
+				val := getter(disk)
+				ring.AddToHead(collector.StoredValue(val))
+			}
+		}
+		ring.FlushHead()
+		return ring.GetDiff()
+	}
 }
 
-func (reader *diskIOReader) readRead() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.ReadCount, reader.readRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readRead(d *disk.IOCountersStat) uint64 {
+	return d.ReadCount
 }
 
-func (reader *diskIOReader) readWrite() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.WriteCount, reader.writeRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readWrite(d *disk.IOCountersStat) uint64 {
+	return d.WriteCount
 }
 
-func (reader *diskIOReader) readIo() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.ReadCount+disk.WriteCount, reader.ioRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readIo(d *disk.IOCountersStat) uint64 {
+	return d.ReadCount + d.WriteCount
 }
 
-func (reader *diskIOReader) readReadBytes() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.ReadBytes, reader.readBytesRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readReadBytes(d *disk.IOCountersStat) uint64 {
+	return d.ReadBytes
 }
 
-func (reader *diskIOReader) readWriteBytes() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.WriteBytes, reader.writeBytesRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readWriteBytes(d *disk.IOCountersStat) uint64 {
+	return d.WriteBytes
 }
 
-func (reader *diskIOReader) readIoBytes() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.ReadBytes+disk.WriteBytes, reader.ioBytesRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readIoBytes(d *disk.IOCountersStat) uint64 {
+	return d.ReadBytes + d.WriteBytes
 }
 
-func (reader *diskIOReader) readReadTime() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.ReadTime, reader.readTimeRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readReadTime(d *disk.IOCountersStat) uint64 {
+	return d.ReadTime
 }
 
-func (reader *diskIOReader) readWriteTime() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.WriteTime, reader.writeTimeRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readWriteTime(d *disk.IOCountersStat) uint64 {
+	return d.WriteTime
 }
 
-func (reader *diskIOReader) readIoTime() bitflow.Value {
-	if disk := reader.checkDisk(); disk != nil {
-		return reader.value(disk.IoTime, reader.ioTimeRing)
-	}
-	return bitflow.Value(0)
+func (reader *diskIOReader) readIoTime(d *disk.IOCountersStat) uint64 {
+	return d.IoTime
 }
