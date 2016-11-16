@@ -68,6 +68,10 @@ func (ring *ValueRing) Add(val LogbackValue) {
 	ring.FlushHead()
 }
 
+func (ring *ValueRing) AddValue(val bitflow.Value) {
+	ring.Add(StoredValue(val))
+}
+
 func (ring *ValueRing) GetDiff() bitflow.Value {
 	ring.lock.Lock()
 	defer ring.lock.Unlock()

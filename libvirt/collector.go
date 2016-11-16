@@ -33,7 +33,7 @@ func (col *LibvirtCollector) Init() error {
 				&activatedMetricsReader{NewVmGeneralReader(col.Factory), false},
 				&activatedMetricsReader{new(memoryStatReader), false},
 				&activatedMetricsReader{NewCpuStatReader(col.Factory), false},
-				&activatedMetricsReader{new(blockStatReader), false},
+				&activatedMetricsReader{NewBlockStatReader(col.Factory), false},
 				&activatedMetricsReader{NewInterfaceStatReader(col.Factory), false},
 			},
 		}

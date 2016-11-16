@@ -16,6 +16,16 @@ type blockStatReader struct {
 	devices       []string
 	info          []lib.VirDomainBlockInfo
 	stats         []lib.VirDomainBlockStats
+
+	ioRing      *collector.ValueRing
+	ioBytesRing *collector.ValueRing
+}
+
+func NewBlockStatReader(factory *collector.ValueRingFactory) *blockStatReader {
+	return &blockStatReader{
+		ioRing:      factory.NewValueRing(),
+		ioBytesRing: factory.NewValueRing(),
+	}
 }
 
 func (reader *blockStatReader) register(domainName string) map[string]collector.MetricReader {
@@ -29,7 +39,7 @@ func (reader *blockStatReader) register(domainName string) map[string]collector.
 }
 
 func (reader *blockStatReader) description(xmlDesc *xmlpath.Node) {
-	reader.devices = reader.devices[0:0]
+	reader.devices = reader.devices[:]
 	for iter := DomainBlockXPath.Iter(xmlDesc); iter.Next(); {
 		reader.devices = append(reader.devices, iter.Node().String())
 	}
@@ -37,7 +47,7 @@ func (reader *blockStatReader) description(xmlDesc *xmlpath.Node) {
 }
 
 func (reader *blockStatReader) update(domain lib.VirDomain) error {
-	reader.info = reader.info[0:0]
+	reader.info = reader.info[:]
 	if !reader.parsedDevices {
 		return UpdateXmlDescription
 	}
@@ -80,16 +90,20 @@ func (reader *blockStatReader) readPhysical() (result bitflow.Value) {
 	return
 }
 
-func (reader *blockStatReader) readIo() (result bitflow.Value) {
+func (reader *blockStatReader) readIo() bitflow.Value {
+	var result bitflow.Value
 	for _, stats := range reader.stats {
 		result += bitflow.Value(stats.RdReq + stats.WrReq)
 	}
-	return
+	reader.ioRing.AddValue(result)
+	return reader.ioRing.GetDiff()
 }
 
-func (reader *blockStatReader) readIoBytes() (result bitflow.Value) {
+func (reader *blockStatReader) readIoBytes() bitflow.Value {
+	var result bitflow.Value
 	for _, stats := range reader.stats {
 		result += bitflow.Value(stats.RdBytes + stats.WrBytes)
 	}
-	return
+	reader.ioBytesRing.AddValue(result)
+	return reader.ioBytesRing.GetDiff()
 }
