@@ -1,7 +1,7 @@
 package psutil
 
 import (
-	"strings"
+	"regexp"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
@@ -9,18 +9,21 @@ import (
 	"github.com/shirou/gopsutil/disk"
 )
 
+// TODO very platform specific
+var physicalDiskRegex = regexp.MustCompile("^[sSvV][dD][a-zA-Z]$")
+
 type PsutilDiskIOCollector struct {
 	collector.AbstractCollector
 	Factory *collector.ValueRingFactory
 
-	disks     map[string]disk.IOCountersStat
-	diskNames []string
+	disks        map[string]disk.IOCountersStat
+	allDiskNames []string
 }
 
 func (col *PsutilDiskIOCollector) Init() error {
 	col.Reset(col)
 	col.disks = make(map[string]disk.IOCountersStat)
-	col.diskNames = col.diskNames[:]
+	col.allDiskNames = col.allDiskNames[:]
 
 	if err := col.update(false); err != nil {
 		return err
@@ -30,7 +33,7 @@ func (col *PsutilDiskIOCollector) Init() error {
 		col.addSimpleReader(disk)
 	}
 	col.addReader("all", func() []string {
-		return col.diskNames
+		return col.allDiskNames
 	})
 	return nil
 }
@@ -85,19 +88,18 @@ func (col *PsutilDiskIOCollector) update(checkChange bool) error {
 		}
 	}
 	col.disks = disks
-	if len(col.diskNames) == 0 {
+	if len(col.allDiskNames) == 0 {
 		for name := range col.disks {
-			if !col.isPartition(name) {
-				col.diskNames = append(col.diskNames, name)
+			if col.isPhysicalDisk(name) {
+				col.allDiskNames = append(col.allDiskNames, name)
 			}
 		}
 	}
 	return nil
 }
 
-func (*PsutilDiskIOCollector) isPartition(name string) bool {
-	// TODO very platform specific, but don't see other
-	return strings.ContainsRune("0123456789", rune(name[len(name)-1]))
+func (*PsutilDiskIOCollector) isPhysicalDisk(name string) bool {
+	return physicalDiskRegex.MatchString(name)
 }
 
 func (col *PsutilDiskIOCollector) Update() (err error) {
