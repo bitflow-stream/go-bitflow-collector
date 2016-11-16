@@ -38,12 +38,12 @@ func (val LogbackCpuVal) DiffValue(logback collector.LogbackValue, interval time
 func (val LogbackCpuVal) AddValue(logback collector.LogbackValue) collector.LogbackValue {
 	switch previous := logback.(type) {
 	case LogbackCpuVal:
-		return collector.StoredValue(val + previous)
+		return LogbackCpuVal(val + previous)
 	case *LogbackCpuVal:
-		return collector.StoredValue(val + *previous)
+		return LogbackCpuVal(val + *previous)
 	default:
 		log.Errorf("Cannot add %v (%T) and %v (%T)", val, val, logback, logback)
-		return collector.StoredValue(0)
+		return LogbackCpuVal(0)
 	}
 }
 
