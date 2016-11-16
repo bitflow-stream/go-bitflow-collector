@@ -39,7 +39,7 @@ func (reader *blockStatReader) register(domainName string) map[string]collector.
 }
 
 func (reader *blockStatReader) description(xmlDesc *xmlpath.Node) {
-	reader.devices = reader.devices[:]
+	reader.devices = reader.devices[0:0]
 	for iter := DomainBlockXPath.Iter(xmlDesc); iter.Next(); {
 		reader.devices = append(reader.devices, iter.Node().String())
 	}
@@ -47,8 +47,8 @@ func (reader *blockStatReader) description(xmlDesc *xmlpath.Node) {
 }
 
 func (reader *blockStatReader) update(domain lib.VirDomain) error {
-	reader.info = reader.info[:]
-	reader.stats = reader.stats[:]
+	reader.info = reader.info[0:0]
+	reader.stats = reader.stats[0:0]
 	if !reader.parsedDevices {
 		return UpdateXmlDescription
 	}

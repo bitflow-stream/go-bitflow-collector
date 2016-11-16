@@ -23,7 +23,7 @@ type PsutilDiskIOCollector struct {
 func (col *PsutilDiskIOCollector) Init() error {
 	col.Reset(col)
 	col.disks = make(map[string]disk.IOCountersStat)
-	col.allDiskNames = col.allDiskNames[:]
+	col.allDiskNames = col.allDiskNames[0:0]
 
 	if err := col.update(false); err != nil {
 		return err
