@@ -48,10 +48,12 @@ func (reader *blockStatReader) description(xmlDesc *xmlpath.Node) {
 
 func (reader *blockStatReader) update(domain lib.VirDomain) error {
 	reader.info = reader.info[:]
+	reader.stats = reader.stats[:]
 	if !reader.parsedDevices {
 		return UpdateXmlDescription
 	}
 	var resErr error
+
 	for _, dev := range reader.devices {
 		if info, err := domain.GetBlockInfo(dev, NO_FLAGS); err == nil {
 			reader.info = append(reader.info, info)
