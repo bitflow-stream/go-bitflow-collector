@@ -10,6 +10,7 @@ The main source of data is the `/proc` filesystem on the local Linux machine (al
 Other implemented data sources include the remote API provided by `libvirt` and the `OVSDB` protocol offered by Open vSwitch.
 
 ## Installation:
+* Install packages: `libvirt-dev libpcap-dev`
 * Install git and go (at least version **1.6**).
 * Make sure `$GOPATH` is set to some existing directory.
 * Execute the following command to make `go get` work with Gitlab:
