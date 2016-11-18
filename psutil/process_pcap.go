@@ -2,7 +2,6 @@ package psutil
 
 import (
 	"errors"
-	"math"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -12,7 +11,7 @@ import (
 
 var (
 	PcapNics    []string
-	PcapSnaplen = int32(math.MaxInt32)
+	PcapSnaplen = int32(65535)
 
 	pcapStartOnce sync.Once
 	pcapCons      = pcap.NewConnections()

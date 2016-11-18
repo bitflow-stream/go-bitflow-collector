@@ -50,8 +50,8 @@ func (col *PsutilDiskUsageCollector) Init() error {
 }
 
 func (col *PsutilDiskUsageCollector) Collect(metric *collector.Metric) error {
-	lastSlash := strings.LastIndex(metric.Name, "/")
-	partition := metric.Name[len(diskUsagePrefix):lastSlash]
+	lastSlash := strings.LastIndex(metric.name, "/")
+	partition := metric.name[len(diskUsagePrefix):lastSlash]
 	if partition == diskUsageAll {
 		for _, mountpoint := range col.allPartitions {
 			col.observedPartitions[mountpoint] = true
