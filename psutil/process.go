@@ -7,7 +7,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/shirou/gopsutil/process"
@@ -36,34 +35,105 @@ func (col *PsutilProcessCollector) Init() error {
 
 	prefix := "proc/" + col.GroupName
 	col.Readers = map[string]collector.MetricReader{
-		prefix + "/num": col.readNumProc,
-		prefix + "/cpu": col.readCpu,
+		prefix + "/num": func() bitflow.Value {
+			return bitflow.Value(len(col.pids))
+		},
+		prefix + "/cpu": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.cpu.GetDiff()
+			}),
 
-		prefix + "/disk/read":       col.readIoRead,
-		prefix + "/disk/write":      col.readIoWrite,
-		prefix + "/disk/io":         col.readIo,
-		prefix + "/disk/readBytes":  col.readBytesRead,
-		prefix + "/disk/writeBytes": col.readBytesWrite,
-		prefix + "/disk/ioBytes":    col.readBytes,
+		prefix + "/disk/read": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ioRead.GetDiff()
+			}),
+		prefix + "/disk/write": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ioWrite.GetDiff()
+			}),
+		prefix + "/disk/io": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ioTotal.GetDiff()
+			}),
+		prefix + "/disk/readBytes": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ioReadBytes.GetDiff()
+			}),
+		prefix + "/disk/writeBytes": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ioWriteBytes.GetDiff()
+			}),
+		prefix + "/disk/ioBytes": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ioBytesTotal.GetDiff()
+			}),
 
-		prefix + "/ctxSwitch":             col.readCtxSwitch,
-		prefix + "/ctxSwitch/voluntary":   col.readCtxSwitchVoluntary,
-		prefix + "/ctxSwitch/involuntary": col.readCtxSwitchInvoluntary,
+		prefix + "/ctxSwitch": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ctxSwitchVoluntary.GetDiff()
+			}),
+		prefix + "/ctxSwitch/voluntary": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ctxSwitchInvoluntary.GetDiff()
+			}),
+		prefix + "/ctxSwitch/involuntary": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.ctxSwitchInvoluntary.GetDiff() + proc.ctxSwitchVoluntary.GetDiff()
+			}),
 
-		prefix + "/mem/rss":  col.readMemRss,
-		prefix + "/mem/vms":  col.readMemVms,
-		prefix + "/mem/swap": col.readMemSwap,
-		prefix + "/fds":      col.readFds,
-		prefix + "/threads":  col.readThreads,
+		prefix + "/mem/rss": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return bitflow.Value(proc.mem_rss)
+			}),
+		prefix + "/mem/vms": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return bitflow.Value(proc.mem_vms)
+			}),
+		prefix + "/mem/swap": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return bitflow.Value(proc.mem_swap)
+			}),
+		prefix + "/fds": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return bitflow.Value(proc.numFds)
+			}),
+		prefix + "/threads": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return bitflow.Value(proc.numThreads)
+			}),
 
-		prefix + "/net-io/bytes":      col.readNetBytes,
-		prefix + "/net-io/packets":    col.readNetPackets,
-		prefix + "/net-io/rx_bytes":   col.readNetRxBytes,
-		prefix + "/net-io/rx_packets": col.readNetRxPackets,
-		prefix + "/net-io/tx_bytes":   col.readNetTxBytes,
-		prefix + "/net-io/tx_packets": col.readNetTxPackets,
-		prefix + "/net-io/errors":     col.readNetErrors,
-		prefix + "/net-io/dropped":    col.readNetDropped,
+		prefix + "/net-io/bytes": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.net.Bytes.GetDiff()
+			}),
+		prefix + "/net-io/packets": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.net.Packets.GetDiff()
+			}),
+		prefix + "/net-io/rx_bytes": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.net.RxBytes.GetDiff()
+			}),
+		prefix + "/net-io/rx_packets": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.net.RxPackets.GetDiff()
+			}),
+		prefix + "/net-io/tx_bytes": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.net.TxBytes.GetDiff()
+			}),
+		prefix + "/net-io/tx_packets": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.net.TxPackets.GetDiff()
+			}),
+		prefix + "/net-io/errors": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.net.Errors.GetDiff()
+			}),
+		prefix + "/net-io/dropped": col.sum(
+			func(proc *SingleProcessCollector) bitflow.Value {
+				return proc.net.Dropped.GetDiff()
+			}),
 	}
 	return nil
 }
@@ -148,168 +218,11 @@ func (col *PsutilProcessCollector) updateProcesses() {
 	}
 }
 
-func (col *PsutilProcessCollector) readNumProc() bitflow.Value {
-	return bitflow.Value(len(col.pids))
-}
-
-func (col *PsutilProcessCollector) readCpu() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.cpu.GetDiff())
+func (col *PsutilProcessCollector) sum(getval func(*SingleProcessCollector) bitflow.Value) func() bitflow.Value {
+	return func() (res bitflow.Value) {
+		for _, proc := range col.pids {
+			res += getval(proc)
+		}
+		return
 	}
-	return
-}
-
-func (col *PsutilProcessCollector) readIoRead() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ioRead.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readIoWrite() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ioWrite.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readIo() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ioTotal.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readBytesRead() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ioReadBytes.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readBytesWrite() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ioWriteBytes.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readBytes() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ioBytesTotal.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readCtxSwitchVoluntary() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ctxSwitchVoluntary.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readCtxSwitchInvoluntary() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ctxSwitchInvoluntary.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readCtxSwitch() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.ctxSwitchInvoluntary.GetDiff())
-		res += bitflow.Value(proc.ctxSwitchVoluntary.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readMemRss() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.mem_rss)
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readMemVms() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.mem_vms)
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readMemSwap() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.mem_swap)
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readFds() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.numFds)
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readThreads() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.numThreads)
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readNetBytes() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.net.Bytes.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readNetPackets() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.net.Packets.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readNetRxBytes() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.net.RxBytes.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readNetRxPackets() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.net.RxPackets.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readNetTxBytes() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.net.TxBytes.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readNetTxPackets() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.net.TxPackets.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readNetErrors() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.net.Errors.GetDiff())
-	}
-	return
-}
-
-func (col *PsutilProcessCollector) readNetDropped() (res bitflow.Value) {
-	for _, proc := range col.pids {
-		res += bitflow.Value(proc.net.Dropped.GetDiff())
-	}
-	return
 }
