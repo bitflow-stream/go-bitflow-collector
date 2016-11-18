@@ -8,20 +8,12 @@ import (
 	"strings"
 )
 
-var (
+const (
 	procFdDir      = "/proc/%v/fd"
 	socketLinkName = "socket:["
 )
 
-func ListConnections(pids ...int) ([]*Connection, error) {
-	cons, err := ReadAllConnections()
-	if err != nil {
-		return nil, err
-	}
-	return FilterConnections(pids, cons)
-}
-
-func FilterConnections(pids []int, allConnections []*Connection) ([]*Connection, error) {
+func (cons *Connections) FilterConnections(pids []int) ([]*Connection, error) {
 	inodes := make(map[string]bool)
 	for _, pid := range pids {
 		if err := fillInodes(pid, inodes); err != nil {
@@ -29,8 +21,10 @@ func FilterConnections(pids []int, allConnections []*Connection) ([]*Connection,
 		}
 	}
 
+	cons.lock.RLock()
+	cons.lock.RUnlock()
 	var found []*Connection
-	for _, con := range allConnections {
+	for _, con := range cons._map {
 		if inodes[con.Inode] {
 			found = append(found, con)
 		}

@@ -25,18 +25,20 @@ type PsutilProcessCollector struct {
 	pidsUpdated bool
 	own_pid     int32
 	cpu_factor  float64
-	pids        map[int32]*SingleProcessCollector
+	procs       map[int32]*SingleProcessCollector
+	net_pcap    BaseNetIoCounters
 }
 
 func (col *PsutilProcessCollector) Init() error {
 	col.own_pid = int32(os.Getpid())
+	col.net_pcap = NewBaseNetIoCounters(col.Factory)
 	col.cpu_factor = 100 / float64(runtime.NumCPU())
 	col.Reset(col)
 
 	prefix := "proc/" + col.GroupName
 	col.Readers = map[string]collector.MetricReader{
 		prefix + "/num": func() bitflow.Value {
-			return bitflow.Value(len(col.pids))
+			return bitflow.Value(len(col.procs))
 		},
 		prefix + "/cpu": col.sum(
 			func(proc *SingleProcessCollector) bitflow.Value {
@@ -134,6 +136,13 @@ func (col *PsutilProcessCollector) Init() error {
 			func(proc *SingleProcessCollector) bitflow.Value {
 				return proc.net.Dropped.GetDiff()
 			}),
+
+		prefix + "/net-pcap/bytes":      col.net_pcap.Bytes.GetDiff,
+		prefix + "/net-pcap/packets":    col.net_pcap.Packets.GetDiff,
+		prefix + "/net-pcap/rx_bytes":   col.net_pcap.RxBytes.GetDiff,
+		prefix + "/net-pcap/rx_packets": col.net_pcap.RxPackets.GetDiff,
+		prefix + "/net-pcap/tx_bytes":   col.net_pcap.TxBytes.GetDiff,
+		prefix + "/net-pcap/tx_packets": col.net_pcap.TxPackets.GetDiff,
 	}
 	return nil
 }
@@ -143,6 +152,7 @@ func (col *PsutilProcessCollector) Update() (err error) {
 		return err
 	}
 	col.updateProcesses()
+	err = col.updatePcapNet()
 	if err == nil {
 		col.UpdateMetrics()
 	}
@@ -154,7 +164,7 @@ func (col *PsutilProcessCollector) updatePids() error {
 		return nil
 	}
 
-	newPids := make(map[int32]*SingleProcessCollector)
+	newProcs := make(map[int32]*SingleProcessCollector)
 	errors := 0
 	pids := osInformation.pids
 	for _, pid := range pids {
@@ -181,19 +191,19 @@ func (col *PsutilProcessCollector) updatePids() error {
 		}
 		for _, regex := range col.CmdlineFilter {
 			if regex.MatchString(cmdline) {
-				procCollector, ok := col.pids[pid]
+				procCollector, ok := col.procs[pid]
 				if !ok {
 					procCollector = col.MakeProcessCollector(proc, col.Factory)
 				}
-				newPids[pid] = procCollector
+				newProcs[pid] = procCollector
 				break
 			}
 		}
 	}
-	if len(newPids) == 0 && errors > 0 && col.PrintErrors {
+	if len(newProcs) == 0 && errors > 0 && col.PrintErrors {
 		log.Errorln("Warning: Observing no processes, failed to check", errors, "out of", len(pids), "PIDs")
 	}
-	col.pids = newPids
+	col.procs = newProcs
 
 	if col.PidUpdateInterval > 0 {
 		col.pidsUpdated = true
@@ -207,10 +217,10 @@ func (col *PsutilProcessCollector) updatePids() error {
 }
 
 func (col *PsutilProcessCollector) updateProcesses() {
-	for pid, proc := range col.pids {
+	for pid, proc := range col.procs {
 		if err := proc.update(); err != nil {
 			// Process probably does not exist anymore
-			delete(col.pids, pid)
+			delete(col.procs, pid)
 			if col.PrintErrors {
 				log.WithField("pid", pid).Warnln("Process info update failed:", err)
 			}
@@ -220,7 +230,7 @@ func (col *PsutilProcessCollector) updateProcesses() {
 
 func (col *PsutilProcessCollector) sum(getval func(*SingleProcessCollector) bitflow.Value) func() bitflow.Value {
 	return func() (res bitflow.Value) {
-		for _, proc := range col.pids {
+		for _, proc := range col.procs {
 			res += getval(proc)
 		}
 		return

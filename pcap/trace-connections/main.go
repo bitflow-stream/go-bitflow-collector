@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"io"
 	"math"
 	"time"
 
@@ -21,27 +20,18 @@ func main() {
 	traceConnections("wlan0")
 }
 
-func traceConnections(nic string) {
+func traceConnections(nics ...string) {
 	cons := pcap.NewConnections()
-	source, err := pcap.OpenPcap(nic, snaplen)
+	err := cons.CaptureNics(nics, snaplen, func(err error) {
+		if captureErr, ok := err.(pcap.CaptureError); ok {
+			log.Warnln("Capture error:", captureErr)
+		} else {
+			log.Fatalln(err)
+		}
+	})
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	go func() {
-		for {
-			err := pcap.CaptureOnePacket(source, cons)
-			if err != nil {
-				if err == io.EOF {
-					break
-				} else if captureErr, ok := err.(pcap.CaptureError); ok {
-					log.Warnln("Capture error:", captureErr)
-				} else {
-					log.Fatalln(err)
-				}
-			}
-		}
-	}()
 
 	task := golib.NewLoopTask("print connections", func(stop golib.StopChan) {
 		log.Println("========================================================")

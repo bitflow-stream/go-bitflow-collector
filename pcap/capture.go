@@ -2,6 +2,7 @@ package pcap
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
@@ -12,6 +13,23 @@ import (
 const PacketFilter = "tcp or udp"
 
 type CaptureError error
+
+func PhysicalInterfaces() ([]string, error) {
+	nics, err := pcap.FindAllDevs()
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, nic := range nics {
+		for _, addr := range nic.Addresses {
+			if addr.IP.IsGlobalUnicast() {
+				names = append(names, nic.Name)
+				break
+			}
+		}
+	}
+	return names, nil
+}
 
 func OpenPcap(nic string, snaplen int32) (*gopacket.PacketSource, error) {
 	if handle, err := pcap.OpenLive(nic, snaplen, true, pcap.BlockForever); err != nil {
@@ -44,6 +62,31 @@ func CaptureOnePacket(source *gopacket.PacketSource, connections *Connections) e
 	}
 
 	return connections.LogPacket(info, size)
+}
+
+func (cons *Connections) CaptureNics(nics []string, snaplen int32, errorCallback func(error)) error {
+	sources := make([]*gopacket.PacketSource, 0, len(nics))
+	for _, nic := range nics {
+		source, err := OpenPcap(nic, snaplen)
+		if err != nil {
+			return err
+		}
+		sources = append(sources, source)
+	}
+	for _, source := range sources {
+		go func() {
+			for {
+				err := CaptureOnePacket(source, cons)
+				if err != nil {
+					errorCallback(err)
+					if err == io.EOF {
+						break
+					}
+				}
+			}
+		}()
+	}
+	return nil
 }
 
 func getConnectionInfo(packet gopacket.Packet) (*Connection, error) {

@@ -24,10 +24,11 @@ func do_main() int {
 	defer golib.ProfileCpu()()
 	if !p.HasOutputFlag() {
 		// Make sure to at least output on the console
-		p.FlagOutputConsole = true
+		p.FlagOutputBox = true
 	}
 
 	// Configure and start the data collector
+	configurePcap()
 	col := createCollectorSource()
 	if print_metrics {
 		col.PrintMetrics()
