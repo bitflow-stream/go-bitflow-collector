@@ -1,6 +1,7 @@
 package psutil
 
 import (
+	"flag"
 	"os"
 	"regexp"
 	"runtime"
@@ -11,6 +12,13 @@ import (
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/shirou/gopsutil/process"
 )
+
+// TODO HACK: automatically find out if this should be excluded
+var nopcap = false
+
+func init() {
+	flag.BoolVar(&nopcap, "nopcap", nopcap, "Disable PCAP package capturing.")
+}
 
 type PsutilProcessCollector struct {
 	collector.AbstractCollector
@@ -152,7 +160,11 @@ func (col *PsutilProcessCollector) Update() (err error) {
 		return err
 	}
 	col.updateProcesses()
-	err = col.updatePcapNet()
+
+	if !nopcap {
+		err = col.updatePcapNet()
+	}
+
 	if err == nil {
 		col.UpdateMetrics()
 	}
