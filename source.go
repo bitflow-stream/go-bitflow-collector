@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -14,7 +13,13 @@ import (
 	"github.com/antongulenko/golib"
 )
 
-var MetricsChanged = errors.New("Metrics of this collector have changed")
+var (
+	// Can be used to modify collected headers and samples
+	CollectedSampleHandler bitflow.ReadSampleHandler
+
+	// Will be passed to CollectedSampleHandler, if set
+	CollectorSampleSource = "collected"
+)
 
 const (
 	FailedCollectorCheckInterval   = 5 * time.Second

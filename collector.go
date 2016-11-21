@@ -1,33 +1,48 @@
 package collector
 
 import (
+	"errors"
 	"fmt"
 
 	bitflow "github.com/antongulenko/go-bitflow"
-)
-
-var (
-	// Can be used to modify collected headers and samples
-	CollectedSampleHandler bitflow.ReadSampleHandler
-
-	// Will be passed to CollectedSampleHandler, if set
-	CollectorSampleSource = "collected"
 )
 
 type MetricReader func() bitflow.Value
 
 type MetricReaderMap map[string]MetricReader
 
-// Collector forms a tree-structure of interfaces that are able to collect metrics.
-// Every node has metrics and sub-collectors (both optional, but one of them should be present).
-// The tree is built up dynamically in the Init() method.
+var MetricsChanged = errors.New("Metrics of this collector have changed")
+
+// Collector forms a tree-structure of objects that are able to provide regularly
+// updated metric values. A collector is first initialized, which can optionally return
+// a new list of Collectors that will also be considered. The new collectors will also be
+// initialized, until the tree exhausted. Individual collectors can fail the initialization,
+// which will not influence the non-failed collectors.
+// After the Init() sequence, the Metrics() method is queried to retrieve a list of metrics
+// that are delivered by every collector. It may return an empty slice in case of collectors
+// that are only there to satisfy dependencies of other collectors.
+// Then, the Depends() method is used to build up a dependency graph between the collectors.
+// Typically, each collector will returns its parent-collector as sole dependency, but it
+// can also return an empty slice or multiple dependencies. All collectors returned from any
+// Depends() method must already have been initialized in the Init() sequence.
 type Collector interface {
 
 	// Init prepares this collector for collecting metrics and instantiates sub-collectors.
 	// If there is no error, the sub-collectors will also be initialized, until there are
 	// no more sub-nodes. The metrics in the MetricReaderMap are all stored in one flat list,
 	// the keys must be globally unique.
-	Init() (metrics MetricReaderMap, subCollectors []Collector, err error)
+	Init() (subCollectors []Collector, err error)
+
+	// Metrics will only be called after Init() returned successfully. It returns the metrics
+	// that are provided by this collector.
+	Metrics() MetricReaderMap
+
+	// Depends returns a slice of collectors whose Update() this collector depends on.
+	// This means that this collector needs data from those other collectors to perform
+	// its Update() routine correctly. Therefore, Update() will be called on those other
+	// collectors first. The Depends() methods build up an acyclic dependency graph, whose
+	// topological order gives the order of Update() calls.
+	Depends() []Collector
 
 	// All collectors are updated in the order they were initialized: from the root node, down the tree.
 	// An error stops descending down the tree. After a collector has been updated,
