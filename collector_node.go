@@ -2,11 +2,23 @@ package collector
 
 import "regexp"
 
+var __nodeID = 0
+
 type collectorNode struct {
 	collector Collector
 	graph     *collectorGraph
+	uniqueID  int
 
 	metrics MetricReaderMap
+}
+
+func newCollectorNode(collector Collector, graph *collectorGraph) *collectorNode {
+	__nodeID++
+	return &collectorNode{
+		collector: collector,
+		graph:     graph,
+		uniqueID:  __nodeID,
+	}
 }
 
 func (node *collectorNode) init() ([]Collector, error) {

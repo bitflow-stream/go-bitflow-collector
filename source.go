@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,15 +44,19 @@ func (source *CollectorSource) String() string {
 
 func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
 	// TODO integrate golib.StopChan/LoopTask and golib.Stopper
-	source.loopTask = golib.NewLoopTask(source.String(), func(stop golib.StopChan) {
+	source.loopTask = golib.NewErrLoopTask(source.String(), func(stop golib.StopChan) error {
 		var collectWg sync.WaitGroup
-		stopper := source.collect(&collectWg)
+		stopper, err := source.collect(&collectWg)
+		if err != nil {
+			return err
+		}
 		select {
 		case <-stopper.Wait():
 		case <-stop:
 		}
 		stopper.Stop()
 		collectWg.Wait()
+		return nil
 	})
 	source.loopTask.StopHook = func() {
 		source.CloseSink(wg)
@@ -63,8 +68,12 @@ func (source *CollectorSource) Stop() {
 	source.loopTask.Stop()
 }
 
-func (source *CollectorSource) collect(wg *sync.WaitGroup) *golib.Stopper {
-	graph := initCollectorGraph(source.RootCollectors)
+func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, error) {
+	graph, err := initCollectorGraph(source.RootCollectors)
+	if err != nil {
+		return nil, err
+	}
+
 	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
 	graph.pruneEmptyNodes()
 
@@ -76,7 +85,7 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) *golib.Stopper {
 	graph.startParallelUpdates(wg, stopper, source.CollectInterval)
 	wg.Add(1)
 	go source.sinkMetrics(wg, metrics, fields, values, stopper)
-	return stopper
+	return stopper, nil
 }
 
 func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, values []bitflow.Value, stopper *golib.Stopper) {
@@ -121,7 +130,11 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 }
 
 func (source *CollectorSource) PrintMetrics() {
-	graph := initCollectorGraph(source.RootCollectors)
+	graph, err := initCollectorGraph(source.RootCollectors)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
 	all := graph.listMetricNames()
 	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
 	filtered := graph.listMetricNames()
@@ -138,5 +151,20 @@ func (source *CollectorSource) PrintMetrics() {
 		} else {
 			fmt.Println(metric)
 		}
+	}
+}
+
+func (source *CollectorSource) PrintGraph(file string) {
+	graph, err := initCollectorGraph(source.RootCollectors)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+
+	if !strings.HasSuffix(file, ".png") {
+		file += ".png"
+	}
+	if err := graph.WriteGraph(file); err != nil {
+		log.Errorln("Failed to create graph image:", err)
 	}
 }

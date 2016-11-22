@@ -56,16 +56,16 @@ type Collector interface {
 
 // ================================= Abstract Collector =================================
 type AbstractCollector struct {
-	parent *AbstractCollector
-	name   string
+	Parent *AbstractCollector
+	Name   string
 }
 
 func (source *AbstractCollector) String() string {
 	parentName := ""
-	if source.parent != nil {
-		parentName = source.parent.String() + "/"
+	if source.Parent != nil {
+		parentName = source.Parent.String() + "/"
 	}
-	return parentName + source.name
+	return parentName + source.Name
 }
 
 // ==================== Metric ====================

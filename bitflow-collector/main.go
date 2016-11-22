@@ -30,8 +30,16 @@ func do_main() int {
 	// Configure and start the data collector
 	configurePcap()
 	col := createCollectorSource()
+	stop := false
 	if print_metrics {
 		col.PrintMetrics()
+		stop = true
+	}
+	if print_graph != "" {
+		col.PrintGraph(print_graph)
+		stop = true
+	}
+	if stop {
 		return 0
 	}
 	p.SetSource(col)

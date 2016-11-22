@@ -4,17 +4,11 @@ import (
 	"errors"
 	"flag"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow-collector"
-	"github.com/antongulenko/go-bitflow-collector/libvirt"
 	"github.com/antongulenko/go-bitflow-collector/mock"
-	"github.com/antongulenko/go-bitflow-collector/ovsdb"
-	"github.com/antongulenko/go-bitflow-collector/pcap"
-	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/antongulenko/golib"
 )
 
@@ -33,8 +27,9 @@ var (
 	proc_update_pids     = 1500 * time.Millisecond
 
 	print_metrics = false
-	libvirt_uri   = libvirt.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
-	ovsdb_host    = ""
+	print_graph   = ""
+	// libvirt_uri   = libvirt.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
+	ovsdb_host = ""
 
 	pcap_nics = ""
 
@@ -63,9 +58,10 @@ var (
 )
 
 func init() {
-	flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
-	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
+	// flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
+	// flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
 	flag.BoolVar(&print_metrics, "metrics", print_metrics, "Print all available metrics and exit")
+	flag.StringVar(&print_graph, "graph", print_graph, "Create png-file for the collector-graph and exit")
 	flag.BoolVar(&all_metrics, "a", all_metrics, "Disable built-in filters on available metrics")
 	flag.Var(&user_exclude_metrics, "exclude", "Metrics to exclude (only with -c, substring match)")
 	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (only with -c, substring match)")
@@ -84,46 +80,54 @@ func init() {
 }
 
 func configurePcap() {
-	if pcap_nics == "" {
-		allNics, err := pcap.PhysicalInterfaces()
-		if err != nil {
-			log.Fatalln("Failed to enumerate physical NICs:", err)
+	/*
+		if pcap_nics == "" {
+			allNics, err := pcap.PhysicalInterfaces()
+			if err != nil {
+				log.Fatalln("Failed to enumerate physical NICs:", err)
+			}
+			psutil.PcapNics = allNics
+		} else {
+			psutil.PcapNics = strings.Split(pcap_nics, ",")
 		}
-		psutil.PcapNics = allNics
-	} else {
-		psutil.PcapNics = strings.Split(pcap_nics, ",")
-	}
+	*/
 }
 
 func createCollectorSource() *collector.CollectorSource {
 	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 3 // Make sure enough samples can be buffered
-	mock.RegisterMockCollector(&ringFactory)
-	psutil.RegisterPsutilCollectors(collect_local_interval*3/2, &ringFactory) // Update PIDs less often then metrics
-	libvirt.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
-	ovsdb.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
-	if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
-		regexes := make(map[string][]*regexp.Regexp)
-		for _, substr := range proc_collectors {
-			key, value := splitKeyValue(substr)
-			regex := regexp.MustCompile(regexp.QuoteMeta(value))
-			regexes[key] = append(regexes[key], regex)
+	var cols []collector.Collector
+
+	cols = append(cols, mock.NewMockCollector(&ringFactory))
+
+	//psutil.RegisterPsutilCollectors(collect_local_interval*3/2, &ringFactory) // Update PIDs less often then metrics
+	//libvirt.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
+	//ovsdb.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
+
+	/*
+		if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
+			regexes := make(map[string][]*regexp.Regexp)
+			for _, substr := range proc_collectors {
+				key, value := splitKeyValue(substr)
+				regex := regexp.MustCompile(regexp.QuoteMeta(value))
+				regexes[key] = append(regexes[key], regex)
+			}
+			for _, regexStr := range proc_collector_regex {
+				key, value := splitKeyValue(regexStr)
+				regex, err := regexp.Compile(value)
+				golib.Checkerr(err)
+				regexes[key] = append(regexes[key], regex)
+			}
+			for key, list := range regexes {
+				collector.RegisterCollector(&psutil.PsutilProcessCollector{
+					CmdlineFilter:     list,
+					GroupName:         key,
+					PrintErrors:       proc_show_errors,
+					PidUpdateInterval: proc_update_pids,
+					Factory:           &ringFactory,
+				})
+			}
 		}
-		for _, regexStr := range proc_collector_regex {
-			key, value := splitKeyValue(regexStr)
-			regex, err := regexp.Compile(value)
-			golib.Checkerr(err)
-			regexes[key] = append(regexes[key], regex)
-		}
-		for key, list := range regexes {
-			collector.RegisterCollector(&psutil.PsutilProcessCollector{
-				CmdlineFilter:     list,
-				GroupName:         key,
-				PrintErrors:       proc_show_errors,
-				PidUpdateInterval: proc_update_pids,
-				Factory:           &ringFactory,
-			})
-		}
-	}
+	*/
 
 	if all_metrics {
 		excludeMetricsRegexes = nil
@@ -141,6 +145,7 @@ func createCollectorSource() *collector.CollectorSource {
 	}
 
 	return &collector.CollectorSource{
+		RootCollectors:  cols,
 		CollectInterval: collect_local_interval,
 		SinkInterval:    sink_interval,
 		ExcludeMetrics:  excludeMetricsRegexes,
