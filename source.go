@@ -8,7 +8,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/golib"
 )
@@ -29,22 +28,17 @@ const (
 type CollectorSource struct {
 	bitflow.AbstractMetricSource
 
-	RootCollector   CollectorSlice
+	RootCollectors  []Collector
 	CollectInterval time.Duration
 	SinkInterval    time.Duration
 	ExcludeMetrics  []*regexp.Regexp
 	IncludeMetrics  []*regexp.Regexp
 
-	root     *collectorNode
 	loopTask *golib.LoopTask
 }
 
 func (source *CollectorSource) String() string {
-	return fmt.Sprintf("CollectorSource (%v)", source.RootCollector)
-}
-
-func (source *CollectorSource) SetSink(sink bitflow.MetricSink) {
-	source.OutgoingSink = sink
+	return fmt.Sprintf("CollectorSource (%v collectors)", len(source.RootCollectors))
 }
 
 func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
@@ -70,37 +64,28 @@ func (source *CollectorSource) Stop() {
 }
 
 func (source *CollectorSource) collect(wg *sync.WaitGroup) *golib.Stopper {
-	source.root = &collectorNode{
-		collector: source.RootCollector,
-	}
-	_ = source.root.init() // CollectorSlice.Init() does not fail
-	source.root.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
-	source.root.pruneEmptyNodes()
-	source.root.initMetrics()
+	graph := initCollectorGraph(source.RootCollectors)
+	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
+	graph.pruneEmptyNodes()
 
-	metrics := source.root.listMetrics()
-	sort.Strings(metrics)
-	fields := make([]string, len(metrics))
-	values := make([]bitflow.Value, len(metrics))
-	for i, metric := range metrics {
-		fields[i] = metric.name
-		metric.index = i
-		metric.sample = values
-	}
-	log.Println("Locally collecting", len(metrics), "metrics through", len(collectors), "collectors")
+	metrics := graph.getMetrics()
+	fields, values := metrics.ConstructSample()
+	log.Println("Locally collecting", len(metrics), "metrics through", len(graph.collectors), "collectors")
 
 	stopper := golib.NewStopper()
-	source.root.startParallelUpdates(wg, stopper)
+	graph.startParallelUpdates(wg, stopper, source.CollectInterval)
 	wg.Add(1)
-	go source.sinkMetrics(wg, fields, values, source.OutgoingSink, stopper)
+	go source.sinkMetrics(wg, metrics, fields, values, stopper)
 	return stopper
 }
 
-func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, fields []string, values []bitflow.Value, sink bitflow.MetricSink, stopper *golib.Stopper) {
+func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, values []bitflow.Value, stopper *golib.Stopper) {
 	header := &bitflow.Header{Fields: fields}
 	if handler := CollectedSampleHandler; handler != nil {
 		handler.HandleHeader(header, CollectorSampleSource)
 	}
+	// TODO source.CheckSink() should be called in Start()
+	sink := source.OutgoingSink
 
 	defer wg.Done()
 	for {
@@ -111,6 +96,7 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, fields []string, 
 				return
 			}
 			for {
+				metrics.UpdateAll()
 				sample := &bitflow.Sample{
 					Time:   time.Now(),
 					Values: values,
@@ -135,10 +121,10 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, fields []string, 
 }
 
 func (source *CollectorSource) PrintMetrics() {
-	source.root.init()
-	all := source.root.listMetricNames()
-	source.root.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
-	filtered := source.root.listMetricNames()
+	graph := initCollectorGraph(source.RootCollectors)
+	all := graph.listMetricNames()
+	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
+	filtered := graph.listMetricNames()
 	sort.Strings(all)
 	sort.Strings(filtered)
 	i := 0

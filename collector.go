@@ -2,7 +2,7 @@ package collector
 
 import (
 	"errors"
-	"fmt"
+	"sort"
 
 	bitflow "github.com/antongulenko/go-bitflow"
 )
@@ -68,21 +68,6 @@ func (source *AbstractCollector) String() string {
 	return parentName + source.name
 }
 
-// ================================= Collector Slice =================================
-type CollectorSlice []Collector
-
-func (s CollectorSlice) Init() (metrics MetricReaderMap, subCollectors []Collector, err error) {
-	return nil, s, nil
-}
-
-func (s CollectorSlice) Update() error {
-	return nil
-}
-
-func (s CollectorSlice) String() string {
-	return fmt.Sprintf(len(s), "collectors")
-}
-
 // ==================== Metric ====================
 type Metric struct {
 	name   string
@@ -93,4 +78,37 @@ type Metric struct {
 
 func (metric *Metric) Update() {
 	metric.sample[metric.index] = metric.reader()
+}
+
+// ==================== Metric Slice ====================
+type MetricSlice []*Metric
+
+func (s MetricSlice) Len() int {
+	return len(s)
+}
+
+func (s MetricSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s MetricSlice) Less(i, j int) bool {
+	return s[i].name < s[j].name
+}
+
+func (s MetricSlice) ConstructSample() ([]string, []bitflow.Value) {
+	sort.Sort(s)
+	fields := make([]string, len(s))
+	values := make([]bitflow.Value, len(s))
+	for i, metric := range s {
+		fields[i] = metric.name
+		metric.index = i
+		metric.sample = values
+	}
+	return fields, values
+}
+
+func (s MetricSlice) UpdateAll() {
+	for _, metric := range s {
+		metric.Update()
+	}
 }
