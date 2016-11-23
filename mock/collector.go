@@ -2,6 +2,7 @@ package mock
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -10,7 +11,11 @@ import (
 	"github.com/antongulenko/go-bitflow-collector"
 )
 
-const _max_mock_val = 15
+const _max_mock_val = 200
+
+func init() {
+	rand.Seed(int64(time.Now().Nanosecond()))
+}
 
 func NewMockCollector(factory *collector.ValueRingFactory) collector.Collector {
 	col := &MockRootCollector{
@@ -29,17 +34,6 @@ type MockRootCollector struct {
 }
 
 func (root *MockRootCollector) Init() ([]collector.Collector, error) {
-	root.startOnce.Do(func() {
-		go func() {
-			for {
-				time.Sleep(333 * time.Millisecond)
-				root.externalVal++
-				if root.externalVal >= _max_mock_val {
-					root.externalVal = 2
-				}
-			}
-		}()
-	})
 	return []collector.Collector{
 		newMockCollector(root, root.factory, 1),
 		newMockCollector(root, root.factory, 2),
@@ -48,9 +42,19 @@ func (root *MockRootCollector) Init() ([]collector.Collector, error) {
 }
 
 func (root *MockRootCollector) Update() error {
-
-	log.Println("Updating root")
-
+	root.startOnce.Do(func() {
+		millis := time.Millisecond * time.Duration(rand.Intn(500)+100) // 100..500
+		log.Printf("Incrementing mock values %.4f times per second", float64(time.Second)/float64(millis))
+		go func() {
+			for {
+				time.Sleep(millis)
+				root.externalVal++
+				if root.externalVal >= _max_mock_val {
+					root.externalVal = 2
+				}
+			}
+		}()
+	})
 	root.val = bitflow.Value(root.externalVal)
 	return nil
 }
@@ -76,7 +80,7 @@ func newMockCollector(root *MockRootCollector, factory *collector.ValueRingFacto
 		factor: factor,
 		ring:   factory.NewValueRing(),
 	}
-	col.Name = "mock"
+	col.Name = fmt.Sprintf("mock/%v", factor)
 	col.Parent = &root.AbstractCollector
 	return col
 }
@@ -86,9 +90,6 @@ func (col *MockCollector) Init() ([]collector.Collector, error) {
 }
 
 func (col *MockCollector) Update() error {
-
-	log.Println("Updating sub", col.factor)
-
 	col.ring.Add(collector.StoredValue(col.root.val * bitflow.Value(col.factor)))
 	return nil
 }

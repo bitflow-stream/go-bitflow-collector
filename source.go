@@ -82,7 +82,7 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, erro
 	log.Println("Locally collecting", len(metrics), "metrics through", len(graph.collectors), "collectors")
 
 	stopper := golib.NewStopper()
-	graph.startParallelUpdates(wg, stopper, source.CollectInterval)
+	source.startParallelUpdates(wg, stopper, graph)
 	wg.Add(1)
 	go source.sinkMetrics(wg, metrics, fields, values, stopper)
 	return stopper, nil
@@ -124,6 +124,55 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 			}
 		}
 		if stopper.Stopped(source.SinkInterval) {
+			return
+		}
+	}
+}
+
+func (source *CollectorSource) startParallelUpdates(wg *sync.WaitGroup, stopper *golib.Stopper, graph *collectorGraph) {
+	for node := range graph.nodes {
+		wg.Add(1)
+		go source.updateCollector(wg, node, stopper, source.CollectInterval)
+	}
+	for node := range graph.failed {
+		wg.Add(1)
+		go source.updateCollector(wg, node, stopper, FilteredCollectorCheckInterval)
+	}
+	wg.Add(1)
+	go source.watchFailedCollectors(wg, stopper, graph)
+}
+
+func (source *CollectorSource) updateCollector(wg *sync.WaitGroup, node *collectorNode, stopper *golib.Stopper, interval time.Duration) {
+	defer wg.Done()
+	for {
+		err := node.collector.Update()
+		if err == MetricsChanged {
+			log.Warnln("Metrics of", node, "have changed! Restarting metric collection.")
+			stopper.Stop()
+			return
+		} else if err != nil {
+			log.Warnln("Update of", node, "failed:", err)
+		}
+		if stopper.Stopped(interval) {
+			return
+		}
+	}
+}
+
+func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper *golib.Stopper, graph *collectorGraph) {
+	defer wg.Done()
+	for {
+		for node := range graph.failed {
+			if _, err := node.init(); err == nil {
+				log.Warnln("Collector", node, "is not failing anymore. Restarting metric collection.")
+				stopper.Stop()
+				return
+			}
+			if stopper.IsStopped() {
+				return
+			}
+		}
+		if stopper.Stopped(FailedCollectorCheckInterval) {
 			return
 		}
 	}

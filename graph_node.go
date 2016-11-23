@@ -12,6 +12,10 @@ type collectorNode struct {
 	metrics MetricReaderMap
 }
 
+func (node *collectorNode) String() string {
+	return node.collector.String()
+}
+
 func newCollectorNode(collector Collector, graph *collectorGraph) *collectorNode {
 	__nodeID++
 	return &collectorNode{
