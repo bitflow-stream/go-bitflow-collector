@@ -48,6 +48,7 @@ func (col *PsutilProcessCollector) Init() ([]collector.Collector, error) {
 		col.Child("disk", new(processDiskCollector)),
 		col.Child("mem", new(processMemoryCollector)),
 		col.Child("net", new(processNetCollector)),
+		col.newProcessPcapCollector(),
 		col.Child("fd", new(processFdCollector)),
 		col.Child("misc", new(processMiscCollector)),
 	}, nil

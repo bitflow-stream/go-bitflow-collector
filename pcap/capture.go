@@ -64,6 +64,16 @@ func CaptureOnePacket(source *gopacket.PacketSource, connections *Connections) e
 	return connections.LogPacket(info, size)
 }
 
+func TestCapture(nics []string, snaplen int32) error {
+	for _, nic := range nics {
+		_, err := OpenPcap(nic, snaplen)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (cons *Connections) CaptureNics(nics []string, snaplen int32, errorCallback func(error)) error {
 	sources := make([]*gopacket.PacketSource, 0, len(nics))
 	for _, nic := range nics {
@@ -73,6 +83,7 @@ func (cons *Connections) CaptureNics(nics []string, snaplen int32, errorCallback
 		}
 		sources = append(sources, source)
 	}
+	log.Println("Capturing packets from", nics)
 	for _, source := range sources {
 		go func() {
 			for {

@@ -3,12 +3,14 @@ package main
 import (
 	"errors"
 	"flag"
+	"log"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/mock"
+	"github.com/antongulenko/go-bitflow-collector/pcap"
 	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/antongulenko/golib"
 )
@@ -81,20 +83,19 @@ func init() {
 }
 
 func configurePcap() {
-	/*
-		if pcap_nics == "" {
-			allNics, err := pcap.PhysicalInterfaces()
-			if err != nil {
-				log.Fatalln("Failed to enumerate physical NICs:", err)
-			}
-			psutil.PcapNics = allNics
-		} else {
-			psutil.PcapNics = strings.Split(pcap_nics, ",")
+	if pcap_nics == "" {
+		allNics, err := pcap.PhysicalInterfaces()
+		if err != nil {
+			log.Fatalln("Failed to enumerate physical NICs:", err)
 		}
-	*/
+		psutil.PcapNics = allNics
+	} else {
+		psutil.PcapNics = strings.Split(pcap_nics, ",")
+	}
 }
 
 func createCollectorSource() *collector.CollectorSource {
+	configurePcap()
 	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 3 // Make sure enough samples can be buffered
 	var cols []collector.Collector
 

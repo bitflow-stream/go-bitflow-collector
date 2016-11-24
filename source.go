@@ -69,13 +69,10 @@ func (source *CollectorSource) Stop() {
 }
 
 func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, error) {
-	graph, err := initCollectorGraph(source.RootCollectors)
+	graph, err := source.createGraph()
 	if err != nil {
 		return nil, err
 	}
-
-	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
-	graph.pruneEmptyNodes()
 
 	metrics := graph.getMetrics()
 	fields, values := metrics.ConstructSample()
@@ -86,6 +83,16 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, erro
 	wg.Add(1)
 	go source.sinkMetrics(wg, metrics, fields, values, stopper)
 	return stopper, nil
+}
+
+func (source *CollectorSource) createGraph() (*collectorGraph, error) {
+	graph, err := initCollectorGraph(source.RootCollectors)
+	if err != nil {
+		return nil, err
+	}
+	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
+	graph.pruneEmptyNodes()
+	return graph, nil
 }
 
 func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, values []bitflow.Value, stopper *golib.Stopper) {
@@ -238,12 +245,10 @@ func (source *CollectorSource) PrintMetrics() error {
 }
 
 func (source *CollectorSource) PrintGraph(file string) error {
-	graph, err := initCollectorGraph(source.RootCollectors)
+	graph, err := source.createGraph()
 	if err != nil {
 		return err
 	}
-	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
-	graph.pruneEmptyNodes()
 
 	if !strings.HasSuffix(file, ".png") {
 		file += ".png"

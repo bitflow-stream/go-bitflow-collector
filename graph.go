@@ -97,7 +97,33 @@ func (graph *collectorGraph) applyMetricFilters(exclude []*regexp.Regexp, includ
 	}
 }
 
+func (graph *collectorGraph) dependsOnFailedOrFiltered(node *collectorNode) bool {
+	for _, dependencyCol := range node.collector.Depends() {
+		dependency := graph.resolve(dependencyCol)
+		if !graph.nodes[dependency] {
+			return true
+		}
+	}
+	return false
+}
+
 func (graph *collectorGraph) pruneEmptyNodes() {
+	// Obtain topological order of graph
+	sorted, err := topo.Sort(graph)
+	if err != nil {
+		// TODO return error instead. Panic should not happen because of test in init()
+		panic(err)
+	}
+
+	// Walk "root" nodes first: delete nodes with failed dependencies
+	for i := len(sorted) - 1; i >= 0; i-- {
+		node := sorted[i].(*collectorNode)
+		if graph.dependsOnFailedOrFiltered(node) {
+			graph.collectorFiltered(node)
+			sorted[i] = nil
+		}
+	}
+
 	// For every node, collect the set of nodes that depend on that node
 	incoming := make(map[*collectorNode]map[*collectorNode]bool)
 	for node := range graph.nodes {
@@ -112,15 +138,11 @@ func (graph *collectorGraph) pruneEmptyNodes() {
 		}
 	}
 
-	// Obtain topological order of graph
-	sorted, err := topo.Sort(graph)
-	if err != nil {
-		// TODO return error instead. Panic should not happen because of test in init()
-		panic(err)
-	}
-
 	// Walk "leaf" nodes first
 	for _, graphNode := range sorted {
+		if graphNode == nil {
+			continue
+		}
 		node := graphNode.(*collectorNode)
 		if len(node.metrics) == 0 && len(incoming[node]) == 0 {
 			// Nothing depends on this node, and it does not have any metrics
