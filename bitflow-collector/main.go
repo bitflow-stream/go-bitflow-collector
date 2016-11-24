@@ -32,11 +32,11 @@ func do_main() int {
 	col := createCollectorSource()
 	stop := false
 	if print_metrics {
-		col.PrintMetrics()
+		golib.Checkerr(col.PrintMetrics())
 		stop = true
 	}
 	if print_graph != "" {
-		col.PrintGraph(print_graph)
+		golib.Checkerr(col.PrintGraph(print_graph))
 		stop = true
 	}
 	if stop {

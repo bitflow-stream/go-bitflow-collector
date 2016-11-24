@@ -130,29 +130,63 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 }
 
 func (source *CollectorSource) startParallelUpdates(wg *sync.WaitGroup, stopper *golib.Stopper, graph *collectorGraph) {
-	for node := range graph.nodes {
+	plan := graph.createUpdatePlan()
+	log.Debugln("Collector update plan:", plan)
+
+	// Update collectors once without forking goroutine
+	log.Debugln("Performing initial collector updates...")
+	for _, nodes := range plan {
+		source.updateCollectors(nodes, stopper)
+	}
+	log.Debugln("Initial updates complete, now starting background updates")
+
+	for _, nodes := range plan {
 		wg.Add(1)
-		go source.updateCollector(wg, node, stopper, source.CollectInterval)
+		go source.loopUpdateCollectors(wg, nodes, stopper, source.CollectInterval)
 	}
 	for node := range graph.failed {
 		wg.Add(1)
-		go source.updateCollector(wg, node, stopper, FilteredCollectorCheckInterval)
+		go source.loopUpdateCollector(wg, node, stopper, FilteredCollectorCheckInterval)
 	}
 	wg.Add(1)
 	go source.watchFailedCollectors(wg, stopper, graph)
 }
 
-func (source *CollectorSource) updateCollector(wg *sync.WaitGroup, node *collectorNode, stopper *golib.Stopper, interval time.Duration) {
+func (source *CollectorSource) loopUpdateCollectors(wg *sync.WaitGroup, nodes []*collectorNode, stopper *golib.Stopper, interval time.Duration) {
 	defer wg.Done()
 	for {
-		err := node.collector.Update()
-		if err == MetricsChanged {
-			log.Warnln("Metrics of", node, "have changed! Restarting metric collection.")
-			stopper.Stop()
+		source.updateCollectors(nodes, stopper)
+		if stopper.Stopped(interval) {
 			return
-		} else if err != nil {
-			log.Warnln("Update of", node, "failed:", err)
 		}
+	}
+}
+
+func (source *CollectorSource) updateCollectors(nodes []*collectorNode, stopper *golib.Stopper) {
+	for _, node := range nodes {
+		if !source.updateCollector(node, stopper) {
+			break
+		}
+	}
+}
+
+func (source *CollectorSource) updateCollector(node *collectorNode, stopper *golib.Stopper) bool {
+	err := node.collector.Update()
+	if err == MetricsChanged {
+		log.Warnln("Metrics of", node, "have changed! Restarting metric collection.")
+		stopper.Stop()
+		return false
+	} else if err != nil {
+		log.Warnln("Update of", node, "failed:", err)
+		return false
+	}
+	return true
+}
+
+func (source *CollectorSource) loopUpdateCollector(wg *sync.WaitGroup, node *collectorNode, stopper *golib.Stopper, interval time.Duration) {
+	defer wg.Done()
+	for {
+		_ = source.updateCollector(node, stopper)
 		if stopper.Stopped(interval) {
 			return
 		}
@@ -178,11 +212,10 @@ func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper
 	}
 }
 
-func (source *CollectorSource) PrintMetrics() {
+func (source *CollectorSource) PrintMetrics() error {
 	graph, err := initCollectorGraph(source.RootCollectors)
 	if err != nil {
-		log.Fatalln(err)
-		return
+		return err
 	}
 	all := graph.listMetricNames()
 	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
@@ -201,19 +234,22 @@ func (source *CollectorSource) PrintMetrics() {
 			fmt.Println(metric)
 		}
 	}
+	return nil
 }
 
-func (source *CollectorSource) PrintGraph(file string) {
+func (source *CollectorSource) PrintGraph(file string) error {
 	graph, err := initCollectorGraph(source.RootCollectors)
 	if err != nil {
-		log.Fatalln(err)
-		return
+		return err
 	}
+	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
+	graph.pruneEmptyNodes()
 
 	if !strings.HasSuffix(file, ".png") {
 		file += ".png"
 	}
 	if err := graph.WriteGraph(file); err != nil {
-		log.Errorln("Failed to create graph image:", err)
+		return fmt.Errorf("Failed to create graph image:", err)
 	}
+	return nil
 }

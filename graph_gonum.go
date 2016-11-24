@@ -3,6 +3,7 @@ package collector
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gonum/graph"
@@ -39,7 +40,7 @@ func (graph *collectorGraph) WriteGraph(filename string) error {
 	return err
 }
 
-// =========================== Implementation of github.com/gonum/graph.Directed interface ===========================
+// =========================== Implementation of github.com/gonum/graph.Directed and Undirected interfaces ===========================
 
 func (graph *collectorGraph) Has(graphNode graph.Node) bool {
 	node, ok := graphNode.(*collectorNode)
@@ -118,5 +119,13 @@ func (node *collectorNode) ID() int {
 }
 
 func (node *collectorNode) DOTID() string {
-	return fmt.Sprintf("\"%v\"", node.collector.String())
+	str := "\"" + node.collector.String()
+	if len(node.metrics) > 0 {
+		if len(node.metrics) == 1 {
+			str += "\n1 metric"
+		} else {
+			str += "\n" + strconv.Itoa(len(node.metrics)) + " metrics"
+		}
+	}
+	return str + "\""
 }

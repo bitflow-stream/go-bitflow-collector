@@ -12,10 +12,6 @@ type collectorNode struct {
 	metrics MetricReaderMap
 }
 
-func (node *collectorNode) String() string {
-	return node.collector.String()
-}
-
 func newCollectorNode(collector Collector, graph *collectorGraph) *collectorNode {
 	__nodeID++
 	return &collectorNode{
@@ -25,12 +21,12 @@ func newCollectorNode(collector Collector, graph *collectorGraph) *collectorNode
 	}
 }
 
+func (node *collectorNode) String() string {
+	return node.collector.String()
+}
+
 func (node *collectorNode) init() ([]Collector, error) {
 	children, err := node.collector.Init()
-	if err != nil {
-		return nil, err
-	}
-	err = node.collector.Update()
 	if err != nil {
 		return nil, err
 	}

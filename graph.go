@@ -5,6 +5,8 @@ import (
 	"regexp"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/gonum/graph"
+	"github.com/gonum/graph/simple"
 	"github.com/gonum/graph/topo"
 )
 
@@ -182,4 +184,41 @@ func (graph *collectorGraph) resolve(col Collector) *collectorNode {
 		panic(fmt.Sprintf("Node for collector %v not found!", col))
 	}
 	return node
+}
+
+func createCollectorSubgraph(nodes []graph.Node) *collectorGraph {
+	graph := &collectorGraph{
+		nodes:      make(map[*collectorNode]bool),
+		failed:     make(map[*collectorNode]bool),
+		filtered:   make(map[*collectorNode]bool),
+		collectors: make(map[Collector]*collectorNode),
+	}
+	for _, graphNode := range nodes {
+		node := graphNode.(*collectorNode)
+		graph.nodes[node] = true
+		graph.collectors[node.collector] = node
+	}
+	return graph
+}
+
+func (g *collectorGraph) createUpdatePlan() [][]*collectorNode {
+	undirected := simple.NewUndirectedGraph(1, 1)
+	graph.Copy(undirected, g)
+	parts := topo.ConnectedComponents(undirected)
+	result := make([][]*collectorNode, len(parts))
+
+	for i, part := range parts {
+		subgraph := createCollectorSubgraph(part)
+		sortedGraph, err := topo.Sort(subgraph)
+		if err != nil {
+			// Should not happen, graph should already be asserted acyclic
+			panic(err)
+		}
+		sorted := make([]*collectorNode, len(sortedGraph))
+		for j, node := range sortedGraph {
+			sorted[len(sortedGraph)-1-j] = node.(*collectorNode)
+		}
+		result[i] = sorted
+	}
+	return result
 }

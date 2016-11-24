@@ -3,6 +3,7 @@ package mock
 import (
 	"fmt"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -18,11 +19,10 @@ func init() {
 }
 
 func NewMockCollector(factory *collector.ValueRingFactory) collector.Collector {
-	col := &MockRootCollector{
-		factory: factory,
+	return &MockRootCollector{
+		AbstractCollector: collector.RootCollector("mock"),
+		factory:           factory,
 	}
-	col.Name = "mock-root"
-	return col
 }
 
 type MockRootCollector struct {
@@ -75,14 +75,12 @@ type MockCollector struct {
 }
 
 func newMockCollector(root *MockRootCollector, factory *collector.ValueRingFactory, factor int) *MockCollector {
-	col := &MockCollector{
-		root:   root,
-		factor: factor,
-		ring:   factory.NewValueRing(),
+	return &MockCollector{
+		AbstractCollector: root.Child(strconv.Itoa(factor)),
+		root:              root,
+		factor:            factor,
+		ring:              factory.NewValueRing(),
 	}
-	col.Name = fmt.Sprintf("mock/%v", factor)
-	col.Parent = &root.AbstractCollector
-	return col
 }
 
 func (col *MockCollector) Init() ([]collector.Collector, error) {

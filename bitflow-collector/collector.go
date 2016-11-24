@@ -9,6 +9,7 @@ import (
 
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/mock"
+	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/antongulenko/golib"
 )
 
@@ -98,8 +99,8 @@ func createCollectorSource() *collector.CollectorSource {
 	var cols []collector.Collector
 
 	cols = append(cols, mock.NewMockCollector(&ringFactory))
+	cols = append(cols, psutil.NewPsutilRootCollector(&ringFactory))
 
-	//psutil.RegisterPsutilCollectors(collect_local_interval*3/2, &ringFactory) // Update PIDs less often then metrics
 	//libvirt.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
 	//ovsdb.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
 
@@ -118,7 +119,7 @@ func createCollectorSource() *collector.CollectorSource {
 				regexes[key] = append(regexes[key], regex)
 			}
 			for key, list := range regexes {
-				collector.RegisterCollector(&psutil.PsutilProcessCollector{
+				cols = append(cols, &psutil.PsutilProcessCollector{
 					CmdlineFilter:     list,
 					GroupName:         key,
 					PrintErrors:       proc_show_errors,
@@ -128,7 +129,6 @@ func createCollectorSource() *collector.CollectorSource {
 			}
 		}
 	*/
-
 	if all_metrics {
 		excludeMetricsRegexes = nil
 	}

@@ -60,12 +60,41 @@ type AbstractCollector struct {
 	Name   string
 }
 
-func (source *AbstractCollector) String() string {
-	parentName := ""
-	if source.Parent != nil {
-		parentName = source.Parent.String() + "/"
+func RootCollector(name string) AbstractCollector {
+	return AbstractCollector{
+		Name: name,
 	}
-	return parentName + source.Name
+}
+
+func (col *AbstractCollector) Child(name string) AbstractCollector {
+	return AbstractCollector{
+		Parent: col,
+		Name:   name,
+	}
+}
+
+func (col *AbstractCollector) String() string {
+	parentName := ""
+	if col.Parent != nil {
+		parentName = col.Parent.String() + "/"
+	}
+	return parentName + col.Name
+}
+
+func (col *AbstractCollector) Init() ([]Collector, error) {
+	return nil, nil
+}
+
+func (col *AbstractCollector) Depends() []Collector {
+	return nil
+}
+
+func (col *AbstractCollector) Metrics() MetricReaderMap {
+	return nil
+}
+
+func (col *AbstractCollector) Update() error {
+	return nil
 }
 
 // ==================== Metric ====================
