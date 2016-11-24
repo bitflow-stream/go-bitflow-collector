@@ -12,19 +12,19 @@ import (
 
 type PsutilCpuCollector struct {
 	collector.AbstractCollector
-	Factory *collector.ValueRingFactory
+	factory *collector.ValueRingFactory
 	ring    *collector.ValueRing
 }
 
-func newCpuCollector(root *PsutilRootCollector, factory *collector.ValueRingFactory) *PsutilCpuCollector {
+func newCpuCollector(root *PsutilRootCollector) *PsutilCpuCollector {
 	return &PsutilCpuCollector{
 		AbstractCollector: root.Child("cpu"),
-		Factory:           factory,
+		factory:           root.Factory,
 	}
 }
 
 func (col *PsutilCpuCollector) Init() ([]collector.Collector, error) {
-	col.ring = col.Factory.NewValueRing()
+	col.ring = col.factory.NewValueRing()
 	return nil, nil
 }
 

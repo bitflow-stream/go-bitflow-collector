@@ -9,29 +9,35 @@ import (
 
 type PsutilNetCollector struct {
 	collector.AbstractCollector
-	Factory *collector.ValueRingFactory
-
+	factory  *collector.ValueRingFactory
 	counters NetIoCounters
 }
 
-func (col *PsutilNetCollector) Init() error {
-	col.Reset(col)
-	col.counters = NewNetIoCounters(col.Factory)
-	col.Readers = make(map[string]collector.MetricReader)
-	col.counters.Register(col.Readers, "net-io")
-	return nil
+func newNetCollector(root *PsutilRootCollector) *PsutilNetCollector {
+	return &PsutilNetCollector{
+		AbstractCollector: root.Child("net-io"),
+		factory:           root.Factory,
+	}
 }
 
-func (col *PsutilNetCollector) Update() (err error) {
-	counters, err := psnet.IOCounters(false)
-	if err == nil && len(counters) != 1 {
-		err = fmt.Errorf("gopsutil/net.NetIOCounters() returned %v NetIOCountersStat instead of %v", len(counters), 1)
+func (col *PsutilNetCollector) Init() ([]collector.Collector, error) {
+	col.counters = NewNetIoCounters(col.factory)
+	return nil, nil
+}
+
+func (col *PsutilNetCollector) Update() error {
+	io, err := psnet.IOCounters(false)
+	if err == nil && len(io) != 1 {
+		err = fmt.Errorf("gopsutil/net.NetIOCounters() returned %v NetIOCountersStat instead of %v", len(io), 1)
 	}
 	if err == nil {
-		col.counters.Add(&counters[0])
-		col.UpdateMetrics()
+		col.counters.Add(&io[0])
 	}
-	return
+	return err
+}
+
+func (col *PsutilNetCollector) Metrics() collector.MetricReaderMap {
+	return col.counters.Metrics("net-io")
 }
 
 type BaseNetIoCounters struct {
@@ -77,13 +83,15 @@ func (counters *BaseNetIoCounters) FlushHead() {
 	counters.TxPackets.FlushHead()
 }
 
-func (counters *BaseNetIoCounters) Register(target map[string]collector.MetricReader, prefix string) {
-	target[prefix+"/bytes"] = counters.Bytes.GetDiff
-	target[prefix+"/packets"] = counters.Packets.GetDiff
-	target[prefix+"/rx_bytes"] = counters.RxBytes.GetDiff
-	target[prefix+"/rx_packets"] = counters.RxPackets.GetDiff
-	target[prefix+"/tx_bytes"] = counters.TxBytes.GetDiff
-	target[prefix+"/tx_packets"] = counters.TxPackets.GetDiff
+func (counters *BaseNetIoCounters) Metrics(prefix string) collector.MetricReaderMap {
+	return collector.MetricReaderMap{
+		prefix + "/bytes":      counters.Bytes.GetDiff,
+		prefix + "/packets":    counters.Packets.GetDiff,
+		prefix + "/rx_bytes":   counters.RxBytes.GetDiff,
+		prefix + "/rx_packets": counters.RxPackets.GetDiff,
+		prefix + "/tx_bytes":   counters.TxBytes.GetDiff,
+		prefix + "/tx_packets": counters.TxPackets.GetDiff,
+	}
 }
 
 type NetIoCounters struct {
@@ -117,8 +125,9 @@ func (counters *NetIoCounters) FlushHead() {
 	counters.Dropped.FlushHead()
 }
 
-func (counters *NetIoCounters) Register(target map[string]collector.MetricReader, prefix string) {
-	counters.BaseNetIoCounters.Register(target, prefix)
-	target[prefix+"/errors"] = counters.Errors.GetDiff
-	target[prefix+"/dropped"] = counters.Dropped.GetDiff
+func (counters *NetIoCounters) Metrics(prefix string) collector.MetricReaderMap {
+	m := counters.BaseNetIoCounters.Metrics(prefix)
+	m[prefix+"/errors"] = counters.Errors.GetDiff
+	m[prefix+"/dropped"] = counters.Dropped.GetDiff
+	return m
 }

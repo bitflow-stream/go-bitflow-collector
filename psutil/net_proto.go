@@ -8,6 +8,8 @@ import (
 	psnet "github.com/shirou/gopsutil/net"
 )
 
+// TODO missing: metrics about individual NICs
+
 var absoluteNetProtoValues = map[string]bool{
 	// These values will not be aggregated through ValueRing
 	"NoPorts":      true, // udp, udplite
@@ -22,40 +24,51 @@ var absoluteNetProtoValues = map[string]bool{
 
 type PsutilNetProtoCollector struct {
 	collector.AbstractCollector
-	Factory *collector.ValueRingFactory
+	factory *collector.ValueRingFactory
 
 	protocols    map[string]psnet.ProtoCountersStat
 	protoReaders []*protoStatReader
 }
 
-func (col *PsutilNetProtoCollector) Init() error {
-	col.Reset(col)
+func newNetProtoCollector(root *PsutilRootCollector) *PsutilNetProtoCollector {
+	return &PsutilNetProtoCollector{
+		AbstractCollector: root.Child("net-proto"),
+		factory:           root.Factory,
+	}
+}
+
+func (col *PsutilNetProtoCollector) Init() ([]collector.Collector, error) {
 	col.protocols = make(map[string]psnet.ProtoCountersStat)
 	col.protoReaders = nil
 
-	// TODO missing: metrics about individual connections and NICs
 	if err := col.update(false); err != nil {
-		return err
+		return nil, err
 	}
-	col.Readers = make(map[string]collector.MetricReader)
 	for proto, counters := range col.protocols {
 		for statName, _ := range counters.Stats {
 			var ring *collector.ValueRing
 			if !absoluteNetProtoValues[statName] {
-				ring = col.Factory.NewValueRing()
+				ring = col.factory.NewValueRing()
 			}
-			name := "net-proto/" + proto + "/" + statName
 			protoReader := &protoStatReader{
 				col:      col,
 				protocol: proto,
 				field:    statName,
 				ring:     ring,
 			}
-			col.Readers[name] = protoReader.read
 			col.protoReaders = append(col.protoReaders, protoReader)
 		}
 	}
-	return nil
+	return nil, nil
+}
+
+func (col *PsutilNetProtoCollector) Metrics() collector.MetricReaderMap {
+	res := make(collector.MetricReaderMap)
+	for _, reader := range col.protoReaders {
+		name := "net-proto/" + reader.protocol + "/" + reader.field
+		res[name] = reader.read
+	}
+	return res
 }
 
 func (col *PsutilNetProtoCollector) update(checkChange bool) error {
@@ -85,7 +98,6 @@ func (col *PsutilNetProtoCollector) Update() (err error) {
 				return err
 			}
 		}
-		col.UpdateMetrics()
 	}
 	return
 }

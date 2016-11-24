@@ -42,6 +42,10 @@ type TimedValue struct {
 	val       LogbackValue
 }
 
+func (ring *ValueRing) AddValueToHead(val bitflow.Value) {
+	ring.AddToHead(StoredValue(val))
+}
+
 func (ring *ValueRing) AddToHead(val LogbackValue) {
 	if ring.aggregator == nil {
 		ring.aggregator = val

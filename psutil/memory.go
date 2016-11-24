@@ -8,28 +8,28 @@ import (
 	"github.com/shirou/gopsutil/mem"
 )
 
-// ==================== Memory ====================
 type PsutilMemCollector struct {
 	collector.AbstractCollector
 	memory *mem.VirtualMemoryStat
 }
 
-func (col *PsutilMemCollector) Init() error {
-	col.Reset(col)
-	col.Readers = map[string]collector.MetricReader{
-		"mem/free":    col.readFreeMem,
-		"mem/used":    col.readUsedMem,
-		"mem/percent": col.readUsedPercentMem,
+func newMemCollector(root *PsutilRootCollector) *PsutilMemCollector {
+	return &PsutilMemCollector{
+		AbstractCollector: root.Child("mem"),
 	}
-	return nil
 }
 
 func (col *PsutilMemCollector) Update() (err error) {
 	col.memory, err = mem.VirtualMemory()
-	if err == nil {
-		col.UpdateMetrics()
-	}
 	return
+}
+
+func (col *PsutilMemCollector) Metrics() collector.MetricReaderMap {
+	return collector.MetricReaderMap{
+		"mem/free":    col.readFreeMem,
+		"mem/used":    col.readUsedMem,
+		"mem/percent": col.readUsedPercentMem,
+	}
 }
 
 func (col *PsutilMemCollector) readFreeMem() bitflow.Value {

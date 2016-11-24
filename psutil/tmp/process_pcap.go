@@ -35,6 +35,17 @@ func startPcapCapture() (err error) {
 	return
 }
 
+func Metrics() collectors.MetricReaderMap {
+	return collectors.MetricReaderMap{
+		prefix + "/net-pcap/bytes":      col.net_pcap.Bytes.GetDiff,
+		prefix + "/net-pcap/packets":    col.net_pcap.Packets.GetDiff,
+		prefix + "/net-pcap/rx_bytes":   col.net_pcap.RxBytes.GetDiff,
+		prefix + "/net-pcap/rx_packets": col.net_pcap.RxPackets.GetDiff,
+		prefix + "/net-pcap/tx_bytes":   col.net_pcap.TxBytes.GetDiff,
+		prefix + "/net-pcap/tx_packets": col.net_pcap.TxPackets.GetDiff,
+	}
+}
+
 func (self *PsutilProcessCollector) updatePcapNet() error {
 	if err := startPcapCapture(); err != nil {
 		return err

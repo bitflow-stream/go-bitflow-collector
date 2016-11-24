@@ -43,7 +43,7 @@ var (
 var (
 	includeMetricsRegexes []*regexp.Regexp
 	excludeMetricsRegexes = []*regexp.Regexp{
-		regexp.MustCompile("^mock$"),
+		regexp.MustCompile("^mock/.$"),
 		regexp.MustCompile("^net-proto/(UdpLite|IcmpMsg)"),                         // Some extended protocol-metrics
 		regexp.MustCompile("^disk-io/[^all]"),                                      // Disk IO for specific partitions/disks
 		regexp.MustCompile("^disk-usage/[^all]"),                                   // Disk usage for specific partitions
@@ -52,7 +52,7 @@ var (
 	}
 	includeBasicMetricsRegexes = []*regexp.Regexp{
 		regexp.MustCompile("^(cpu|mem/percent)$"),
-		regexp.MustCompile("^disk-io/.../(io|ioTime|ioBytes)$"),
+		regexp.MustCompile("^disk-io/all/(io|ioTime|ioBytes)$"),
 		regexp.MustCompile("^net-io/(bytes|packets|dropped|errors)$"),
 		regexp.MustCompile("^proc/.+/(cpu|mem/rss|disk/(io|ioBytes)|net-io/(bytes|packets|dropped|errors))$"),
 	}
@@ -99,36 +99,30 @@ func createCollectorSource() *collector.CollectorSource {
 	var cols []collector.Collector
 
 	cols = append(cols, mock.NewMockCollector(&ringFactory))
-	cols = append(cols, psutil.NewPsutilRootCollector(&ringFactory))
+	psutilRoot := psutil.NewPsutilRootCollector(&ringFactory)
+	cols = append(cols, psutilRoot)
 
 	//libvirt.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
 	//ovsdb.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
 
-	/*
-		if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
-			regexes := make(map[string][]*regexp.Regexp)
-			for _, substr := range proc_collectors {
-				key, value := splitKeyValue(substr)
-				regex := regexp.MustCompile(regexp.QuoteMeta(value))
-				regexes[key] = append(regexes[key], regex)
-			}
-			for _, regexStr := range proc_collector_regex {
-				key, value := splitKeyValue(regexStr)
-				regex, err := regexp.Compile(value)
-				golib.Checkerr(err)
-				regexes[key] = append(regexes[key], regex)
-			}
-			for key, list := range regexes {
-				cols = append(cols, &psutil.PsutilProcessCollector{
-					CmdlineFilter:     list,
-					GroupName:         key,
-					PrintErrors:       proc_show_errors,
-					PidUpdateInterval: proc_update_pids,
-					Factory:           &ringFactory,
-				})
-			}
+	if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
+		psutil.PidUpdateInterval = proc_update_pids
+		regexes := make(map[string][]*regexp.Regexp)
+		for _, substr := range proc_collectors {
+			key, value := splitKeyValue(substr)
+			regex := regexp.MustCompile(regexp.QuoteMeta(value))
+			regexes[key] = append(regexes[key], regex)
 		}
-	*/
+		for _, regexStr := range proc_collector_regex {
+			key, value := splitKeyValue(regexStr)
+			regex, err := regexp.Compile(value)
+			golib.Checkerr(err)
+			regexes[key] = append(regexes[key], regex)
+		}
+		for key, list := range regexes {
+			cols = append(cols, psutilRoot.NewProcessCollector(list, key, proc_show_errors))
+		}
+	}
 	if all_metrics {
 		excludeMetricsRegexes = nil
 	}
