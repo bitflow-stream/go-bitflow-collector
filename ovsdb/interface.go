@@ -5,22 +5,23 @@ import (
 	"github.com/antongulenko/go-bitflow-collector/psutil"
 )
 
-type ovsdbInterfaceReader struct {
-	name     string
-	col      *OvsdbCollector
+type ovsdbInterfaceCollector struct {
+	collector.AbstractCollector
 	counters psutil.NetIoCounters
 }
 
-func (col *ovsdbInterfaceReader) fillValues(stats map[string]float64, names []string, ring *collector.ValueRing) {
-	for _, name := range names {
-		if value, ok := stats[name]; ok {
-			ring.AddToHead(collector.StoredValue(value))
-		}
+func (parent *OvsdbCollector) newCollector(name string) *ovsdbInterfaceCollector {
+	return &ovsdbInterfaceCollector{
+		AbstractCollector: parent.Child(name),
+		counters:          psutil.NewNetIoCounters(parent.factory),
 	}
-	ring.FlushHead()
 }
 
-func (col *ovsdbInterfaceReader) update(stats map[string]float64) {
+func (col *ovsdbInterfaceCollector) Metrics() collector.MetricReaderMap {
+	return col.counters.Metrics("ovsdb/" + col.Name)
+}
+
+func (col *ovsdbInterfaceCollector) update(stats map[string]float64) {
 	col.fillValues(stats, []string{
 		"collisions",
 		"rx_crc_err",
@@ -36,4 +37,13 @@ func (col *ovsdbInterfaceReader) update(stats map[string]float64) {
 	col.fillValues(stats, []string{"rx_packets"}, col.counters.RxPackets)
 	col.fillValues(stats, []string{"tx_bytes"}, col.counters.TxBytes)
 	col.fillValues(stats, []string{"tx_packets"}, col.counters.TxPackets)
+}
+
+func (col *ovsdbInterfaceCollector) fillValues(stats map[string]float64, names []string, ring *collector.ValueRing) {
+	for _, name := range names {
+		if value, ok := stats[name]; ok {
+			ring.AddToHead(collector.StoredValue(value))
+		}
+	}
+	ring.FlushHead()
 }

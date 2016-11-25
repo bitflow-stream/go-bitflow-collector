@@ -5,51 +5,54 @@ import (
 	"sync"
 
 	"github.com/antongulenko/go-bitflow-collector"
-	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/socketplane/libovsdb"
 )
+
+const DefaultOvsdbPort = libovsdb.DefaultPort
 
 type OvsdbCollector struct {
 	collector.AbstractCollector
 	Host    string
 	Port    int
-	Factory *collector.ValueRingFactory
+	factory *collector.ValueRingFactory
 
-	client           *libovsdb.OvsdbClient
-	lastUpdateError  error
-	notifier         ovsdbNotifier
-	interfaceReaders map[string]*ovsdbInterfaceReader
-	readersLock      sync.Mutex
+	client              *libovsdb.OvsdbClient
+	lastUpdateError     error
+	notifier            ovsdbNotifier
+	interfaceCollectors map[string]*ovsdbInterfaceCollector
+	readersLock         sync.Mutex
 }
 
-func (col *OvsdbCollector) Init() error {
-	col.Reset(col)
+func NewOvsdbCollector(host string, factory *collector.ValueRingFactory) *OvsdbCollector {
+	return NewOvsdbCollectorPort(host, 0, factory)
+}
+
+func NewOvsdbCollectorPort(host string, port int, factory *collector.ValueRingFactory) *OvsdbCollector {
+	return &OvsdbCollector{
+		AbstractCollector: collector.RootCollector("ovsdb"),
+		Host:              host,
+		Port:              port,
+		factory:           factory}
+}
+
+func (col *OvsdbCollector) Init() ([]collector.Collector, error) {
 	col.Close()
 	col.notifier.col = col
 	col.lastUpdateError = nil
-	col.interfaceReaders = make(map[string]*ovsdbInterfaceReader)
+	col.interfaceCollectors = make(map[string]*ovsdbInterfaceCollector)
 	if err := col.update(false); err != nil {
-		return err
+		return nil, err
 	}
 
-	col.Readers = make(map[string]collector.MetricReader)
-	for _, reader := range col.interfaceReaders {
-		reader.counters.Register(col.Readers, "ovsdb/"+reader.name)
+	readers := make([]collector.Collector, 0, len(col.interfaceCollectors))
+	for _, reader := range col.interfaceCollectors {
+		readers = append(readers, reader)
 	}
-	return nil
+	return readers, nil
 }
 
-func (col *OvsdbCollector) getReader(name string) *ovsdbInterfaceReader {
-	if reader, ok := col.interfaceReaders[name]; ok {
-		return reader
-	}
-	reader := &ovsdbInterfaceReader{
-		col:      col,
-		name:     name,
-		counters: psutil.NewNetIoCounters(col.Factory),
-	}
-	col.interfaceReaders[name] = reader
-	return reader
+func (col *OvsdbCollector) Update() error {
+	return col.update(true)
 }
 
 func (col *OvsdbCollector) Close() {
@@ -57,13 +60,6 @@ func (col *OvsdbCollector) Close() {
 		client.Disconnect()
 		col.client = nil
 	}
-}
-
-func (col *OvsdbCollector) Update() (err error) {
-	if err = col.update(true); err == nil {
-		col.UpdateMetrics()
-	}
-	return
 }
 
 func (col *OvsdbCollector) update(checkChange bool) error {
@@ -125,12 +121,16 @@ func (col *OvsdbCollector) updateTables(checkChange bool, updates map[string]lib
 		if name, stats, err := col.parseRowUpdate(&rowUpdate.New); err != nil {
 			return err
 		} else {
-			if checkChange {
-				if _, ok := col.interfaceReaders[name]; !ok {
+			reader, ok := col.interfaceCollectors[name]
+			if !ok {
+				if checkChange {
 					return collector.MetricsChanged
+				} else {
+					reader = col.newCollector(name)
+					col.interfaceCollectors[name] = reader
 				}
 			}
-			col.getReader(name).update(stats)
+			reader.update(stats)
 		}
 	}
 	return nil

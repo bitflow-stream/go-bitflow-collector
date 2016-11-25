@@ -5,11 +5,13 @@ import (
 	"flag"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/mock"
+	"github.com/antongulenko/go-bitflow-collector/ovsdb"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
 	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/antongulenko/golib"
@@ -62,7 +64,7 @@ var (
 
 func init() {
 	// flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
-	// flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
+	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
 	flag.BoolVar(&print_metrics, "metrics", print_metrics, "Print all available metrics and exit")
 	flag.StringVar(&print_graph, "graph", print_graph, "Create png-file for the collector-graph and exit")
 	flag.BoolVar(&all_metrics, "a", all_metrics, "Disable built-in filters on available metrics")
@@ -104,7 +106,7 @@ func createCollectorSource() *collector.CollectorSource {
 	cols = append(cols, psutilRoot)
 
 	//libvirt.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
-	//ovsdb.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
+	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
 
 	if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
 		psutil.PidUpdateInterval = proc_update_pids
