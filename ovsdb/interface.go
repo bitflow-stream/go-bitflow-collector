@@ -7,18 +7,24 @@ import (
 
 type ovsdbInterfaceCollector struct {
 	collector.AbstractCollector
+	parent   *OvsdbCollector
 	counters psutil.NetIoCounters
 }
 
 func (parent *OvsdbCollector) newCollector(name string) *ovsdbInterfaceCollector {
 	return &ovsdbInterfaceCollector{
 		AbstractCollector: parent.Child(name),
+		parent:            parent,
 		counters:          psutil.NewNetIoCounters(parent.factory),
 	}
 }
 
 func (col *ovsdbInterfaceCollector) Metrics() collector.MetricReaderMap {
 	return col.counters.Metrics("ovsdb/" + col.Name)
+}
+
+func (col *ovsdbInterfaceCollector) Depends() []collector.Collector {
+	return []collector.Collector{col.parent}
 }
 
 func (col *ovsdbInterfaceCollector) update(stats map[string]float64) {

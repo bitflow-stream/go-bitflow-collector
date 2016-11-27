@@ -57,26 +57,29 @@ func (graph *collectorGraph) initNode(col Collector) {
 	if err == nil {
 		graph.initNodes(children)
 	} else {
-		graph.collectorFailed(node, err)
+		graph.collectorFailed(node)
+		log.Warnf("Collector %v failed: %v", node, err)
 	}
 }
 
 func (graph *collectorGraph) deleteCollector(node *collectorNode) {
 	delete(graph.nodes, node)
-	delete(graph.failed, node)
 	delete(graph.filtered, node)
+	delete(graph.failed, node)
+	delete(graph.collectors, node.collector)
 }
 
-func (graph *collectorGraph) collectorFailed(node *collectorNode, err error) {
-	graph.deleteCollector(node)
+func (graph *collectorGraph) collectorFailed(node *collectorNode) {
+	delete(graph.nodes, node)
+	delete(graph.filtered, node)
 	graph.failed[node] = true
-	log.Warnf("Collector %v failed: %v", node, err)
 }
 
 func (graph *collectorGraph) collectorFiltered(node *collectorNode) {
-	graph.deleteCollector(node)
-	graph.filtered[node] = true
-	log.Debugln("Collector", node, "has been filtered")
+	if !graph.failed[node] {
+		delete(graph.nodes, node)
+		graph.filtered[node] = true
+	}
 }
 
 func (graph *collectorGraph) checkMissingDependencies() error {
@@ -107,24 +110,38 @@ func (graph *collectorGraph) dependsOnFailedOrFiltered(node *collectorNode) bool
 	return false
 }
 
-func (graph *collectorGraph) pruneEmptyNodes() {
+func (graph *collectorGraph) pruneAndRepair() {
 	// Obtain topological order of graph
-	sorted, err := topo.Sort(graph)
-	if err != nil {
-		// TODO return error instead. Panic should not happen because of test in init()
-		panic(err)
-	}
+	sorted := sortGraph(graph)
 
 	// Walk "root" nodes first: delete nodes with failed dependencies
-	for i := len(sorted) - 1; i >= 0; i-- {
-		node := sorted[i].(*collectorNode)
+	for i, node := range sorted {
 		if graph.dependsOnFailedOrFiltered(node) {
-			graph.collectorFiltered(node)
+			log.Debugln("Deleting collector", node, "because of a failed dependency")
+			graph.deleteCollector(node)
 			sorted[i] = nil
 		}
 	}
 
-	// For every node, collect the set of nodes that depend on that node
+	// Walk "leaf" nodes first
+	incoming := graph.reverseDependencies()
+	for i := len(sorted) - 1; i >= 0; i-- {
+		if sorted[i] == nil {
+			continue
+		}
+		node := sorted[i]
+		if len(node.metrics) == 0 && len(incoming[node]) == 0 {
+			// Nothing depends on this node, and it does not have any metrics
+			graph.collectorFiltered(node)
+			for _, dependencySet := range incoming {
+				delete(dependencySet, node)
+			}
+		}
+	}
+}
+
+// For every node, collect the set of nodes that depend on that node
+func (graph *collectorGraph) reverseDependencies() map[*collectorNode]map[*collectorNode]bool {
 	incoming := make(map[*collectorNode]map[*collectorNode]bool)
 	for node := range graph.nodes {
 		for _, depends := range node.collector.Depends() {
@@ -137,21 +154,7 @@ func (graph *collectorGraph) pruneEmptyNodes() {
 			m[node] = true
 		}
 	}
-
-	// Walk "leaf" nodes first
-	for _, graphNode := range sorted {
-		if graphNode == nil {
-			continue
-		}
-		node := graphNode.(*collectorNode)
-		if len(node.metrics) == 0 && len(incoming[node]) == 0 {
-			// Nothing depends on this node, and it does not have any metrics
-			graph.collectorFiltered(node)
-			for _, dependencySet := range incoming {
-				delete(dependencySet, node)
-			}
-		}
-	}
+	return incoming
 }
 
 func (graph *collectorGraph) dependingOn(target *collectorNode) []*collectorNode {
@@ -208,6 +211,19 @@ func (graph *collectorGraph) resolve(col Collector) *collectorNode {
 	return node
 }
 
+func sortGraph(graph graph.Directed) []*collectorNode {
+	sortedGraph, err := topo.Sort(graph)
+	if err != nil {
+		// Should not happen, graph should already be asserted acyclic
+		panic(err)
+	}
+	sorted := make([]*collectorNode, len(sortedGraph))
+	for j, node := range sortedGraph {
+		sorted[len(sortedGraph)-1-j] = node.(*collectorNode)
+	}
+	return sorted
+}
+
 func createCollectorSubgraph(nodes []graph.Node) *collectorGraph {
 	graph := &collectorGraph{
 		nodes:      make(map[*collectorNode]bool),
@@ -231,16 +247,55 @@ func (g *collectorGraph) createUpdatePlan() [][]*collectorNode {
 
 	for i, part := range parts {
 		subgraph := createCollectorSubgraph(part)
-		sortedGraph, err := topo.Sort(subgraph)
-		if err != nil {
-			// Should not happen, graph should already be asserted acyclic
-			panic(err)
-		}
-		sorted := make([]*collectorNode, len(sortedGraph))
-		for j, node := range sortedGraph {
-			sorted[len(sortedGraph)-1-j] = node.(*collectorNode)
-		}
+		sorted := sortGraph(subgraph)
 		result[i] = sorted
 	}
 	return result
+}
+
+func (g *collectorGraph) sortedFilteredNodes() []*collectorNode {
+	if len(g.filtered) == 0 {
+		return nil
+	} else if len(g.filtered) == 1 {
+		var res []*collectorNode
+		for node := range g.filtered {
+			res = append(res, node)
+		}
+		return res
+	}
+
+	// Sort the graph including filtered and unfiltered nodes,
+	// then exract only the filtered ones in the correct order
+	res := make([]*collectorNode, 0, len(g.filtered))
+	fullGraph := createCollectorSubgraph(makeNodeList(g.nodes, g.filtered))
+	sorted := sortGraph(fullGraph)
+	for _, node := range sorted {
+		if g.filtered[node] {
+			res = append(res, node)
+		}
+	}
+	return res
+}
+
+func makeNodeList(sets ...map[*collectorNode]bool) []graph.Node {
+	var res []graph.Node
+	for _, set := range sets {
+		for node := range set {
+			res = append(res, node)
+		}
+	}
+	return res
+}
+
+func (g *collectorGraph) getRootsAndLeafs() (roots []*collectorNode, leafs []*collectorNode) {
+	reverse := g.reverseDependencies()
+	for node := range g.nodes {
+		if len(node.collector.Depends()) == 0 {
+			roots = append(roots, node)
+		}
+		if len(reverse[node]) == 0 {
+			leafs = append(leafs, node)
+		}
+	}
+	return
 }

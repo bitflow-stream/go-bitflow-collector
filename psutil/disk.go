@@ -47,6 +47,10 @@ func (col *PsutilDiskIOCollector) Update() error {
 	return col.update(true)
 }
 
+func (col *PsutilDiskIOCollector) MetricsChanged() error {
+	return col.Update()
+}
+
 func (col *PsutilDiskIOCollector) newChild(name string, disks []string) *ioDiskCollector {
 	return &ioDiskCollector{
 		AbstractCollector: col.Child(name),

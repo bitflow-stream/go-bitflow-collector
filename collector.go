@@ -50,7 +50,18 @@ type Collector interface {
 	// will not be updated.
 	Update() error
 
-	// String returns a short but unique label for the collector.
+	// MetricsChanged should check if the collector can produce a different set of metrics, and if so,
+	// the MetricsChanged error instance. Many collectors have a fixed set of metrics, so nil should
+	// be returned here (as in AbstractCollector). Collectors that potentially return MetricsChanged from
+	// Update(), should use Update() as implementation for MetricsChanged().
+	MetricsChanged() error
+
+	// UpdateFrequency determines how often this collector will be updated. If this method
+	// returns 3, the collector will only be updated on every third global update run. This should
+	// usually return 1, but some collectors can be updated less frequently. The value 0 is treated as 1.
+	UpdateFrequency() uint
+
+	// String returns a short but unique label for the colldector.
 	String() string
 }
 
@@ -95,6 +106,14 @@ func (col *AbstractCollector) Metrics() MetricReaderMap {
 
 func (col *AbstractCollector) Update() error {
 	return nil
+}
+
+func (col *AbstractCollector) MetricsChanged() error {
+	return nil
+}
+
+func (col *AbstractCollector) UpdateFrequency() uint {
+	return 1
 }
 
 // ==================== Metric ====================

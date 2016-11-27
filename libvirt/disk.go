@@ -11,101 +11,151 @@ import (
 
 var DomainBlockXPath = xmlpath.MustCompile("/domain/devices/disk[@type=\"file\"]/target/@dev")
 
-type blockStatReader struct {
-	parsedDevices bool
-	devices       []string
-	info          []lib.VirDomainBlockInfo
-	stats         []lib.VirDomainBlockStats
+type vmBlockCollector struct {
+	vmSubcollectorImpl
+	devices []string
+}
 
+func NewBlockCollector(parent *vmCollector) *vmBlockCollector {
+	return &vmBlockCollector{
+		vmSubcollectorImpl: parent.child("block"),
+	}
+}
+
+func (col *vmBlockCollector) Init() ([]collector.Collector, error) {
+	return []collector.Collector{
+		&vmBlockIoCollector{
+			AbstractCollector: col.Child("block-io"),
+			parent:            col,
+		},
+		&vmBlockStatsCollector{
+			AbstractCollector: col.Child("block-stats"),
+			parent:            col,
+		},
+	}, nil
+}
+
+func (col *vmBlockCollector) description(xmlDesc *xmlpath.Node) {
+	col.devices = col.devices[0:0]
+	for iter := DomainBlockXPath.Iter(xmlDesc); iter.Next(); {
+		col.devices = append(col.devices, iter.Node().String())
+	}
+}
+
+// ===================================== block io =====================================
+
+type vmBlockIoCollector struct {
+	collector.AbstractCollector
+	parent      *vmBlockCollector
+	stats       []lib.VirDomainBlockStats
 	ioRing      *collector.ValueRing
 	ioBytesRing *collector.ValueRing
 }
 
-func NewBlockStatReader(factory *collector.ValueRingFactory) *blockStatReader {
-	return &blockStatReader{
-		ioRing:      factory.NewValueRing(),
-		ioBytesRing: factory.NewValueRing(),
+func (col *vmBlockIoCollector) Init() ([]collector.Collector, error) {
+	factory := col.parent.parent.parent.factory
+	col.ioRing = factory.NewValueRing()
+	col.ioBytesRing = factory.NewValueRing()
+	return nil, nil
+}
+
+func (col *vmBlockIoCollector) Metrics() collector.MetricReaderMap {
+	prefix := col.parent.parent.prefix()
+	return collector.MetricReaderMap{
+		prefix + "block/io":      col.readIo,
+		prefix + "block/ioBytes": col.readIoBytes,
 	}
 }
 
-func (reader *blockStatReader) register(domainName string) map[string]collector.MetricReader {
-	return map[string]collector.MetricReader{
-		"libvirt/" + domainName + "/block/allocation": reader.readAllocation,
-		"libvirt/" + domainName + "/block/capacity":   reader.readCapacity,
-		"libvirt/" + domainName + "/block/physical":   reader.readPhysical,
-		"libvirt/" + domainName + "/block/io":         reader.readIo,
-		"libvirt/" + domainName + "/block/ioBytes":    reader.readIoBytes,
-	}
-}
-
-func (reader *blockStatReader) description(xmlDesc *xmlpath.Node) {
-	reader.devices = reader.devices[0:0]
-	for iter := DomainBlockXPath.Iter(xmlDesc); iter.Next(); {
-		reader.devices = append(reader.devices, iter.Node().String())
-	}
-	reader.parsedDevices = true
-}
-
-func (reader *blockStatReader) update(domain lib.VirDomain) error {
-	reader.info = reader.info[0:0]
-	reader.stats = reader.stats[0:0]
-	if !reader.parsedDevices {
-		return UpdateXmlDescription
-	}
-	var resErr error
-
-	for _, dev := range reader.devices {
-		if info, err := domain.GetBlockInfo(dev, NO_FLAGS); err == nil {
-			reader.info = append(reader.info, info)
-		} else {
-			return fmt.Errorf("Failed to get block-device info for %s: %v", dev, err)
-		}
-
+func (col *vmBlockIoCollector) Update() error {
+	col.stats = col.stats[0:0]
+	stats := make([]lib.VirDomainBlockStats, 0, len(col.parent.devices))
+	for _, dev := range col.parent.devices {
 		// More detailed alternative: domain.BlockStatsFlags()
-		if stats, err := domain.BlockStats(dev); err == nil {
-			reader.stats = append(reader.stats, stats)
+		if stats, err := col.parent.parent.domain.BlockStats(dev); err == nil {
+			col.stats = append(col.stats, stats)
 		} else {
 			return fmt.Errorf("Failed to get block-device stats for %s: %v", dev, err)
 		}
 	}
-	return resErr
+	col.stats = stats
+	return nil
 }
 
-func (reader *blockStatReader) readAllocation() (result bitflow.Value) {
-	for _, info := range reader.info {
+func (col *vmBlockIoCollector) Depends() []collector.Collector {
+	return []collector.Collector{col.parent}
+}
+
+func (col *vmBlockIoCollector) readIo() bitflow.Value {
+	var result bitflow.Value
+	for _, stats := range col.stats {
+		result += bitflow.Value(stats.RdReq + stats.WrReq)
+	}
+	col.ioRing.AddValue(result)
+	return col.ioRing.GetDiff()
+}
+
+func (col *vmBlockIoCollector) readIoBytes() bitflow.Value {
+	var result bitflow.Value
+	for _, stats := range col.stats {
+		result += bitflow.Value(stats.RdBytes + stats.WrBytes)
+	}
+	col.ioBytesRing.AddValue(result)
+	return col.ioBytesRing.GetDiff()
+}
+
+// ===================================== block usage =====================================
+
+type vmBlockStatsCollector struct {
+	collector.AbstractCollector
+	parent *vmBlockCollector
+	info   []lib.VirDomainBlockInfo
+}
+
+func (col *vmBlockStatsCollector) Metrics() collector.MetricReaderMap {
+	prefix := col.parent.parent.prefix()
+	return collector.MetricReaderMap{
+		prefix + "block/allocation": col.readAllocation,
+		prefix + "block/capacity":   col.readCapacity,
+		prefix + "block/physical":   col.readPhysical,
+	}
+}
+
+func (col *vmBlockStatsCollector) Update() error {
+	col.info = col.info[0:0]
+	info := make([]lib.VirDomainBlockInfo, 0, len(col.parent.devices))
+	for _, dev := range col.parent.devices {
+		if info, err := col.parent.parent.domain.BlockInfo(dev); err == nil {
+			col.info = append(col.info, info)
+		} else {
+			return fmt.Errorf("Failed to get block-device info for %s: %v", dev, err)
+		}
+	}
+	col.info = info
+	return nil
+}
+
+func (col *vmBlockStatsCollector) Depends() []collector.Collector {
+	return []collector.Collector{col.parent}
+}
+
+func (col *vmBlockStatsCollector) readAllocation() (result bitflow.Value) {
+	for _, info := range col.info {
 		result += bitflow.Value(info.Allocation())
 	}
 	return
 }
 
-func (reader *blockStatReader) readCapacity() (result bitflow.Value) {
-	for _, info := range reader.info {
+func (col *vmBlockStatsCollector) readCapacity() (result bitflow.Value) {
+	for _, info := range col.info {
 		result += bitflow.Value(info.Capacity())
 	}
 	return
 }
 
-func (reader *blockStatReader) readPhysical() (result bitflow.Value) {
-	for _, info := range reader.info {
+func (col *vmBlockStatsCollector) readPhysical() (result bitflow.Value) {
+	for _, info := range col.info {
 		result += bitflow.Value(info.Physical())
 	}
 	return
-}
-
-func (reader *blockStatReader) readIo() bitflow.Value {
-	var result bitflow.Value
-	for _, stats := range reader.stats {
-		result += bitflow.Value(stats.RdReq + stats.WrReq)
-	}
-	reader.ioRing.AddValue(result)
-	return reader.ioRing.GetDiff()
-}
-
-func (reader *blockStatReader) readIoBytes() bitflow.Value {
-	var result bitflow.Value
-	for _, stats := range reader.stats {
-		result += bitflow.Value(stats.RdBytes + stats.WrBytes)
-	}
-	reader.ioBytesRing.AddValue(result)
-	return reader.ioBytesRing.GetDiff()
 }

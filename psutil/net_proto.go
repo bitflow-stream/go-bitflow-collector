@@ -102,6 +102,10 @@ func (col *PsutilNetProtoCollector) Update() (err error) {
 	return
 }
 
+func (col *PsutilNetProtoCollector) MetricsChanged() error {
+	return col.Update()
+}
+
 type protoStatReader struct {
 	col      *PsutilNetProtoCollector
 	protocol string

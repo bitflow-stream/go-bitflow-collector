@@ -6,19 +6,44 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
-	lib "github.com/rgbkrk/libvirt-go"
-	"gopkg.in/xmlpath.v1"
 )
 
-type vmGeneralReader struct {
-	info lib.VirDomainInfo
+type vmGeneralCollector struct {
+	vmSubcollectorImpl
+	info DomainInfo
 	cpu  *collector.ValueRing
 }
 
-func NewVmGeneralReader(factory *collector.ValueRingFactory) *vmGeneralReader {
-	return &vmGeneralReader{
-		cpu: factory.NewValueRing(),
+func NewVmGeneralCollector(parent *vmCollector) *vmGeneralCollector {
+	return &vmGeneralCollector{
+		vmSubcollectorImpl: parent.child("general"),
+		cpu:                parent.parent.factory.NewValueRing(),
 	}
+}
+
+func (col *vmGeneralCollector) Metrics() collector.MetricReaderMap {
+	prefix := col.parent.prefix()
+	return collector.MetricReaderMap{
+		prefix + "general/cpu":    col.cpu.GetDiff,
+		prefix + "general/maxMem": col.readMaxMem,
+		prefix + "general/mem":    col.readMem,
+	}
+}
+
+func (col *vmGeneralCollector) Update() (err error) {
+	col.info, err = col.parent.domain.GetInfo()
+	if err == nil {
+		col.cpu.Add(LogbackCpuVal(col.info.CpuTime))
+	}
+	return
+}
+
+func (col *vmGeneralCollector) readMaxMem() bitflow.Value {
+	return bitflow.Value(col.info.MaxMem)
+}
+
+func (col *vmGeneralCollector) readMem() bitflow.Value {
+	return bitflow.Value(col.info.Mem)
 }
 
 type LogbackCpuVal uint64
@@ -45,31 +70,4 @@ func (val LogbackCpuVal) AddValue(logback collector.LogbackValue) collector.Logb
 		log.Errorf("Cannot add %v (%T) and %v (%T)", val, val, logback, logback)
 		return LogbackCpuVal(0)
 	}
-}
-
-func (reader *vmGeneralReader) register(domainName string) map[string]collector.MetricReader {
-	return map[string]collector.MetricReader{
-		"libvirt/" + domainName + "/general/cpu":    reader.cpu.GetDiff,
-		"libvirt/" + domainName + "/general/maxMem": reader.readMaxMem,
-		"libvirt/" + domainName + "/general/mem":    reader.readMem,
-	}
-}
-
-func (reader *vmGeneralReader) description(xmlDesc *xmlpath.Node) {
-}
-
-func (reader *vmGeneralReader) update(domain lib.VirDomain) (err error) {
-	reader.info, err = domain.GetInfo()
-	if err == nil {
-		reader.cpu.Add(LogbackCpuVal(reader.info.GetCpuTime()))
-	}
-	return
-}
-
-func (reader *vmGeneralReader) readMaxMem() bitflow.Value {
-	return bitflow.Value(reader.info.GetMaxMem())
-}
-
-func (reader *vmGeneralReader) readMem() bitflow.Value {
-	return bitflow.Value(reader.info.GetMemory())
 }

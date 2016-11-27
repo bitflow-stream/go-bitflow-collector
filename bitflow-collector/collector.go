@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/antongulenko/go-bitflow-collector/libvirt"
 	"github.com/antongulenko/go-bitflow-collector/mock"
 	"github.com/antongulenko/go-bitflow-collector/ovsdb"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
@@ -33,8 +34,8 @@ var (
 
 	print_metrics = false
 	print_graph   = ""
-	// libvirt_uri   = libvirt.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
-	ovsdb_host = ""
+	libvirt_uri   = libvirt.LocalUri // libvirt.SshUri("host", "keyfile")
+	ovsdb_host    = ""
 
 	pcap_nics = ""
 
@@ -63,7 +64,7 @@ var (
 )
 
 func init() {
-	// flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
+	flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
 	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
 	flag.BoolVar(&print_metrics, "metrics", print_metrics, "Print all available metrics and exit")
 	flag.StringVar(&print_graph, "graph", print_graph, "Create png-file for the collector-graph and exit")
@@ -104,8 +105,7 @@ func createCollectorSource() *collector.CollectorSource {
 	cols = append(cols, mock.NewMockCollector(&ringFactory))
 	psutilRoot := psutil.NewPsutilRootCollector(&ringFactory)
 	cols = append(cols, psutilRoot)
-
-	//libvirt.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
+	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, new(libvirt.DriverImpl), &ringFactory))
 	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
 
 	if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {

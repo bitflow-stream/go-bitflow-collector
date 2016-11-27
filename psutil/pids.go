@@ -19,6 +19,11 @@ func newPidCollector(root *PsutilRootCollector) *PsutilPidCollector {
 	}
 }
 
+func (*PsutilPidCollector) UpdateFrequency() uint {
+	// Pids change rather rarely
+	return 10
+}
+
 func (col *PsutilPidCollector) Metrics() collector.MetricReaderMap {
 	// TODO missing: number of open files, threads, etc in entire OS
 	return collector.MetricReaderMap{

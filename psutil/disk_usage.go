@@ -68,6 +68,15 @@ func (col *PsutilDiskUsageCollector) Update() error {
 	return nil
 }
 
+func (col *PsutilDiskUsageCollector) MetricsChanged() error {
+	return col.Update()
+}
+
+func (*PsutilDiskUsageCollector) UpdateFrequency() uint {
+	// Partitions change very rarely
+	return 10
+}
+
 func (col *PsutilDiskUsageCollector) getAllPartitions() (map[string]string, error) {
 	partitions, err := disk.Partitions(false)
 	if err != nil {

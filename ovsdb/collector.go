@@ -55,6 +55,10 @@ func (col *OvsdbCollector) Update() error {
 	return col.update(true)
 }
 
+func (col *OvsdbCollector) MetricsChanged() error {
+	return col.Update()
+}
+
 func (col *OvsdbCollector) Close() {
 	if client := col.client; client != nil {
 		client.Disconnect()
