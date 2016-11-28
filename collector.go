@@ -56,11 +56,6 @@ type Collector interface {
 	// Update(), should use Update() as implementation for MetricsChanged().
 	MetricsChanged() error
 
-	// UpdateFrequency determines how often this collector will be updated. If this method
-	// returns 3, the collector will only be updated on every third global update run. This should
-	// usually return 1, but some collectors can be updated less frequently. The value 0 is treated as 1.
-	UpdateFrequency() uint
-
 	// String returns a short but unique label for the colldector.
 	String() string
 }
@@ -110,10 +105,6 @@ func (col *AbstractCollector) Update() error {
 
 func (col *AbstractCollector) MetricsChanged() error {
 	return nil
-}
-
-func (col *AbstractCollector) UpdateFrequency() uint {
-	return 1
 }
 
 // ==================== Metric ====================

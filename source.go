@@ -29,11 +29,12 @@ const (
 type CollectorSource struct {
 	bitflow.AbstractMetricSource
 
-	RootCollectors  []Collector
-	CollectInterval time.Duration
-	SinkInterval    time.Duration
-	ExcludeMetrics  []*regexp.Regexp
-	IncludeMetrics  []*regexp.Regexp
+	RootCollectors    []Collector
+	CollectInterval   time.Duration
+	UpdateFrequencies map[*regexp.Regexp]time.Duration
+	SinkInterval      time.Duration
+	ExcludeMetrics    []*regexp.Regexp
+	IncludeMetrics    []*regexp.Regexp
 
 	loopTask *golib.LoopTask
 }
@@ -77,6 +78,7 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, erro
 	metrics := graph.getMetrics()
 	fields, values := metrics.ConstructSample()
 	log.Println("Collecting", len(metrics), "metrics through", len(graph.collectors), "collectors")
+	graph.applyUpdateFrequencies(source.UpdateFrequencies)
 
 	stopper := golib.NewStopper()
 	source.startUpdates(wg, stopper, graph)
@@ -157,7 +159,7 @@ func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper *golib.S
 		leaf.postconditions = append(leaf.postconditions, cond)
 	}
 
-	// Prepare all nodes for updatesqs
+	// Prepare all nodes for updates
 	for node := range graph.nodes {
 		node.loopUpdate(wg, stopper)
 	}

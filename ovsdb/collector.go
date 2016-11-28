@@ -118,13 +118,14 @@ func (col *OvsdbCollector) updateTables(checkChange bool, updates map[string]lib
 		return fmt.Errorf("OVSDB update did not contain requested table 'Interface'. Instead: %v", updates)
 	}
 
-	// TODO periodically check, if all monitored interfaces still exist
 	col.readersLock.Lock()
 	defer col.readersLock.Unlock()
+	updatedInterfaces := make(map[string]bool)
 	for _, rowUpdate := range update.Rows {
-		if name, stats, err := col.parseRowUpdate(&rowUpdate.New); err != nil {
+		if name, stats, err := col.parseRowUpdate(rowUpdate.New); err != nil {
 			return err
 		} else {
+			updatedInterfaces[name] = true
 			reader, ok := col.interfaceCollectors[name]
 			if !ok {
 				if checkChange {
@@ -137,10 +138,15 @@ func (col *OvsdbCollector) updateTables(checkChange bool, updates map[string]lib
 			reader.update(stats)
 		}
 	}
+
+	// Assume that every update includes info about all interfaces
+	if checkChange && len(updatedInterfaces) != len(col.interfaceCollectors) {
+		return collector.MetricsChanged
+	}
 	return nil
 }
 
-func (col *OvsdbCollector) parseRowUpdate(row *libovsdb.Row) (name string, stats map[string]float64, err error) {
+func (col *OvsdbCollector) parseRowUpdate(row libovsdb.Row) (name string, stats map[string]float64, err error) {
 	defer func() {
 		// Allow panics for less explicit type checks
 		if rec := recover(); rec != nil {

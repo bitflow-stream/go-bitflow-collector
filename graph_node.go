@@ -3,6 +3,7 @@ package collector
 import (
 	"regexp"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/golib"
@@ -19,6 +20,8 @@ type collectorNode struct {
 
 	preconditions  []*BoolCondition
 	postconditions []*BoolCondition
+
+	UpdateFrequency time.Duration
 }
 
 func newCollectorNode(collector Collector, graph *collectorGraph) *collectorNode {
@@ -83,10 +86,9 @@ func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper *golib.Stopper
 		node.preconditions = append(node.preconditions, cond)
 		depends.postconditions = append(depends.postconditions, cond)
 	}
-	freq := node.collector.UpdateFrequency()
-	if freq == 0 {
-		freq = 1
-	}
+	freq := node.UpdateFrequency
+	frequencyLimited := freq > 0
+	var lastUpdate time.Time
 
 	wg.Add(1)
 	go func() {
@@ -98,12 +100,17 @@ func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper *golib.Stopper
 			if stopper.IsStopped() {
 				return
 			}
-			if i%freq == 0 {
+
+			if frequencyLimited {
+				now := time.Now()
+				if now.Sub(lastUpdate) >= freq {
+					node.update(stopper)
+					lastUpdate = now
+				}
+			} else {
 				node.update(stopper)
 			}
-			if stopper.IsStopped() {
-				return
-			}
+
 			for _, cond := range node.postconditions {
 				cond.Broadcast()
 			}

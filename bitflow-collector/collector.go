@@ -39,6 +39,13 @@ var (
 
 	pcap_nics = ""
 
+	updateFrequencies = map[*regexp.Regexp]time.Duration{
+		regexp.MustCompile("^psutil/pids$"):       1500 * time.Millisecond, // Changed processes
+		regexp.MustCompile("^psutil/disk-usage$"): 5 * time.Second,         // Changed local partitions
+		regexp.MustCompile("^libvirt$"):           10 * time.Second,        // New VMs
+		regexp.MustCompile("^libvirt/[^/]+$"):     30 * time.Second,        // Changed VM configuration
+	}
+
 	ringFactory = collector.ValueRingFactory{
 		// This is an important package-wide constant: time-window for all aggregated values
 		Interval: 1000 * time.Millisecond,
@@ -142,11 +149,12 @@ func createCollectorSource() *collector.CollectorSource {
 	}
 
 	return &collector.CollectorSource{
-		RootCollectors:  cols,
-		CollectInterval: collect_local_interval,
-		SinkInterval:    sink_interval,
-		ExcludeMetrics:  excludeMetricsRegexes,
-		IncludeMetrics:  includeMetricsRegexes,
+		RootCollectors:    cols,
+		UpdateFrequencies: updateFrequencies,
+		CollectInterval:   collect_local_interval,
+		SinkInterval:      sink_interval,
+		ExcludeMetrics:    excludeMetricsRegexes,
+		IncludeMetrics:    includeMetricsRegexes,
 	}
 }
 

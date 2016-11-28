@@ -3,6 +3,7 @@ package collector
 import (
 	"fmt"
 	"regexp"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gonum/graph"
@@ -47,7 +48,8 @@ func (graph *collectorGraph) initNodes(collectors []Collector) {
 
 func (graph *collectorGraph) initNode(col Collector) {
 	if _, ok := graph.collectors[col]; ok {
-		panic(fmt.Sprintf("Collector %v has already been added to graph", col))
+		// This collector has already been added
+		return
 	}
 	node := newCollectorNode(col, graph)
 	graph.collectors[col] = node
@@ -97,6 +99,19 @@ func (graph *collectorGraph) checkMissingDependencies() error {
 func (graph *collectorGraph) applyMetricFilters(exclude []*regexp.Regexp, include []*regexp.Regexp) {
 	for node := range graph.nodes {
 		node.applyMetricFilters(exclude, include)
+	}
+}
+
+func (graph *collectorGraph) applyUpdateFrequencies(freqs map[*regexp.Regexp]time.Duration) {
+	for regex, freq := range freqs {
+		count := 0
+		for node := range graph.nodes {
+			if regex.MatchString(node.String()) {
+				node.UpdateFrequency = freq
+				count++
+			}
+		}
+		log.Debugf("Update frequency %v applied to %v nodes matching %v", freq, count, regex.String())
 	}
 }
 

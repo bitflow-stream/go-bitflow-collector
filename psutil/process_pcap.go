@@ -27,14 +27,13 @@ type pcapCollector struct {
 }
 
 func (*pcapCollector) Init() ([]collector.Collector, error) {
+	if len(PcapNics) == 0 {
+		return nil, errors.New("psutil.PcapNics must be set to at least one NIC")
+	}
 	return nil, pcap.TestCapture(PcapNics, PcapSnaplen)
 }
 
 func (*pcapCollector) Update() (err error) {
-	if len(PcapNics) == 0 {
-		return errors.New("psutil.PcapNics must be set to at least one NIC")
-	}
-
 	pcapStartOnce.Do(func() {
 		err = pcapCons.CaptureNics(PcapNics, PcapSnaplen, func(err error) {
 			if captureErr, ok := err.(pcap.CaptureError); ok {
