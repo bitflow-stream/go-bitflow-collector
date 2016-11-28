@@ -289,7 +289,7 @@ func (source *CollectorSource) PrintGraph(file string) error {
 		file += ".png"
 	}
 	if err := graph.WriteGraph(file); err != nil {
-		return fmt.Errorf("Failed to create graph image:", err)
+		return fmt.Errorf("Failed to create graph image: %v", err)
 	}
 	return nil
 }
