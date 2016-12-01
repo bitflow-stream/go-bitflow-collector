@@ -2,6 +2,7 @@ package libvirt
 
 import (
 	"errors"
+	"fmt"
 
 	log "github.com/Sirupsen/logrus"
 	lib "github.com/rgbkrk/libvirt-go"
@@ -144,4 +145,167 @@ func (d *DomainImpl) GetInfo() (res DomainInfo, err error) {
 	res.MaxMem = info.GetMaxMem()
 	res.Mem = info.GetMemory()
 	return
+}
+
+// ============================================ Mock Implementation ============================================
+
+type MockDriver struct {
+	uri         string
+	injectedErr error
+}
+
+func (d *MockDriver) Connect(uri string) error {
+	if d.injectedErr != nil {
+		return d.injectedErr
+	}
+	d.uri = uri
+	return nil
+}
+
+func (d *MockDriver) ListDomains() ([]Domain, error) {
+	if err := d.err(); err != nil {
+		return nil, err
+	}
+	return d.makeMockDomains(), nil
+}
+
+func (d *MockDriver) Close() error {
+	d.uri = ""
+	return d.injectedErr
+}
+
+func (d *MockDriver) err() error {
+	if d.uri == "" {
+		return errors.New("MockDomain: not connected")
+	}
+	return d.injectedErr
+}
+
+func (d *MockDriver) makeMockDomains() []Domain {
+	return []Domain{
+		&MockDomain{
+			driver: d,
+			name:   "domain1",
+			cpu: lib.VirTypedParameters{
+				lib.VirTypedParameter{},
+				lib.VirTypedParameter{},
+			},
+			blockStats: map[string]lib.VirDomainBlockStats{
+				"vda": lib.VirDomainBlockStats{},
+			},
+			blockInfo: map[string]lib.VirDomainBlockInfo{
+				"vda": lib.VirDomainBlockInfo{},
+			},
+			mem: []lib.VirDomainMemoryStat{
+				{},
+				{},
+			},
+			interfaces: map[string]lib.VirDomainInterfaceStats{
+				"eth0": lib.VirDomainInterfaceStats{},
+			},
+			xml: "",
+			info: DomainInfo{
+				CpuTime: 0,
+				MaxMem:  0,
+				Mem:     0,
+			},
+		},
+		&MockDomain{
+			driver: d,
+			name:   "domain2",
+			cpu: lib.VirTypedParameters{
+				lib.VirTypedParameter{},
+				lib.VirTypedParameter{},
+			},
+			blockStats: map[string]lib.VirDomainBlockStats{
+				"vda": lib.VirDomainBlockStats{},
+			},
+			blockInfo: map[string]lib.VirDomainBlockInfo{
+				"vda": lib.VirDomainBlockInfo{},
+			},
+			mem: []lib.VirDomainMemoryStat{
+				{},
+				{},
+			},
+			interfaces: map[string]lib.VirDomainInterfaceStats{
+				"eth0": lib.VirDomainInterfaceStats{},
+			},
+			xml: "",
+			info: DomainInfo{
+				CpuTime: 0,
+				MaxMem:  0,
+				Mem:     0,
+			},
+		},
+	}
+}
+
+type MockDomain struct {
+	driver *MockDriver
+
+	name       string
+	cpu        lib.VirTypedParameters
+	blockStats map[string]lib.VirDomainBlockStats
+	blockInfo  map[string]lib.VirDomainBlockInfo
+	mem        []lib.VirDomainMemoryStat
+	interfaces map[string]lib.VirDomainInterfaceStats
+	xml        string
+	info       DomainInfo
+}
+
+func (d *MockDomain) err() error {
+	return d.driver.err()
+}
+
+func (d *MockDomain) GetName() (string, error) {
+	return d.name, d.err()
+}
+
+func (d *MockDomain) CpuStats() (lib.VirTypedParameters, error) {
+	return d.cpu, d.err()
+}
+
+func (d *MockDomain) BlockStats(dev string) (lib.VirDomainBlockStats, error) {
+	if err := d.err(); err != nil {
+		return lib.VirDomainBlockStats{}, err
+	}
+	if res, ok := d.blockStats[dev]; !ok {
+		return lib.VirDomainBlockStats{}, fmt.Errorf("Device %v for BlockStats not found in MockDomain %v", dev, d.name)
+	} else {
+		return res, nil
+	}
+}
+
+func (d *MockDomain) BlockInfo(dev string) (lib.VirDomainBlockInfo, error) {
+	if err := d.err(); err != nil {
+		return lib.VirDomainBlockInfo{}, err
+	}
+	if res, ok := d.blockInfo[dev]; !ok {
+		return lib.VirDomainBlockInfo{}, fmt.Errorf("Device %v for BlockInfo not found in MockDomain %v", dev, d.name)
+	} else {
+		return res, nil
+	}
+}
+
+func (d *MockDomain) MemoryStats() ([]lib.VirDomainMemoryStat, error) {
+	return d.mem, d.err()
+}
+
+func (d *MockDomain) InterfaceStats(interfaceName string) (lib.VirDomainInterfaceStats, error) {
+	if err := d.err(); err != nil {
+		return lib.VirDomainInterfaceStats{}, err
+	}
+	if res, ok := d.interfaces[interfaceName]; !ok {
+		return lib.VirDomainInterfaceStats{}, fmt.Errorf("Interface %v not found in MockDomain %v", interfaceName, d.name)
+	} else {
+		return res, nil
+	}
+}
+
+func (d *MockDomain) GetXML() (string, error) {
+	return d.xml, d.err()
+}
+
+func (d *MockDomain) GetInfo() (DomainInfo, error) {
+	return d.info, d.err()
 }
