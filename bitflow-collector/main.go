@@ -28,7 +28,6 @@ func do_main() int {
 	}
 
 	// Configure and start the data collector
-	configurePcap()
 	col := createCollectorSource()
 	stop := false
 	if print_metrics {
