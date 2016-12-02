@@ -45,11 +45,11 @@ func do_main() int {
 		stop = true
 	}
 	if print_graph != "" {
-		golib.Checkerr(col.PrintGraph(print_graph))
+		golib.Checkerr(col.PrintGraph(print_graph, all_metrics))
 		stop = true
 	}
 	if print_graph_dot != "" {
-		golib.Checkerr(col.PrintGraphDot(print_graph_dot))
+		golib.Checkerr(col.PrintGraphDot(print_graph_dot, all_metrics))
 		stop = true
 	}
 	if stop {

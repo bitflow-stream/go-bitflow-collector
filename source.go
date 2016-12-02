@@ -70,7 +70,7 @@ func (source *CollectorSource) Stop() {
 }
 
 func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, error) {
-	graph, err := source.createGraph()
+	graph, err := source.createFilteredGraph()
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,11 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, erro
 }
 
 func (source *CollectorSource) createGraph() (*collectorGraph, error) {
-	graph, err := initCollectorGraph(source.RootCollectors)
+	return initCollectorGraph(source.RootCollectors)
+}
+
+func (source *CollectorSource) createFilteredGraph() (*collectorGraph, error) {
+	graph, err := source.createGraph()
 	if err != nil {
 		return nil, err
 	}
@@ -279,12 +283,19 @@ func (source *CollectorSource) PrintMetrics() error {
 	return nil
 }
 
-func (source *CollectorSource) PrintGraph(file string) error {
-	graph, err := source.createGraph()
+func (source *CollectorSource) getGraphForPrinting(fullGraph bool) (*collectorGraph, error) {
+	if fullGraph {
+		return source.createGraph()
+	} else {
+		return source.createFilteredGraph()
+	}
+}
+
+func (source *CollectorSource) PrintGraph(file string, fullGraph bool) error {
+	graph, err := source.getGraphForPrinting(fullGraph)
 	if err != nil {
 		return err
 	}
-
 	if !strings.HasSuffix(file, ".png") {
 		file += ".png"
 	}
@@ -294,12 +305,11 @@ func (source *CollectorSource) PrintGraph(file string) error {
 	return nil
 }
 
-func (source *CollectorSource) PrintGraphDot(file string) error {
-	graph, err := source.createGraph()
+func (source *CollectorSource) PrintGraphDot(file string, fullGraph bool) error {
+	graph, err := source.getGraphForPrinting(fullGraph)
 	if err != nil {
 		return err
 	}
-
 	if !strings.HasSuffix(file, ".dot") {
 		file += ".dot"
 	}
