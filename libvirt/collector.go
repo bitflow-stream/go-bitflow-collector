@@ -59,7 +59,7 @@ func (col *LibvirtCollector) Init() ([]collector.Collector, error) {
 	for name, domain := range col.domains {
 		res = append(res, col.newVmCollector(name, domain))
 	}
-	return nil, nil
+	return res, nil
 }
 
 func (col *LibvirtCollector) Update() error {
