@@ -32,10 +32,8 @@ var (
 	proc_show_errors     = false
 	proc_update_pids     = 1500 * time.Millisecond
 
-	print_metrics = false
-	print_graph   = ""
-	libvirt_uri   = libvirt.LocalUri // libvirt.SshUri("host", "keyfile")
-	ovsdb_host    = ""
+	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyfile")
+	ovsdb_host  = ""
 
 	pcap_nics = ""
 
@@ -73,8 +71,6 @@ var (
 func init() {
 	flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
 	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
-	flag.BoolVar(&print_metrics, "metrics", print_metrics, "Print all available metrics and exit")
-	flag.StringVar(&print_graph, "graph", print_graph, "Create png-file for the collector-graph and exit")
 	flag.BoolVar(&all_metrics, "a", all_metrics, "Disable built-in filters on available metrics")
 	flag.Var(&user_exclude_metrics, "exclude", "Metrics to exclude (only with -c, substring match)")
 	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (only with -c, substring match)")

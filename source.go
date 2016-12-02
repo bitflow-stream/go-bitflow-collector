@@ -288,8 +288,23 @@ func (source *CollectorSource) PrintGraph(file string) error {
 	if !strings.HasSuffix(file, ".png") {
 		file += ".png"
 	}
-	if err := graph.WriteGraph(file); err != nil {
+	if err := graph.WriteGraphPNG(file); err != nil {
 		return fmt.Errorf("Failed to create graph image: %v", err)
+	}
+	return nil
+}
+
+func (source *CollectorSource) PrintGraphDot(file string) error {
+	graph, err := source.createGraph()
+	if err != nil {
+		return err
+	}
+
+	if !strings.HasSuffix(file, ".dot") {
+		file += ".dot"
+	}
+	if err := graph.WriteGraphDOT(file); err != nil {
+		return fmt.Errorf("Failed to create graph dot file: %v", err)
 	}
 	return nil
 }

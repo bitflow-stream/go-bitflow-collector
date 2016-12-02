@@ -2,6 +2,7 @@ package collector
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os/exec"
 	"strconv"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/gonum/graph/simple"
 )
 
-func (graph *collectorGraph) WriteGraph(filename string) error {
+func (graph *collectorGraph) WriteGraphPNG(filename string) error {
 	dotData, err := dot.Marshal(graph, "Collectors", "", "", false)
 	if err != nil {
 		return err
@@ -38,6 +39,16 @@ func (graph *collectorGraph) WriteGraph(filename string) error {
 		}
 	}
 	return err
+}
+
+func (graph *collectorGraph) WriteGraphDOT(filename string) error {
+	dotData, err := dot.Marshal(graph, "Collectors", "", "", false)
+	if err != nil {
+		return err
+	}
+
+	log.Debugln("Writing dot-representation of collector-graph to", filename)
+	return ioutil.WriteFile(filename, dotData, 0644)
 }
 
 // =========================== Implementation of github.com/gonum/graph.Directed and Undirected interfaces ===========================

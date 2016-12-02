@@ -8,7 +8,17 @@ import (
 	"github.com/antongulenko/golib"
 )
 
+var (
+	print_metrics   = false
+	print_graph     = ""
+	print_graph_dot = ""
+)
+
 func do_main() int {
+	flag.BoolVar(&print_metrics, "metrics", print_metrics, "Print all available metrics and exit")
+	flag.StringVar(&print_graph, "graph", print_graph, "Create png-file for the collector-graph and exit")
+	flag.StringVar(&print_graph_dot, "graph-dot", print_graph_dot, "Create dot-file for the collector-graph and exit")
+
 	// Register and parse command line flags
 	var p bitflow.CmdSamplePipeline
 	p.RegisterFlags(map[string]bool{
@@ -36,6 +46,10 @@ func do_main() int {
 	}
 	if print_graph != "" {
 		golib.Checkerr(col.PrintGraph(print_graph))
+		stop = true
+	}
+	if print_graph_dot != "" {
+		golib.Checkerr(col.PrintGraphDot(print_graph_dot))
 		stop = true
 	}
 	if stop {
