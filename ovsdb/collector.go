@@ -139,10 +139,8 @@ func (col *OvsdbCollector) updateTables(checkChange bool, updates map[string]lib
 		}
 	}
 
-	// Assume that every update includes info about all interfaces
-	if checkChange && len(updatedInterfaces) != len(col.interfaceCollectors) {
-		return collector.MetricsChanged
-	}
+	// TODO regularly check, if one of the observed interfaces does not exist anymore
+	// Not every updated includes all interfaces.
 	return nil
 }
 
