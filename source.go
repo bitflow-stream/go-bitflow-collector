@@ -222,29 +222,17 @@ func (source *CollectorSource) watchFailedCollector(wg *sync.WaitGroup, collecto
 func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, header *bitflow.Header, values []bitflow.Value, sink bitflow.MetricSink, stopper *golib.Stopper) {
 	defer wg.Done()
 	for {
-		if err := sink.Header(header); err != nil {
-			log.Warnln("Failed to sink header for", len(header.Fields), "metrics:", err)
-		} else {
-			if stopper.IsStopped() {
-				return
-			}
-			for {
-				sample := &bitflow.Sample{
-					Time:   time.Now(),
-					Values: values,
-				}
-				if handler := CollectedSampleHandler; handler != nil {
-					handler.HandleSample(sample, CollectorSampleSource)
-				}
-				if err := sink.Sample(sample, header); err != nil {
-					// When a sample fails, try sending the header again
-					log.Warnln("Failed to sink", len(values), "metrics:", err)
-					break
-				}
-				if stopper.Stopped(source.SinkInterval) {
-					return
-				}
-			}
+		sample := &bitflow.Sample{
+			Time:   time.Now(),
+			Values: values,
+		}
+		if handler := CollectedSampleHandler; handler != nil {
+			handler.HandleSample(sample, CollectorSampleSource)
+		}
+		if err := sink.Sample(sample, header); err != nil {
+			// When a sample fails, try sending the header again
+			log.Warnln("Failed to sink", len(values), "metrics:", err)
+			break
 		}
 		if stopper.Stopped(source.SinkInterval) {
 			return
