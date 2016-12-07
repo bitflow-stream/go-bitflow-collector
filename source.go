@@ -114,30 +114,16 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 	sink := source.OutgoingSink
 
 	for {
-		if err := sink.Header(header); err != nil {
-			log.Warnln("Failed to sink header for", len(header.Fields), "metrics:", err)
-		} else {
-			if stopper.IsStopped() {
-				return
-			}
-			for {
-				metrics.UpdateAll()
-				sample := &bitflow.Sample{
-					Time:   time.Now(),
-					Values: values,
-				}
-				if handler := CollectedSampleHandler; handler != nil {
-					handler.HandleSample(sample, CollectorSampleSource)
-				}
-				if err := sink.Sample(sample, header); err != nil {
-					// When a sample fails, try sending the header again
-					log.Warnln("Failed to sink", len(values), "metrics:", err)
-					break
-				}
-				if stopper.Stopped(source.SinkInterval) {
-					return
-				}
-			}
+		metrics.UpdateAll()
+		sample := &bitflow.Sample{
+			Time:   time.Now(),
+			Values: values,
+		}
+		if handler := CollectedSampleHandler; handler != nil {
+			handler.HandleSample(sample, CollectorSampleSource)
+		}
+		if err := sink.Sample(sample, header); err != nil {
+			log.Warnln("Failed to sink", len(values), "metrics:", err)
 		}
 		if stopper.Stopped(source.SinkInterval) {
 			return
