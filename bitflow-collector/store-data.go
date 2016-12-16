@@ -26,7 +26,7 @@ func (s *storeAnomalyData) Sample(outSample *bitflow.Sample, header *bitflow.Hea
 	return nil
 }
 
-func replaceAnomalyFileOutput(p *bitflow.CmdSamplePipeline) {
+func replaceAnomalyFileOutput(p *bitflow.SamplePipeline) {
 	if !filterAnomalies || taggingPort == 0 {
 		return
 	}

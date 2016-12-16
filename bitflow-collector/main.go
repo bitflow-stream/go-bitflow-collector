@@ -11,11 +11,9 @@ import (
 
 func do_main() int {
 	// Register and parse command line flags
-	var p bitflow.CmdSamplePipeline
-	p.RegisterFlags(map[string]bool{
-		// Only local samples will be generated.
-		"robust": true, "Llimit": true,
-	})
+	var f bitflow.EndpointFactory
+	f.RegisterGeneralFlagsTo(flag.CommandLine)
+	f.RegisterOutputFlagsTo(flag.CommandLine)
 	golib.RegisterLogFlags()
 	flag.Parse()
 	golib.ConfigureLogging()
@@ -26,9 +24,9 @@ func do_main() int {
 	serveTaggingApi()
 	sampleTagger.register()
 	defer golib.ProfileCpu()()
-	if !p.HasOutputFlag() {
+	if !f.HasOutputFlag() {
 		// Make sure to at least output on the console
-		p.FlagOutputBox = true
+		f.FlagOutputBox = true
 	}
 
 	// Configure and start the data collector
@@ -38,8 +36,12 @@ func do_main() int {
 		col.PrintMetrics()
 		return 0
 	}
-	p.Source = col
-	p.Init()
+	p := bitflow.SamplePipeline{
+		Source: col,
+	}
+	if err := p.ConfigureSink(&f); err != nil {
+		log.Fatalln(err)
+	}
 	replaceAnomalyFileOutput(&p)
 	return p.StartAndWait()
 }
