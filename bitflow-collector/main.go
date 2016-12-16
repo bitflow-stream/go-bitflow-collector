@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"os"
 
 	"github.com/antongulenko/go-bitflow"
@@ -12,15 +13,18 @@ func do_main() int {
 	// Register and parse command line flags
 	var p bitflow.CmdSamplePipeline
 	p.RegisterFlags(map[string]bool{
-		// Suppress configuring the data input. Only local samples will be generated
-		"i": true, "C": true, "F": true, "L": true, "D": true, "FR": true, "robust": true,
+		// Only local samples will be generated.
+		"robust": true, "Llimit": true,
 	})
 	golib.RegisterLogFlags()
 	flag.Parse()
+	golib.ConfigureLogging()
+	if flag.NArg() > 0 {
+		log.Fatalln("Stray command line argument(s):", flag.Args())
+	}
 	registerFlagTags()
 	serveTaggingApi()
 	sampleTagger.register()
-	golib.ConfigureLogging()
 	defer golib.ProfileCpu()()
 	if !p.HasOutputFlag() {
 		// Make sure to at least output on the console
@@ -34,7 +38,7 @@ func do_main() int {
 		col.PrintMetrics()
 		return 0
 	}
-	p.SetSource(col)
+	p.Source = col
 	p.Init()
 	replaceAnomalyFileOutput(&p)
 	return p.StartAndWait()
