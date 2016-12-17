@@ -1,7 +1,6 @@
 package psutil
 
 import (
-	"flag"
 	"os"
 	"regexp"
 	"runtime"
@@ -13,162 +12,62 @@ import (
 	"github.com/shirou/gopsutil/process"
 )
 
-// TODO HACK: automatically find out if this should be excluded
-var nopcap = false
+var (
+	PidUpdateInterval = 60 * time.Second
 
-func init() {
-	flag.BoolVar(&nopcap, "nopcap", nopcap, "Disable PCAP package capturing.")
-}
+	own_pid    = int32(os.Getpid())
+	cpu_factor = 100 / float64(runtime.NumCPU())
+)
 
 type PsutilProcessCollector struct {
 	collector.AbstractCollector
-	Factory *collector.ValueRingFactory
-
-	// Settings
-	CmdlineFilter     []*regexp.Regexp
-	GroupName         string
-	PrintErrors       bool
-	PidUpdateInterval time.Duration
+	factory       *collector.ValueRingFactory
+	cmdlineFilter []*regexp.Regexp
+	groupName     string
+	printErrors   bool
+	pids          *PsutilPidCollector
 
 	pidsUpdated bool
-	own_pid     int32
-	cpu_factor  float64
-	procs       map[int32]*SingleProcessCollector
-	net_pcap    BaseNetIoCounters
+	procs       map[int32]*processInfo
 }
 
-func (col *PsutilProcessCollector) Init() error {
-	col.own_pid = int32(os.Getpid())
-	col.net_pcap = NewBaseNetIoCounters(col.Factory)
-	col.cpu_factor = 100 / float64(runtime.NumCPU())
-	col.Reset(col)
+func (root *PsutilRootCollector) NewProcessCollector(filter []*regexp.Regexp, name string, printErrors bool) *PsutilProcessCollector {
+	return &PsutilProcessCollector{
+		AbstractCollector: root.Child(name),
+		cmdlineFilter:     filter,
+		groupName:         name,
+		printErrors:       printErrors,
+		factory:           root.Factory,
+		pids:              root.pids,
+	}
+}
 
-	prefix := "proc/" + col.GroupName
-	col.Readers = map[string]collector.MetricReader{
-		prefix + "/num": func() bitflow.Value {
+func (col *PsutilProcessCollector) Init() ([]collector.Collector, error) {
+	return []collector.Collector{
+		col.Child("cpu", new(processCpuCollector)),
+		col.Child("disk", new(processDiskCollector)),
+		col.Child("mem", new(processMemoryCollector)),
+		col.Child("net", new(processNetCollector)),
+		col.newProcessPcapCollector(),
+		col.Child("fd", new(processFdCollector)),
+		col.Child("misc", new(processMiscCollector)),
+	}, nil
+}
+
+func (col *PsutilProcessCollector) Metrics() collector.MetricReaderMap {
+	return collector.MetricReaderMap{
+		col.prefix() + "/num": func() bitflow.Value {
 			return bitflow.Value(len(col.procs))
 		},
-		prefix + "/cpu": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.cpu.GetDiff()
-			}),
-
-		prefix + "/disk/read": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ioRead.GetDiff()
-			}),
-		prefix + "/disk/write": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ioWrite.GetDiff()
-			}),
-		prefix + "/disk/io": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ioTotal.GetDiff()
-			}),
-		prefix + "/disk/readBytes": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ioReadBytes.GetDiff()
-			}),
-		prefix + "/disk/writeBytes": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ioWriteBytes.GetDiff()
-			}),
-		prefix + "/disk/ioBytes": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ioBytesTotal.GetDiff()
-			}),
-
-		prefix + "/ctxSwitch": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ctxSwitchVoluntary.GetDiff()
-			}),
-		prefix + "/ctxSwitch/voluntary": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ctxSwitchInvoluntary.GetDiff()
-			}),
-		prefix + "/ctxSwitch/involuntary": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.ctxSwitchInvoluntary.GetDiff() + proc.ctxSwitchVoluntary.GetDiff()
-			}),
-
-		prefix + "/mem/rss": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return bitflow.Value(proc.mem_rss)
-			}),
-		prefix + "/mem/vms": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return bitflow.Value(proc.mem_vms)
-			}),
-		prefix + "/mem/swap": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return bitflow.Value(proc.mem_swap)
-			}),
-		prefix + "/fds": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return bitflow.Value(proc.numFds)
-			}),
-		prefix + "/threads": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return bitflow.Value(proc.numThreads)
-			}),
-
-		prefix + "/net-io/bytes": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.net.Bytes.GetDiff()
-			}),
-		prefix + "/net-io/packets": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.net.Packets.GetDiff()
-			}),
-		prefix + "/net-io/rx_bytes": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.net.RxBytes.GetDiff()
-			}),
-		prefix + "/net-io/rx_packets": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.net.RxPackets.GetDiff()
-			}),
-		prefix + "/net-io/tx_bytes": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.net.TxBytes.GetDiff()
-			}),
-		prefix + "/net-io/tx_packets": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.net.TxPackets.GetDiff()
-			}),
-		prefix + "/net-io/errors": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.net.Errors.GetDiff()
-			}),
-		prefix + "/net-io/dropped": col.sum(
-			func(proc *SingleProcessCollector) bitflow.Value {
-				return proc.net.Dropped.GetDiff()
-			}),
-
-		prefix + "/net-pcap/bytes":      col.net_pcap.Bytes.GetDiff,
-		prefix + "/net-pcap/packets":    col.net_pcap.Packets.GetDiff,
-		prefix + "/net-pcap/rx_bytes":   col.net_pcap.RxBytes.GetDiff,
-		prefix + "/net-pcap/rx_packets": col.net_pcap.RxPackets.GetDiff,
-		prefix + "/net-pcap/tx_bytes":   col.net_pcap.TxBytes.GetDiff,
-		prefix + "/net-pcap/tx_packets": col.net_pcap.TxPackets.GetDiff,
 	}
-	return nil
 }
 
-func (col *PsutilProcessCollector) Update() (err error) {
-	if err := col.updatePids(); err != nil {
-		return err
-	}
-	col.updateProcesses()
+func (col *PsutilProcessCollector) Depends() []collector.Collector {
+	return []collector.Collector{col.pids}
+}
 
-	if !nopcap {
-		err = col.updatePcapNet()
-	}
-
-	if err == nil {
-		col.UpdateMetrics()
-	}
-	return
+func (col *PsutilProcessCollector) Update() error {
+	return col.updatePids()
 }
 
 func (col *PsutilProcessCollector) updatePids() error {
@@ -176,18 +75,18 @@ func (col *PsutilProcessCollector) updatePids() error {
 		return nil
 	}
 
-	newProcs := make(map[int32]*SingleProcessCollector)
+	newProcs := make(map[int32]*processInfo)
 	errors := 0
-	pids := osInformation.pids
+	pids := col.pids.pids
 	for _, pid := range pids {
-		if pid == col.own_pid {
+		if pid == own_pid {
 			continue
 		}
 		proc, err := process.NewProcess(pid)
 		if err != nil {
 			// Process does not exist anymore
 			errors++
-			if col.PrintErrors {
+			if col.printErrors {
 				log.WithField("pid", pid).Warnln("Checking process failed:", err)
 			}
 			continue
@@ -196,30 +95,30 @@ func (col *PsutilProcessCollector) updatePids() error {
 		if err != nil {
 			// Probably a permission error
 			errors++
-			if col.PrintErrors {
+			if col.printErrors {
 				log.WithField("pid", pid).Warnln("Obtaining process cmdline failed:", err)
 			}
 			continue
 		}
-		for _, regex := range col.CmdlineFilter {
+		for _, regex := range col.cmdlineFilter {
 			if regex.MatchString(cmdline) {
 				procCollector, ok := col.procs[pid]
 				if !ok {
-					procCollector = col.MakeProcessCollector(proc, col.Factory)
+					procCollector = col.newProcess(proc)
 				}
 				newProcs[pid] = procCollector
 				break
 			}
 		}
 	}
-	if len(newProcs) == 0 && errors > 0 && col.PrintErrors {
+	if len(newProcs) == 0 && errors > 0 && col.printErrors {
 		log.Errorln("Warning: Observing no processes, failed to check", errors, "out of", len(pids), "PIDs")
 	}
 	col.procs = newProcs
 
-	if col.PidUpdateInterval > 0 {
+	if PidUpdateInterval > 0 {
 		col.pidsUpdated = true
-		time.AfterFunc(col.PidUpdateInterval, func() {
+		time.AfterFunc(PidUpdateInterval, func() {
 			col.pidsUpdated = false
 		})
 	} else {
@@ -228,23 +127,93 @@ func (col *PsutilProcessCollector) updatePids() error {
 	return nil
 }
 
-func (col *PsutilProcessCollector) updateProcesses() {
-	for pid, proc := range col.procs {
-		if err := proc.update(); err != nil {
-			// Process probably does not exist anymore
-			delete(col.procs, pid)
-			if col.PrintErrors {
-				log.WithField("pid", pid).Warnln("Process info update failed:", err)
-			}
-		}
+func (col *PsutilProcessCollector) newProcess(proc *process.Process) *processInfo {
+	return &processInfo{
+		Process:              proc,
+		cpu:                  col.factory.NewValueRing(),
+		ioRead:               col.factory.NewValueRing(),
+		ioWrite:              col.factory.NewValueRing(),
+		ioTotal:              col.factory.NewValueRing(),
+		ioReadBytes:          col.factory.NewValueRing(),
+		ioWriteBytes:         col.factory.NewValueRing(),
+		ioBytesTotal:         col.factory.NewValueRing(),
+		ctxSwitchVoluntary:   col.factory.NewValueRing(),
+		ctxSwitchInvoluntary: col.factory.NewValueRing(),
+		net:                  NewNetIoCounters(col.factory),
+		net_pcap:             NewBaseNetIoCounters(col.factory),
 	}
 }
 
-func (col *PsutilProcessCollector) sum(getval func(*SingleProcessCollector) bitflow.Value) func() bitflow.Value {
+func (col *PsutilProcessCollector) sum(getval func(*processInfo) bitflow.Value) func() bitflow.Value {
 	return func() (res bitflow.Value) {
 		for _, proc := range col.procs {
 			res += getval(proc)
 		}
 		return
 	}
+}
+
+func (col *PsutilProcessCollector) prefix() string {
+	return "proc/" + col.groupName
+}
+
+type processSubcollector struct {
+	collector.AbstractCollector
+	parent *PsutilProcessCollector
+	impl   processSubcollectorImpl
+}
+
+type processSubcollectorImpl interface {
+	metrics(parent *PsutilProcessCollector) collector.MetricReaderMap
+	updateProc(info *processInfo) error
+}
+
+func (col *PsutilProcessCollector) Child(name string, impl processSubcollectorImpl) *processSubcollector {
+	return &processSubcollector{
+		AbstractCollector: col.AbstractCollector.Child(name),
+		parent:            col,
+		impl:              impl,
+	}
+}
+
+func (col *processSubcollector) Metrics() collector.MetricReaderMap {
+	return col.impl.metrics(col.parent)
+}
+
+func (col *processSubcollector) Depends() []collector.Collector {
+	return []collector.Collector{col.parent}
+}
+
+func (col *processSubcollector) Update() error {
+	for pid, proc := range col.parent.procs {
+		if err := col.impl.updateProc(proc); err != nil {
+			// Process probably does not exist anymore
+			delete(col.parent.procs, pid)
+			if col.parent.printErrors {
+				log.WithField("pid", pid).Warnln("Process info update failed:", err)
+			}
+		}
+	}
+	return nil
+}
+
+type processInfo struct {
+	*process.Process
+
+	cpu                  *collector.ValueRing
+	ioRead               *collector.ValueRing
+	ioWrite              *collector.ValueRing
+	ioTotal              *collector.ValueRing
+	ioReadBytes          *collector.ValueRing
+	ioWriteBytes         *collector.ValueRing
+	ioBytesTotal         *collector.ValueRing
+	ctxSwitchVoluntary   *collector.ValueRing
+	ctxSwitchInvoluntary *collector.ValueRing
+	net                  NetIoCounters
+	net_pcap             BaseNetIoCounters
+	mem_rss              uint64
+	mem_vms              uint64
+	mem_swap             uint64
+	numFds               int32
+	numThreads           int32
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/shirou/gopsutil/disk"
@@ -17,50 +16,60 @@ const (
 
 type PsutilDiskUsageCollector struct {
 	collector.AbstractCollector
-	allPartitions      map[string]string          // partition name -> mountpoint
-	observedPartitions map[string]bool            // Set of mountpoints
-	usage              map[string]*disk.UsageStat // Keys: mountpoints
+	partitions map[string]*diskUsageCollector
 }
 
-func (col *PsutilDiskUsageCollector) Init() error {
-	col.Reset(col)
-	col.usage = make(map[string]*disk.UsageStat)
-	col.observedPartitions = make(map[string]bool)
+func newDiskUsageCollector(root *PsutilRootCollector) *PsutilDiskUsageCollector {
+	return &PsutilDiskUsageCollector{
+		AbstractCollector: root.Child("disk-usage"),
+	}
+}
 
-	var err error
-	col.allPartitions, err = col.getAllPartitions()
+func (col *PsutilDiskUsageCollector) Init() ([]collector.Collector, error) {
+	col.partitions = make(map[string]*diskUsageCollector)
+
+	partitions, err := col.getAllPartitions()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]collector.Collector, 0, len(partitions)+1)
+	for name, mountpoint := range partitions {
+		disk := &diskUsageCollector{
+			AbstractCollector: col.Child(name),
+			mountpoint:        mountpoint,
+			parent:            col,
+		}
+		col.partitions[name] = disk
+		result = append(result, disk)
+	}
+	result = append(result, &allDiskUsageCollector{
+		AbstractCollector: col.Child(diskUsageAll),
+		parent:            col,
+	})
+	return result, nil
+}
+
+func (col *PsutilDiskUsageCollector) Update() error {
+	partitions, err := disk.Partitions(false)
 	if err != nil {
 		return err
 	}
-
-	col.Readers = make(map[string]collector.MetricReader)
-	for name, mountpoint := range col.allPartitions {
-		name = diskUsagePrefix + name + "/"
-		reader := &diskUsageReader{
-			col:        col,
-			mountpoint: mountpoint,
+	checked := make(map[string]bool, len(partitions))
+	for _, partition := range partitions {
+		name := col.partitionName(partition)
+		if _, ok := col.partitions[name]; !ok {
+			return collector.MetricsChanged
 		}
-		col.Readers[name+"free"] = reader.readFree
-		col.Readers[name+"used"] = reader.readPercent
+		checked[name] = true
 	}
-	reader := &allDiskUsageReader{col}
-	col.Readers[diskUsagePrefix+diskUsageAll+"/free"] = reader.readFree
-	col.Readers[diskUsagePrefix+diskUsageAll+"/used"] = reader.readPercent
+	if len(checked) != len(col.partitions) {
+		return collector.MetricsChanged
+	}
 	return nil
 }
 
-func (col *PsutilDiskUsageCollector) Collect(metric *collector.Metric) error {
-	lastSlash := strings.LastIndex(metric.Name, "/")
-	partition := metric.Name[len(diskUsagePrefix):lastSlash]
-	if partition == diskUsageAll {
-		for _, mountpoint := range col.allPartitions {
-			col.observedPartitions[mountpoint] = true
-		}
-	} else {
-		mountpoint := col.allPartitions[partition]
-		col.observedPartitions[mountpoint] = true
-	}
-	return col.AbstractCollector.Collect(metric)
+func (col *PsutilDiskUsageCollector) MetricsChanged() error {
+	return col.Update()
 }
 
 func (col *PsutilDiskUsageCollector) getAllPartitions() (map[string]string, error) {
@@ -85,95 +94,78 @@ func (col *PsutilDiskUsageCollector) partitionName(partition disk.PartitionStat)
 	return dev
 }
 
-func (col *PsutilDiskUsageCollector) update() error {
-	for mountpoint := range col.observedPartitions {
-		usage, err := disk.Usage(mountpoint)
-		if err != nil {
-			return fmt.Errorf("Error reading disk-usage of disk mounted at %v: %v", mountpoint, err)
-		}
-		col.usage[mountpoint] = usage
-	}
-	return nil
-}
-
-func (col *PsutilDiskUsageCollector) checkChangedPartitions() error {
-	partitions, err := disk.Partitions(false)
-	if err != nil {
-		return err
-	}
-	checked := make(map[string]bool, len(partitions))
-	for _, partition := range partitions {
-		name := col.partitionName(partition)
-		if _, ok := col.allPartitions[name]; !ok {
-			return collector.MetricsChanged
-		}
-		checked[name] = true
-	}
-	if len(checked) != len(col.allPartitions) {
-		return collector.MetricsChanged
-	}
-	return nil
-}
-
-func (col *PsutilDiskUsageCollector) Update() error {
-	if err := col.checkChangedPartitions(); err != nil {
-		return err
-	}
-	if err := col.update(); err == nil {
-		col.UpdateMetrics()
-		return nil
-	} else {
-		return err
-	}
-}
-
-func (col *PsutilDiskUsageCollector) getStats(mountpoint string) *disk.UsageStat {
-	if disk, ok := col.usage[mountpoint]; ok {
-		return disk
-	} else {
-		log.Warnln("disk-usage counters not found for partition at", mountpoint)
-		return nil
-	}
-}
-
-type diskUsageReader struct {
-	col        *PsutilDiskUsageCollector
+type diskUsageCollector struct {
+	collector.AbstractCollector
+	parent     *PsutilDiskUsageCollector
 	mountpoint string
+	stats      *disk.UsageStat
 }
 
-func (reader *diskUsageReader) readFree() (res bitflow.Value) {
-	if stats := reader.col.getStats(reader.mountpoint); stats != nil {
-		res = bitflow.Value(stats.Free)
+func (col *diskUsageCollector) Depends() []collector.Collector {
+	return []collector.Collector{col.parent}
+}
+
+func (col *diskUsageCollector) Update() (err error) {
+	col.stats, err = disk.Usage(col.mountpoint)
+	if err != nil {
+		err = fmt.Errorf("Error reading disk-usage of disk mounted at %v: %v", col.mountpoint, err)
 	}
 	return
 }
 
-func (reader *diskUsageReader) readPercent() (res bitflow.Value) {
-	if stats := reader.col.getStats(reader.mountpoint); stats != nil {
-		res = bitflow.Value(stats.UsedPercent)
+func (col *diskUsageCollector) Metrics() collector.MetricReaderMap {
+	name := diskUsagePrefix + col.Name + "/"
+	return collector.MetricReaderMap{
+		name + "free": col.readFree,
+		name + "used": col.readPercent,
 	}
-	return
 }
 
-type allDiskUsageReader struct {
-	col *PsutilDiskUsageCollector
+func (col *diskUsageCollector) readFree() bitflow.Value {
+	return bitflow.Value(col.stats.Free)
 }
 
-func (reader *allDiskUsageReader) readFree() (res bitflow.Value) {
-	for part := range reader.col.observedPartitions {
-		if stats := reader.col.getStats(part); stats != nil {
-			res += bitflow.Value(stats.Free)
+func (col *diskUsageCollector) readPercent() bitflow.Value {
+	return bitflow.Value(col.stats.UsedPercent)
+}
+
+type allDiskUsageCollector struct {
+	collector.AbstractCollector
+	parent *PsutilDiskUsageCollector
+}
+
+func (col *allDiskUsageCollector) Depends() []collector.Collector {
+	res := make([]collector.Collector, 0, len(col.parent.partitions)+1)
+	for _, partition := range col.parent.partitions {
+		res = append(res, partition)
+	}
+	res = append(res, col.parent)
+	return res
+}
+
+func (col *allDiskUsageCollector) Metrics() collector.MetricReaderMap {
+	name := diskUsagePrefix + diskUsageAll + "/"
+	return collector.MetricReaderMap{
+		name + "free": col.readFree,
+		name + "used": col.readPercent,
+	}
+}
+
+func (col *allDiskUsageCollector) readFree() (res bitflow.Value) {
+	for _, part := range col.parent.partitions {
+		if part.stats != nil {
+			res += bitflow.Value(part.stats.Free)
 		}
 	}
 	return
 }
 
-func (reader *allDiskUsageReader) readPercent() bitflow.Value {
+func (col *allDiskUsageCollector) readPercent() bitflow.Value {
 	var used, total uint64
-	for part := range reader.col.observedPartitions {
-		if stats := reader.col.getStats(part); stats != nil {
-			used += stats.Used
-			total += stats.Total
+	for _, part := range col.parent.partitions {
+		if part.stats != nil {
+			used += part.stats.Used
+			total += part.stats.Total
 		}
 	}
 	if total == 0 {

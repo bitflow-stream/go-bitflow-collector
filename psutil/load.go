@@ -11,21 +11,22 @@ type PsutilLoadCollector struct {
 	load *load.AvgStat
 }
 
-func (col *PsutilLoadCollector) Init() error {
-	col.Reset(col)
-	col.Readers = map[string]collector.MetricReader{
+func newLoadCollector(root *PsutilRootCollector) *PsutilLoadCollector {
+	return &PsutilLoadCollector{
+		AbstractCollector: root.Child("load"),
+	}
+}
+
+func (col *PsutilLoadCollector) Metrics() collector.MetricReaderMap {
+	return collector.MetricReaderMap{
 		"load/1":  col.readLoad1,
 		"load/5":  col.readLoad5,
 		"load/15": col.readLoad15,
 	}
-	return nil
 }
 
 func (col *PsutilLoadCollector) Update() (err error) {
 	col.load, err = load.Avg()
-	if err == nil {
-		col.UpdateMetrics()
-	}
 	return
 }
 

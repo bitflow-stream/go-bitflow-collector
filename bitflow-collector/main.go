@@ -9,10 +9,17 @@ import (
 	"github.com/antongulenko/golib"
 )
 
+var (
+	print_metrics   = false
+	print_graph     = ""
+	print_graph_dot = ""
+)
+
 func do_main() int {
 	// Register and parse command line flags
-	print_metrics := false
 	flag.BoolVar(&print_metrics, "print-metrics", print_metrics, "Print all available metrics and exit")
+	flag.StringVar(&print_graph, "graph", print_graph, "Create png-file for the collector-graph and exit")
+	flag.StringVar(&print_graph_dot, "graph-dot", print_graph_dot, "Create dot-file for the collector-graph and exit")
 
 	var f bitflow.EndpointFactory
 	f.RegisterGeneralFlagsTo(flag.CommandLine)
@@ -33,10 +40,21 @@ func do_main() int {
 	}
 
 	// Configure and start the data collector
-	configurePcap()
 	col := createCollectorSource()
+	stop := false
 	if print_metrics {
-		col.PrintMetrics()
+		golib.Checkerr(col.PrintMetrics())
+		stop = true
+	}
+	if print_graph != "" {
+		golib.Checkerr(col.PrintGraph(print_graph, all_metrics))
+		stop = true
+	}
+	if print_graph_dot != "" {
+		golib.Checkerr(col.PrintGraphDot(print_graph_dot, all_metrics))
+		stop = true
+	}
+	if stop {
 		return 0
 	}
 	p := bitflow.SamplePipeline{

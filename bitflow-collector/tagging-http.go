@@ -26,7 +26,7 @@ var (
 
 func init() {
 	flag.IntVar(&taggingPort, "listen-tags", 0, "Enable tagging HTTP API on the given port. "+
-		"Samples will carry the defined tags until the timeout expires. Tags can be arbitrary, including zero. "+
+		"Samples will carry the defined tags until the timeout expires. Tags can be arbitrary, empty list is allowed. "+
 		"POST: /tag?timeout=<SECONDS>&<TAG1>=<VAL1>&<TAG2>=<VAL2>&... ")
 }
 

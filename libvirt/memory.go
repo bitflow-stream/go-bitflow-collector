@@ -3,8 +3,6 @@ package libvirt
 import (
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
-	lib "github.com/rgbkrk/libvirt-go"
-	"gopkg.in/xmlpath.v1"
 )
 
 const (
@@ -17,27 +15,31 @@ const (
 
 	VIR_DOMAIN_MEMORY_STAT_UNUSED    = 4
 	VIR_DOMAIN_MEMORY_STAT_AVAILABLE = 5
-	MAX_NUM_MEMORY_STATS             = 8
 )
 
-type memoryStatReader struct {
+type memoryStatCollector struct {
+	vmSubcollectorImpl
 	unused    uint64
 	available uint64
 }
 
-func (reader *memoryStatReader) register(domainName string) map[string]collector.MetricReader {
-	return map[string]collector.MetricReader{
-		"libvirt/" + domainName + "/mem/available": reader.readAvailable,
-		"libvirt/" + domainName + "/mem/used":      reader.readUsed,
-		"libvirt/" + domainName + "/mem/percent":   reader.readPercent,
+func NewMemoryCollector(parent *vmCollector) *memoryStatCollector {
+	return &memoryStatCollector{
+		vmSubcollectorImpl: parent.child("mem"),
 	}
 }
 
-func (reader *memoryStatReader) description(xmlDesc *xmlpath.Node) {
+func (col *memoryStatCollector) Metrics() collector.MetricReaderMap {
+	prefix := col.parent.prefix()
+	return collector.MetricReaderMap{
+		prefix + "mem/available": col.readAvailable,
+		prefix + "mem/used":      col.readUsed,
+		prefix + "mem/percent":   col.readPercent,
+	}
 }
 
-func (reader *memoryStatReader) update(domain lib.VirDomain) error {
-	if memStats, err := domain.MemoryStats(MAX_NUM_MEMORY_STATS, NO_FLAGS); err != nil {
+func (col *memoryStatCollector) Update() error {
+	if memStats, err := col.parent.domain.MemoryStats(); err != nil {
 		return err
 	} else {
 		foundAvailable := false
@@ -57,21 +59,21 @@ func (reader *memoryStatReader) update(domain lib.VirDomain) error {
 			unused = 0
 			available = 0
 		}
-		reader.unused = unused
-		reader.available = available
+		col.unused = unused
+		col.available = available
 		return nil
 	}
 }
 
-func (reader *memoryStatReader) readAvailable() bitflow.Value {
-	return bitflow.Value(reader.available)
+func (col *memoryStatCollector) readAvailable() bitflow.Value {
+	return bitflow.Value(col.available)
 }
 
-func (reader *memoryStatReader) readUsed() bitflow.Value {
-	return bitflow.Value(reader.available - reader.unused)
+func (col *memoryStatCollector) readUsed() bitflow.Value {
+	return bitflow.Value(col.available - col.unused)
 }
 
-func (reader *memoryStatReader) readPercent() bitflow.Value {
-	used := reader.available - reader.unused
-	return bitflow.Value(used) / bitflow.Value(reader.available)
+func (col *memoryStatCollector) readPercent() bitflow.Value {
+	used := col.available - col.unused
+	return bitflow.Value(used) / bitflow.Value(col.available)
 }

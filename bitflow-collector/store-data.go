@@ -10,7 +10,7 @@ var filterAnomalies bool
 
 func init() {
 	flag.BoolVar(&filterAnomalies, "store-tagged", false,
-		"If true, only write Samples to files (-f) as long as tags are defined "+
+		"If true, only write Samples to files as long as tags are defined "+
 			"via the REST API (-listen-tags flag). Ignored when -listen-tags is not defined.")
 }
 

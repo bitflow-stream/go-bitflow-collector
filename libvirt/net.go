@@ -5,57 +5,50 @@ import (
 
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/psutil"
-	lib "github.com/rgbkrk/libvirt-go"
 	"gopkg.in/xmlpath.v1"
 )
 
 var DomainInterfaceXPath = xmlpath.MustCompile("/domain/devices/interface/target/@dev")
 
-type interfaceStatReader struct {
-	parsedInterfaces bool
-	interfaces       []string
-	net              psutil.NetIoCounters
+type interfaceStatCollector struct {
+	vmSubcollectorImpl
+	interfaces []string
+	net        psutil.NetIoCounters
 }
 
-func NewInterfaceStatReader(factory *collector.ValueRingFactory) *interfaceStatReader {
-	return &interfaceStatReader{
-		net: psutil.NewNetIoCounters(factory),
+func NewInterfaceStatCollector(parent *vmCollector) *interfaceStatCollector {
+	return &interfaceStatCollector{
+		vmSubcollectorImpl: parent.child("net-io"),
+		net:                psutil.NewNetIoCounters(parent.parent.factory),
 	}
 }
 
-func (reader *interfaceStatReader) description(xmlDesc *xmlpath.Node) {
-	reader.interfaces = reader.interfaces[0:0]
-	for iter := DomainInterfaceXPath.Iter(xmlDesc); iter.Next(); {
-		reader.interfaces = append(reader.interfaces, iter.Node().String())
-	}
-	reader.parsedInterfaces = true
+func (col *interfaceStatCollector) Metrics() collector.MetricReaderMap {
+	return col.net.Metrics(col.parent.prefix() + "net-io")
 }
 
-func (reader *interfaceStatReader) register(domainName string) map[string]collector.MetricReader {
-	result := make(map[string]collector.MetricReader)
-	reader.net.Register(result, "libvirt/"+domainName+"/net-io")
-	return result
-}
-
-func (reader *interfaceStatReader) update(domain lib.VirDomain) error {
-	if !reader.parsedInterfaces {
-		return UpdateXmlDescription
-	}
-	for _, interfaceName := range reader.interfaces {
+func (col *interfaceStatCollector) Update() error {
+	for _, interfaceName := range col.interfaces {
 		// More detailed alternative: domain.GetInterfaceParameters()
-		stats, err := domain.InterfaceStats(interfaceName)
-		if err == nil {
-			reader.net.Bytes.Add(collector.StoredValue(stats.RxBytes + stats.TxBytes))
-			reader.net.Packets.Add(collector.StoredValue(stats.RxPackets + stats.TxPackets))
-			reader.net.RxBytes.Add(collector.StoredValue(stats.RxBytes))
-			reader.net.RxPackets.Add(collector.StoredValue(stats.RxPackets))
-			reader.net.TxBytes.Add(collector.StoredValue(stats.TxBytes))
-			reader.net.TxPackets.Add(collector.StoredValue(stats.TxPackets))
-			reader.net.Errors.Add(collector.StoredValue(stats.RxErrs + stats.TxErrs))
-			reader.net.Dropped.Add(collector.StoredValue(stats.RxDrop + stats.TxDrop))
-		} else {
-			return fmt.Errorf("Failed to update vNIC stats for %s: %v", interfaceName, err)
+		stats, err := col.parent.domain.InterfaceStats(interfaceName)
+		if err != nil {
+			return fmt.Errorf("VM %v to update vNIC stats for %s: %v", col.parent.name, interfaceName, err)
 		}
+		col.net.Bytes.Add(collector.StoredValue(stats.RxBytes + stats.TxBytes))
+		col.net.Packets.Add(collector.StoredValue(stats.RxPackets + stats.TxPackets))
+		col.net.RxBytes.Add(collector.StoredValue(stats.RxBytes))
+		col.net.RxPackets.Add(collector.StoredValue(stats.RxPackets))
+		col.net.TxBytes.Add(collector.StoredValue(stats.TxBytes))
+		col.net.TxPackets.Add(collector.StoredValue(stats.TxPackets))
+		col.net.Errors.Add(collector.StoredValue(stats.RxErrs + stats.TxErrs))
+		col.net.Dropped.Add(collector.StoredValue(stats.RxDrop + stats.TxDrop))
 	}
 	return nil
+}
+
+func (col *interfaceStatCollector) description(xmlDesc *xmlpath.Node) {
+	col.interfaces = col.interfaces[0:0]
+	for iter := DomainInterfaceXPath.Iter(xmlDesc); iter.Next(); {
+		col.interfaces = append(col.interfaces, iter.Node().String())
+	}
 }

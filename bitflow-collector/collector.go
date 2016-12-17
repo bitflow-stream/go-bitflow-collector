@@ -3,12 +3,12 @@ package main
 import (
 	"errors"
 	"flag"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/libvirt"
 	"github.com/antongulenko/go-bitflow-collector/mock"
@@ -32,10 +32,17 @@ var (
 	proc_show_errors     = false
 	proc_update_pids     = 1500 * time.Millisecond
 
-	libvirt_uri = libvirt.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
+	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyfile")
 	ovsdb_host  = ""
 
 	pcap_nics = ""
+
+	updateFrequencies = map[*regexp.Regexp]time.Duration{
+		regexp.MustCompile("^psutil/pids$"):       1500 * time.Millisecond, // Changed processes
+		regexp.MustCompile("^psutil/disk-usage$"): 5 * time.Second,         // Changed local partitions
+		regexp.MustCompile("^libvirt$"):           10 * time.Second,        // New VMs
+		regexp.MustCompile("^libvirt/[^/]+$"):     30 * time.Second,        // Changed VM configuration
+	}
 
 	ringFactory = collector.ValueRingFactory{
 		// This is an important package-wide constant: time-window for all aggregated values
@@ -46,7 +53,7 @@ var (
 var (
 	includeMetricsRegexes []*regexp.Regexp
 	excludeMetricsRegexes = []*regexp.Regexp{
-		regexp.MustCompile("^mock$"),
+		regexp.MustCompile("^mock/.$"),
 		regexp.MustCompile("^net-proto/(UdpLite|IcmpMsg)"),                         // Some extended protocol-metrics
 		regexp.MustCompile("^disk-io/[^all]"),                                      // Disk IO for specific partitions/disks
 		regexp.MustCompile("^disk-usage/[^all]"),                                   // Disk usage for specific partitions
@@ -55,7 +62,7 @@ var (
 	}
 	includeBasicMetricsRegexes = []*regexp.Regexp{
 		regexp.MustCompile("^(cpu|mem/percent)$"),
-		regexp.MustCompile("^disk-io/.../(io|ioTime|ioBytes)$"),
+		regexp.MustCompile("^disk-io/all/(io|ioTime|ioBytes)$"),
 		regexp.MustCompile("^net-io/(bytes|packets|dropped|errors)$"),
 		regexp.MustCompile("^proc/.+/(cpu|mem/rss|disk/(io|ioBytes)|net-io/(bytes|packets|dropped|errors))$"),
 	}
@@ -65,8 +72,8 @@ func init() {
 	flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
 	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
 	flag.BoolVar(&all_metrics, "a", all_metrics, "Disable built-in filters on available metrics")
-	flag.Var(&user_exclude_metrics, "exclude", "Metrics to exclude (only with -c, substring match)")
-	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (only with -c, substring match)")
+	flag.Var(&user_exclude_metrics, "exclude", "Metrics to exclude (substring match)")
+	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (substring match)")
 	flag.BoolVar(&include_basic_metrics, "basic", include_basic_metrics, "Include only a certain basic subset of metrics")
 
 	flag.Var(&proc_collectors, "proc", "'key=substring' Processes to collect metrics for (substring match on entire command line)")
@@ -94,12 +101,18 @@ func configurePcap() {
 }
 
 func createCollectorSource() *collector.CollectorSource {
+	configurePcap()
 	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 3 // Make sure enough samples can be buffered
-	mock.RegisterMockCollector(&ringFactory)
-	psutil.RegisterPsutilCollectors(collect_local_interval*3/2, &ringFactory) // Update PIDs less often then metrics
-	libvirt.RegisterLibvirtCollector(libvirt_uri, &ringFactory)
-	ovsdb.RegisterOvsdbCollector(ovsdb_host, &ringFactory)
+	var cols []collector.Collector
+
+	cols = append(cols, mock.NewMockCollector(&ringFactory))
+	psutilRoot := psutil.NewPsutilRootCollector(&ringFactory)
+	cols = append(cols, psutilRoot)
+	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, new(libvirt.DriverImpl), &ringFactory))
+	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
+
 	if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
+		psutil.PidUpdateInterval = proc_update_pids
 		regexes := make(map[string][]*regexp.Regexp)
 		for _, substr := range proc_collectors {
 			key, value := splitKeyValue(substr)
@@ -113,16 +126,9 @@ func createCollectorSource() *collector.CollectorSource {
 			regexes[key] = append(regexes[key], regex)
 		}
 		for key, list := range regexes {
-			collector.RegisterCollector(&psutil.PsutilProcessCollector{
-				CmdlineFilter:     list,
-				GroupName:         key,
-				PrintErrors:       proc_show_errors,
-				PidUpdateInterval: proc_update_pids,
-				Factory:           &ringFactory,
-			})
+			cols = append(cols, psutilRoot.NewProcessCollector(list, key, proc_show_errors))
 		}
 	}
-
 	if all_metrics {
 		excludeMetricsRegexes = nil
 	}
@@ -139,10 +145,12 @@ func createCollectorSource() *collector.CollectorSource {
 	}
 
 	return &collector.CollectorSource{
-		CollectInterval: collect_local_interval,
-		SinkInterval:    sink_interval,
-		ExcludeMetrics:  excludeMetricsRegexes,
-		IncludeMetrics:  includeMetricsRegexes,
+		RootCollectors:    cols,
+		UpdateFrequencies: updateFrequencies,
+		CollectInterval:   collect_local_interval,
+		SinkInterval:      sink_interval,
+		ExcludeMetrics:    excludeMetricsRegexes,
+		IncludeMetrics:    includeMetricsRegexes,
 	}
 }
 

@@ -12,27 +12,35 @@ import (
 
 type PsutilCpuCollector struct {
 	collector.AbstractCollector
-	Factory *collector.ValueRingFactory
+	factory *collector.ValueRingFactory
 	ring    *collector.ValueRing
 }
 
-func (col *PsutilCpuCollector) Init() error {
-	col.Reset(col)
-	col.ring = col.Factory.NewValueRing()
-	col.Readers = map[string]collector.MetricReader{
+func newCpuCollector(root *PsutilRootCollector) *PsutilCpuCollector {
+	return &PsutilCpuCollector{
+		AbstractCollector: root.Child("cpu"),
+		factory:           root.Factory,
+	}
+}
+
+func (col *PsutilCpuCollector) Init() ([]collector.Collector, error) {
+	col.ring = col.factory.NewValueRing()
+	return nil, nil
+}
+
+func (col *PsutilCpuCollector) Metrics() collector.MetricReaderMap {
+	return collector.MetricReaderMap{
 		"cpu": col.ring.GetDiff,
 	}
-	return nil
 }
 
 func (col *PsutilCpuCollector) Update() (err error) {
 	times, err := cpu.Times(false)
 	if err == nil {
 		if len(times) != 1 {
-			err = fmt.Errorf("warning: gopsutil/cpu.Times() returned %v CPUTimes instead of %v", len(times), 1)
+			err = fmt.Errorf("gopsutil/cpu.Times() returned %v cpu.TimesStat instead of %v", len(times), 1)
 		} else {
 			col.ring.Add(&cpuTime{times[0]})
-			col.UpdateMetrics()
 		}
 	}
 	return
