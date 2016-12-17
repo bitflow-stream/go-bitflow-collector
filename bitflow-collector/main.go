@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/golib"
 )
