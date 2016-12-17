@@ -11,10 +11,13 @@ import (
 
 func do_main() int {
 	// Register and parse command line flags
+	print_metrics := false
+	flag.BoolVar(&print_metrics, "print-metrics", print_metrics, "Print all available metrics and exit")
+
 	var f bitflow.EndpointFactory
 	f.RegisterGeneralFlagsTo(flag.CommandLine)
 	f.RegisterOutputFlagsTo(flag.CommandLine)
-	golib.RegisterLogFlags()
+	bitflow.RegisterGolibFlags()
 	flag.Parse()
 	golib.ConfigureLogging()
 	if flag.NArg() > 0 {

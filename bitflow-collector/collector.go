@@ -32,9 +32,8 @@ var (
 	proc_show_errors     = false
 	proc_update_pids     = 1500 * time.Millisecond
 
-	print_metrics = false
-	libvirt_uri   = libvirt.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
-	ovsdb_host    = ""
+	libvirt_uri = libvirt.LibvirtLocal() // collector.LibvirtSsh("host", "keyfile")
+	ovsdb_host  = ""
 
 	pcap_nics = ""
 
@@ -65,16 +64,15 @@ var (
 func init() {
 	flag.StringVar(&libvirt_uri, "libvirt", libvirt_uri, "Libvirt connection uri (default is local system)")
 	flag.StringVar(&ovsdb_host, "ovsdb", ovsdb_host, "OVSDB host to connect to. Empty for localhost. Port is "+strconv.Itoa(ovsdb.DefaultOvsdbPort))
-	flag.BoolVar(&print_metrics, "metrics", print_metrics, "Print all available metrics and exit")
 	flag.BoolVar(&all_metrics, "a", all_metrics, "Disable built-in filters on available metrics")
 	flag.Var(&user_exclude_metrics, "exclude", "Metrics to exclude (only with -c, substring match)")
 	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (only with -c, substring match)")
 	flag.BoolVar(&include_basic_metrics, "basic", include_basic_metrics, "Include only a certain basic subset of metrics")
 
 	flag.Var(&proc_collectors, "proc", "'key=substring' Processes to collect metrics for (substring match on entire command line)")
-	flag.Var(&proc_collector_regex, "proc_regex", "'key=regex' Processes to collect metrics for (regex match on entire command line)")
-	flag.BoolVar(&proc_show_errors, "proc_err", proc_show_errors, "Verbose: show errors encountered while getting process metrics")
-	flag.DurationVar(&proc_update_pids, "proc_interval", proc_update_pids, "Interval for updating list of observed pids")
+	flag.Var(&proc_collector_regex, "proc-regex", "'key=regex' Processes to collect metrics for (regex match on entire command line)")
+	flag.BoolVar(&proc_show_errors, "proc-show-errors", proc_show_errors, "Verbose: show errors encountered while getting process metrics")
+	flag.DurationVar(&proc_update_pids, "proc-interval", proc_update_pids, "Interval for updating list of observed pids")
 
 	flag.DurationVar(&collect_local_interval, "ci", collect_local_interval, "Interval for collecting local samples")
 	flag.DurationVar(&sink_interval, "si", sink_interval, "Interval for sinking (sending/printing/...) data when collecting local samples")

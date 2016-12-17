@@ -6,7 +6,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
+	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
 	"github.com/antongulenko/golib"
 )
@@ -14,7 +14,7 @@ import (
 const snaplen = math.MaxInt32
 
 func main() {
-	golib.RegisterLogFlags()
+	bitflow.RegisterGolibFlags()
 	flag.Parse()
 	defer golib.ProfileCpu()()
 	traceConnections("wlan0")
