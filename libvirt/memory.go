@@ -74,6 +74,10 @@ func (col *memoryStatCollector) readUsed() bitflow.Value {
 }
 
 func (col *memoryStatCollector) readPercent() bitflow.Value {
-	used := col.available - col.unused
-	return bitflow.Value(used) / bitflow.Value(col.available)
+	avail := col.available
+	if avail == 0 {
+		return bitflow.Value(0)
+	}
+	used := avail - col.unused
+	return bitflow.Value(used) / bitflow.Value(avail)
 }

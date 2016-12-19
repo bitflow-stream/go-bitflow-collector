@@ -10,7 +10,7 @@ import (
 
 type PsutilMemCollector struct {
 	collector.AbstractCollector
-	memory *mem.VirtualMemoryStat
+	memory mem.VirtualMemoryStat
 }
 
 func newMemCollector(root *PsutilRootCollector) *PsutilMemCollector {
@@ -19,9 +19,14 @@ func newMemCollector(root *PsutilRootCollector) *PsutilMemCollector {
 	}
 }
 
-func (col *PsutilMemCollector) Update() (err error) {
-	col.memory, err = mem.VirtualMemory()
-	return
+func (col *PsutilMemCollector) Update() error {
+	memory, err := mem.VirtualMemory()
+	if err != nil || memory == nil {
+		col.memory = mem.VirtualMemoryStat{}
+	} else {
+		col.memory = *memory
+	}
+	return err
 }
 
 func (col *PsutilMemCollector) Metrics() collector.MetricReaderMap {

@@ -98,19 +98,22 @@ type diskUsageCollector struct {
 	collector.AbstractCollector
 	parent     *PsutilDiskUsageCollector
 	mountpoint string
-	stats      *disk.UsageStat
+	stats      disk.UsageStat
 }
 
 func (col *diskUsageCollector) Depends() []collector.Collector {
 	return []collector.Collector{col.parent}
 }
 
-func (col *diskUsageCollector) Update() (err error) {
-	col.stats, err = disk.Usage(col.mountpoint)
-	if err != nil {
+func (col *diskUsageCollector) Update() error {
+	stats, err := disk.Usage(col.mountpoint)
+	if err != nil || stats == nil {
+		col.stats = disk.UsageStat{}
 		err = fmt.Errorf("Error reading disk-usage of disk mounted at %v: %v", col.mountpoint, err)
+	} else {
+		col.stats = *stats
 	}
-	return
+	return err
 }
 
 func (col *diskUsageCollector) Metrics() collector.MetricReaderMap {
@@ -153,9 +156,7 @@ func (col *allDiskUsageCollector) Metrics() collector.MetricReaderMap {
 
 func (col *allDiskUsageCollector) readFree() (res bitflow.Value) {
 	for _, part := range col.parent.partitions {
-		if part.stats != nil {
-			res += bitflow.Value(part.stats.Free)
-		}
+		res += bitflow.Value(part.stats.Free)
 	}
 	return
 }
@@ -163,10 +164,8 @@ func (col *allDiskUsageCollector) readFree() (res bitflow.Value) {
 func (col *allDiskUsageCollector) readPercent() bitflow.Value {
 	var used, total uint64
 	for _, part := range col.parent.partitions {
-		if part.stats != nil {
-			used += part.stats.Used
-			total += part.stats.Total
-		}
+		used += part.stats.Used
+		total += part.stats.Total
 	}
 	if total == 0 {
 		return bitflow.Value(0)

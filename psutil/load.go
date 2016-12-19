@@ -8,7 +8,7 @@ import (
 
 type PsutilLoadCollector struct {
 	collector.AbstractCollector
-	load *load.AvgStat
+	load load.AvgStat
 }
 
 func newLoadCollector(root *PsutilRootCollector) *PsutilLoadCollector {
@@ -25,9 +25,14 @@ func (col *PsutilLoadCollector) Metrics() collector.MetricReaderMap {
 	}
 }
 
-func (col *PsutilLoadCollector) Update() (err error) {
-	col.load, err = load.Avg()
-	return
+func (col *PsutilLoadCollector) Update() error {
+	loadavg, err := load.Avg()
+	if err != nil || loadavg == nil {
+		col.load = load.AvgStat{}
+	} else {
+		col.load = *loadavg
+	}
+	return err
 }
 
 func (col *PsutilLoadCollector) readLoad1() bitflow.Value {
