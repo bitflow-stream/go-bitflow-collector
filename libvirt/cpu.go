@@ -31,10 +31,10 @@ func NewCpuCollector(parent *vmCollector) *cpuCollector {
 func (col *cpuCollector) Metrics() collector.MetricReaderMap {
 	prefix := col.parent.prefix()
 	return collector.MetricReaderMap{
-		prefix + "/cpu":        col.cpu_total.GetDiff,
-		prefix + "/cpu/user":   col.cpu_user.GetDiff,
-		prefix + "/cpu/system": col.cpu_system.GetDiff,
-		prefix + "/cpu/virt":   col.cpu_virt.GetDiff,
+		prefix + "cpu":        col.cpu_total.GetDiff,
+		prefix + "cpu/user":   col.cpu_user.GetDiff,
+		prefix + "cpu/system": col.cpu_system.GetDiff,
+		prefix + "cpu/virt":   col.cpu_virt.GetDiff,
 	}
 }
 
