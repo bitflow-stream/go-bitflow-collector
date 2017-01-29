@@ -60,9 +60,8 @@ func do_main() int {
 	p := bitflow.SamplePipeline{
 		Source: col,
 	}
-	if err := p.ConfigureSink(&f); err != nil {
-		log.Fatalln(err)
-	}
+	golib.Checkerr(p.ConfigureSink(&f))
+	p.ConfigureStandalone()
 	replaceAnomalyFileOutput(&p)
 	return p.StartAndWait()
 }
