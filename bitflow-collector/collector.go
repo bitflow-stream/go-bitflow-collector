@@ -3,12 +3,12 @@ package main
 import (
 	"errors"
 	"flag"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/libvirt"
 	"github.com/antongulenko/go-bitflow-collector/mock"

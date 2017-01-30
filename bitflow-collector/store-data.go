@@ -26,17 +26,26 @@ func (s *storeAnomalyData) Sample(outSample *bitflow.Sample, header *bitflow.Hea
 	return nil
 }
 
-func replaceAnomalyFileOutput(p *bitflow.SamplePipeline) {
+func replaceAnomalyFileOutput(sink bitflow.MetricSink) bitflow.MetricSink {
 	if !filterAnomalies || taggingPort == 0 {
-		return
+		return sink
 	}
-	if agg, ok := p.Sink.(bitflow.AggregateSink); ok {
-		for i, sink := range agg {
-			if fileSink, ok := sink.(*bitflow.FileSink); ok {
-				agg[i] = &storeAnomalyData{
-					FileSink: fileSink,
-				}
+
+	wrap := func(sink bitflow.MetricSink) bitflow.MetricSink {
+		if fileSink, ok := sink.(*bitflow.FileSink); ok {
+			return &storeAnomalyData{
+				FileSink: fileSink,
 			}
 		}
+		return sink
+	}
+
+	if multi, ok := sink.(MultiSink); ok {
+		for i, sink := range multi {
+			multi[i] = wrap(sink)
+		}
+		return multi
+	} else {
+		return wrap(sink)
 	}
 }
