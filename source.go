@@ -76,7 +76,7 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, erro
 	}
 
 	metrics := graph.getMetrics()
-	fields, values := metrics.ConstructSample()
+	fields, getValues := metrics.ConstructSample()
 	log.Println("Collecting", len(metrics), "metrics through", len(graph.collectors), "collectors")
 	graph.applyUpdateFrequencies(source.UpdateFrequencies)
 
@@ -85,7 +85,7 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, erro
 	source.watchFilteredCollectors(wg, stopper, graph)
 	source.watchFailedCollectors(wg, stopper, graph)
 	wg.Add(1)
-	go source.sinkMetrics(wg, metrics, fields, values, stopper)
+	go source.sinkMetrics(wg, metrics, fields, getValues, stopper)
 	return stopper, nil
 }
 
@@ -103,7 +103,7 @@ func (source *CollectorSource) createFilteredGraph() (*collectorGraph, error) {
 	return graph, nil
 }
 
-func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, values []bitflow.Value, stopper *golib.Stopper) {
+func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, getValues func() []bitflow.Value, stopper *golib.Stopper) {
 	defer wg.Done()
 
 	header := &bitflow.Header{Fields: fields}
@@ -115,6 +115,7 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 
 	for {
 		metrics.UpdateAll()
+		values := getValues()
 		sample := &bitflow.Sample{
 			Time:   time.Now(),
 			Values: values,

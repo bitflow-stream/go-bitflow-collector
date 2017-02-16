@@ -3,6 +3,7 @@ package collector
 import (
 	"errors"
 	"sort"
+	"sync"
 
 	bitflow "github.com/antongulenko/go-bitflow"
 )
@@ -113,9 +114,19 @@ type Metric struct {
 	index  int
 	sample []bitflow.Value
 	reader MetricReader
+
+	// The use of this RWMutex is inverted: the Metric.Update() routine uses
+	// the read-lock, even though it writes data, because we every instance of Metric
+	// accesses another index in the []bitflow.Value slice. The copy function returned by
+	// ConstructSample() uses the writer-lock, even though it reads (copies) the sample slice,
+	// because we need its access to be exclusive from the write accesses by all Metric instances.
+	sampleLock *sync.RWMutex
 }
 
 func (metric *Metric) Update() {
+	metric.sampleLock.RLock()
+	defer metric.sampleLock.RUnlock()
+
 	metric.sample[metric.index] = metric.reader()
 }
 
@@ -134,7 +145,9 @@ func (s MetricSlice) Less(i, j int) bool {
 	return s[i].name < s[j].name
 }
 
-func (s MetricSlice) ConstructSample() ([]string, []bitflow.Value) {
+func (s MetricSlice) ConstructSample() ([]string, func() []bitflow.Value) {
+	var sampleLock sync.RWMutex // See comment at Metric.sampleLock
+
 	sort.Sort(s)
 	fields := make([]string, len(s))
 	values := make([]bitflow.Value, len(s))
@@ -142,8 +155,16 @@ func (s MetricSlice) ConstructSample() ([]string, []bitflow.Value) {
 		fields[i] = metric.name
 		metric.index = i
 		metric.sample = values
+		metric.sampleLock = &sampleLock
 	}
-	return fields, values
+
+	return fields, func() []bitflow.Value {
+		sampleCopy := make([]bitflow.Value, len(values))
+		sampleLock.Lock()
+		defer sampleLock.Unlock()
+		copy(sampleCopy, values)
+		return sampleCopy
+	}
 }
 
 func (s MetricSlice) UpdateAll() {
