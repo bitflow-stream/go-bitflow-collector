@@ -1,6 +1,8 @@
 package psutil
 
 import (
+	"sync"
+
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/shirou/gopsutil/load"
@@ -8,7 +10,8 @@ import (
 
 type PsutilLoadCollector struct {
 	collector.AbstractCollector
-	load load.AvgStat
+	load     load.AvgStat
+	loadLock sync.RWMutex
 }
 
 func newLoadCollector(root *PsutilRootCollector) *PsutilLoadCollector {
@@ -27,6 +30,9 @@ func (col *PsutilLoadCollector) Metrics() collector.MetricReaderMap {
 
 func (col *PsutilLoadCollector) Update() error {
 	loadavg, err := load.Avg()
+
+	col.loadLock.Lock()
+	defer col.loadLock.Unlock()
 	if err != nil || loadavg == nil {
 		col.load = load.AvgStat{}
 	} else {
@@ -35,14 +41,20 @@ func (col *PsutilLoadCollector) Update() error {
 	return err
 }
 
+func (col *PsutilLoadCollector) getLoad() load.AvgStat {
+	col.loadLock.Lock()
+	defer col.loadLock.Unlock()
+	return col.load
+}
+
 func (col *PsutilLoadCollector) readLoad1() bitflow.Value {
-	return bitflow.Value(col.load.Load1)
+	return bitflow.Value(col.getLoad().Load1)
 }
 
 func (col *PsutilLoadCollector) readLoad5() bitflow.Value {
-	return bitflow.Value(col.load.Load5)
+	return bitflow.Value(col.getLoad().Load5)
 }
 
 func (col *PsutilLoadCollector) readLoad15() bitflow.Value {
-	return bitflow.Value(col.load.Load15)
+	return bitflow.Value(col.getLoad().Load15)
 }
