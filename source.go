@@ -13,19 +13,6 @@ import (
 	"github.com/antongulenko/golib"
 )
 
-var (
-	// Can be used to modify collected headers and samples
-	CollectedSampleHandler bitflow.ReadSampleHandler
-
-	// Will be passed to CollectedSampleHandler, if set
-	CollectorSampleSource = "collected"
-)
-
-const (
-	FailedCollectorCheckInterval   = 5 * time.Second
-	FilteredCollectorCheckInterval = 3 * time.Second
-)
-
 type CollectorSource struct {
 	bitflow.AbstractMetricSource
 
@@ -36,6 +23,15 @@ type CollectorSource struct {
 	ExcludeMetrics    []*regexp.Regexp
 	IncludeMetrics    []*regexp.Regexp
 
+	// Can be used to modify collected headers and samples
+	CollectedSampleHandler bitflow.ReadSampleHandler
+
+	// Will be passed to CollectedSampleHandler, if set
+	CollectorSampleSource string
+
+	FailedCollectorCheckInterval   time.Duration
+	FilteredCollectorCheckInterval time.Duration
+
 	loopTask *golib.LoopTask
 }
 
@@ -44,6 +40,17 @@ func (source *CollectorSource) String() string {
 }
 
 func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
+	for name, val := range map[string]time.Duration{
+		"CollectInterval":                source.CollectInterval,
+		"SinkInterval":                   source.SinkInterval,
+		"FailedCollectorCheckInterval":   source.FailedCollectorCheckInterval,
+		"FilteredCollectorCheckInterval": source.FilteredCollectorCheckInterval,
+	} {
+		if val <= 0 {
+			return golib.TaskFinishedError(fmt.Errorf("The field CollectorSource.%v must be set to a positive value (have %v)", name, val))
+		}
+	}
+
 	// TODO integrate golib.StopChan/LoopTask and golib.Stopper
 	source.loopTask = golib.NewErrLoopTask(source.String(), func(stop golib.StopChan) error {
 		var collectWg sync.WaitGroup
@@ -107,8 +114,8 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 	defer wg.Done()
 
 	header := &bitflow.Header{Fields: fields}
-	if handler := CollectedSampleHandler; handler != nil {
-		handler.HandleHeader(header, CollectorSampleSource)
+	if handler := source.CollectedSampleHandler; handler != nil {
+		handler.HandleHeader(header, source.CollectorSampleSource)
 	}
 	// TODO source.CheckSink() should be called in Start()
 	sink := source.OutgoingSink
@@ -120,8 +127,8 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 			Time:   time.Now(),
 			Values: values,
 		}
-		if handler := CollectedSampleHandler; handler != nil {
-			handler.HandleSample(sample, CollectorSampleSource)
+		if handler := source.CollectedSampleHandler; handler != nil {
+			handler.HandleSample(sample, source.CollectorSampleSource)
 		}
 		if err := sink.Sample(sample, header); err != nil {
 			log.Warnln("Failed to sink", len(values), "metrics:", err)
@@ -196,7 +203,7 @@ func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopp
 	}
 	log.Debugln("Watching filtered collectors:", filtered)
 
-	source.loopCheck(wg, stopper, filtered, FilteredCollectorCheckInterval, func(node *collectorNode) {
+	source.loopCheck(wg, stopper, filtered, source.FilteredCollectorCheckInterval, func(node *collectorNode) {
 		err := node.collector.MetricsChanged()
 		if err == MetricsChanged {
 			log.Warnln("Metrics of", node, " (filtered) have changed! Restarting metric collection.")
@@ -219,7 +226,7 @@ func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper
 	}
 	log.Debugln("Watching failed collectors:", failed)
 
-	source.loopCheck(wg, stopper, failed, FailedCollectorCheckInterval, func(node *collectorNode) {
+	source.loopCheck(wg, stopper, failed, source.FailedCollectorCheckInterval, func(node *collectorNode) {
 		if _, err := node.init(); err == nil {
 			log.Warnln("Collector", node, "is not failing anymore. Restarting metric collection.")
 			stopper.Stop()

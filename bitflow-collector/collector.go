@@ -50,6 +50,11 @@ var (
 	}
 )
 
+const (
+	FailedCollectorCheckInterval   = 5 * time.Second
+	FilteredCollectorCheckInterval = 3 * time.Second
+)
+
 var (
 	includeMetricsRegexes []*regexp.Regexp
 	excludeMetricsRegexes = []*regexp.Regexp{
@@ -145,12 +150,15 @@ func createCollectorSource() *collector.CollectorSource {
 	}
 
 	return &collector.CollectorSource{
-		RootCollectors:    cols,
-		UpdateFrequencies: updateFrequencies,
-		CollectInterval:   collect_local_interval,
-		SinkInterval:      sink_interval,
-		ExcludeMetrics:    excludeMetricsRegexes,
-		IncludeMetrics:    includeMetricsRegexes,
+		RootCollectors:                 cols,
+		UpdateFrequencies:              updateFrequencies,
+		CollectInterval:                collect_local_interval,
+		SinkInterval:                   sink_interval,
+		ExcludeMetrics:                 excludeMetricsRegexes,
+		IncludeMetrics:                 includeMetricsRegexes,
+		CollectorSampleSource:          "collected",
+		FailedCollectorCheckInterval:   FailedCollectorCheckInterval,
+		FilteredCollectorCheckInterval: FilteredCollectorCheckInterval,
 	}
 }
 
