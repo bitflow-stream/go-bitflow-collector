@@ -44,11 +44,25 @@ func serveTaggingApi() {
 }
 
 func handleTaggingRequest(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
+	switch r.Method {
+	case "POST":
+		handleTaggingPostRequest(w, r)
+	case "GET":
+		handleTaggingGetRequest(w, r)
+	default:
 		w.WriteHeader(405)
 		w.Write([]byte("Only POST method is allowed, not " + r.Method))
-		return
 	}
+}
+
+func handleTaggingGetRequest(w http.ResponseWriter, r *http.Request) {
+	loopCond.L.Lock()
+	defer loopCond.L.Unlock()
+	w.WriteHeader(200)
+	w.Write([]byte(currentTagsStr() + "\n"))
+}
+
+func handleTaggingPostRequest(w http.ResponseWriter, r *http.Request) {
 	timeout := r.FormValue(form_timeout)
 	if timeout == "" {
 		w.WriteHeader(400)
@@ -81,13 +95,17 @@ func handleTaggingRequest(w http.ResponseWriter, r *http.Request) {
 	if taggingDuration == 0 {
 		content = "Unsetting tags"
 	} else {
-		tagStr := "No tags set"
-		if len(currentHttpTags) > 0 {
-			tagStr = "Tags set to " + printMap(currentHttpTags)
-		}
-		content = fmt.Sprintf("%v for %v (until %v)", tagStr, taggingDuration, taggingTimeout.Format("2006-01-02 15:04:05.000"))
+		content = fmt.Sprintf("%v for %v (until %v)", currentTagsStr(), taggingDuration, taggingTimeout.Format("2006-01-02 15:04:05.000"))
 	}
 	w.Write([]byte(content + "\n"))
+}
+
+func currentTagsStr() string {
+	tagStr := "No tags set"
+	if len(currentHttpTags) > 0 {
+		tagStr = "Tags set to " + printMap(currentHttpTags)
+	}
+	return tagStr
 }
 
 func printMap(values map[string]string) string {
