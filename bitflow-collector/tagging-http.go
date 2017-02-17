@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"net/http"
@@ -71,11 +72,37 @@ func handleTaggingRequest(w http.ResponseWriter, r *http.Request) {
 	defer loopCond.L.Unlock()
 	log.Println("Setting tags to", newTags, "previously:", currentHttpTags)
 	currentHttpTags = newTags
-	taggingTimeout = time.Now().Add(time.Duration(timeoutSec) * time.Second)
+	taggingDuration := time.Duration(timeoutSec) * time.Second
+	taggingTimeout = time.Now().Add(taggingDuration)
 	loopCond.Broadcast()
 
 	w.WriteHeader(200)
-	w.Write([]byte(fmt.Sprintf("Tags set to %v, until %v", currentHttpTags, taggingTimeout)))
+	var content string
+	if taggingDuration == 0 {
+		content = "Unsetting tags"
+	} else {
+		tagStr := "No tags set"
+		if len(currentHttpTags) > 0 {
+			tagStr = "Tags set to " + printMap(currentHttpTags)
+		}
+		content = fmt.Sprintf("%v for %v (until %v)", tagStr, taggingDuration, taggingTimeout.Format("2006-01-02 15:04:05.000"))
+	}
+	w.Write([]byte(content + "\n"))
+}
+
+func printMap(values map[string]string) string {
+	var buf bytes.Buffer
+	started := false
+	for key, val := range values {
+		if started {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(key)
+		buf.WriteString("=")
+		buf.WriteString(val)
+		started = true
+	}
+	return buf.String()
 }
 
 func checkTimeoutLoop() {
