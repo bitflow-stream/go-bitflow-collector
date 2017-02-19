@@ -156,7 +156,6 @@ func createCollectorSource() *collector.CollectorSource {
 		SinkInterval:                   sink_interval,
 		ExcludeMetrics:                 excludeMetricsRegexes,
 		IncludeMetrics:                 includeMetricsRegexes,
-		CollectorSampleSource:          "collected",
 		FailedCollectorCheckInterval:   FailedCollectorCheckInterval,
 		FilteredCollectorCheckInterval: FilteredCollectorCheckInterval,
 	}

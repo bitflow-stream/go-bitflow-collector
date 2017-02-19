@@ -23,12 +23,6 @@ type CollectorSource struct {
 	ExcludeMetrics    []*regexp.Regexp
 	IncludeMetrics    []*regexp.Regexp
 
-	// Can be used to modify collected headers and samples
-	CollectedSampleHandler bitflow.ReadSampleHandler
-
-	// Will be passed to CollectedSampleHandler, if set
-	CollectorSampleSource string
-
 	FailedCollectorCheckInterval   time.Duration
 	FilteredCollectorCheckInterval time.Duration
 
@@ -49,6 +43,9 @@ func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
 		if val <= 0 {
 			return golib.TaskFinishedError(fmt.Errorf("The field CollectorSource.%v must be set to a positive value (have %v)", name, val))
 		}
+	}
+	if err := source.CheckSink(); err != nil {
+		return golib.TaskFinishedError(err)
 	}
 
 	// TODO integrate golib.StopChan/LoopTask and golib.Stopper
@@ -114,10 +111,6 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 	defer wg.Done()
 
 	header := &bitflow.Header{Fields: fields}
-	if handler := source.CollectedSampleHandler; handler != nil {
-		handler.HandleHeader(header, source.CollectorSampleSource)
-	}
-	// TODO source.CheckSink() should be called in Start()
 	sink := source.OutgoingSink
 
 	for {
@@ -126,9 +119,6 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 		sample := &bitflow.Sample{
 			Time:   time.Now(),
 			Values: values,
-		}
-		if handler := source.CollectedSampleHandler; handler != nil {
-			handler.HandleSample(sample, source.CollectorSampleSource)
 		}
 		if err := sink.Sample(sample, header); err != nil {
 			log.Warnln("Failed to sink", len(values), "metrics:", err)
