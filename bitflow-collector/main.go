@@ -66,6 +66,10 @@ func do_main() int {
 			log.Println(str)
 		}
 		stop = true
+	} else {
+		for _, str := range p.FormatLines() {
+			log.Debugln(str)
+		}
 	}
 	if *print_metrics {
 		golib.Checkerr(collector.PrintMetrics())
