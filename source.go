@@ -41,30 +41,32 @@ func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
 		"FilteredCollectorCheckInterval": source.FilteredCollectorCheckInterval,
 	} {
 		if val <= 0 {
-			return golib.TaskFinishedError(fmt.Errorf("The field CollectorSource.%v must be set to a positive value (have %v)", name, val))
+			return golib.NewStoppedChan(fmt.Errorf("The field CollectorSource.%v must be set to a positive value (have %v)", name, val))
 		}
 	}
 	if err := source.CheckSink(); err != nil {
-		return golib.TaskFinishedError(err)
+		return golib.NewStoppedChan(err)
 	}
 
-	// TODO integrate golib.StopChan/LoopTask and golib.Stopper
-	source.loopTask = golib.NewErrLoopTask(source.String(), func(stop golib.StopChan) error {
-		var collectWg sync.WaitGroup
-		stopper, err := source.collect(&collectWg)
-		if err != nil {
-			return err
-		}
-		select {
-		case <-stopper.Wait():
-		case <-stop:
-		}
-		stopper.Stop()
-		collectWg.Wait()
-		return nil
-	})
-	source.loopTask.StopHook = func() {
-		source.CloseSink(wg)
+	source.loopTask = &golib.LoopTask{
+		Description: source.String(),
+		StopHook: func() {
+			source.CloseSink(wg)
+		},
+		Loop: func(loopStop golib.StopChan) error {
+			var collectWg sync.WaitGroup
+			collectionStop, err := source.collect(&collectWg)
+			if err != nil {
+				return err
+			}
+			select {
+			case <-collectionStop.WaitChan():
+			case <-loopStop.WaitChan():
+			}
+			collectionStop.Stop()
+			collectWg.Wait()
+			return nil
+		},
 	}
 	return source.loopTask.Start(wg)
 }
@@ -73,10 +75,10 @@ func (source *CollectorSource) Stop() {
 	source.loopTask.Stop()
 }
 
-func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, error) {
+func (source *CollectorSource) collect(wg *sync.WaitGroup) (golib.StopChan, error) {
 	graph, err := source.createFilteredGraph()
 	if err != nil {
-		return nil, err
+		return golib.StopChan{}, err
 	}
 
 	metrics := graph.getMetrics()
@@ -84,7 +86,7 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (*golib.Stopper, erro
 	log.Println("Collecting", len(metrics), "metrics through", len(graph.collectors), "collectors")
 	graph.applyUpdateFrequencies(source.UpdateFrequencies)
 
-	stopper := golib.NewStopper()
+	stopper := golib.NewStopChan()
 	source.startUpdates(wg, stopper, graph)
 	source.watchFilteredCollectors(wg, stopper, graph)
 	source.watchFailedCollectors(wg, stopper, graph)
@@ -107,7 +109,7 @@ func (source *CollectorSource) createFilteredGraph() (*collectorGraph, error) {
 	return graph, nil
 }
 
-func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, getValues func() []bitflow.Value, stopper *golib.Stopper) {
+func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, getValues func() []bitflow.Value, stopper golib.StopChan) {
 	defer wg.Done()
 
 	header := &bitflow.Header{Fields: fields}
@@ -123,13 +125,13 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 		if err := sink.Sample(sample, header); err != nil {
 			log.Warnln("Failed to sink", len(values), "metrics:", err)
 		}
-		if stopper.Stopped(source.SinkInterval) {
+		if !stopper.WaitTimeout(source.SinkInterval) {
 			return
 		}
 	}
 }
 
-func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper *golib.Stopper, graph *collectorGraph) {
+func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
 	roots, leafs := graph.getRootsAndLeafs()
 	log.Debugln("Root collectors:", len(roots), roots)
 	log.Debugln("Leaf collectors:", len(leafs), leafs)
@@ -173,7 +175,7 @@ func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper *golib.S
 		}()
 		for {
 			source.setAll(rootConditions)
-			if stopper.Stopped(source.CollectInterval) {
+			if !stopper.WaitTimeout(source.CollectInterval) {
 				break
 			}
 		}
@@ -186,7 +188,7 @@ func (source *CollectorSource) setAll(conds []*BoolCondition) {
 	}
 }
 
-func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopper *golib.Stopper, graph *collectorGraph) {
+func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
 	filtered := graph.sortedFilteredNodes()
 	if len(filtered) == 0 {
 		return
@@ -206,7 +208,7 @@ func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopp
 	})
 }
 
-func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper *golib.Stopper, graph *collectorGraph) {
+func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
 	if len(graph.failed) == 0 {
 		return
 	}
@@ -224,18 +226,18 @@ func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper
 	})
 }
 
-func (source *CollectorSource) loopCheck(wg *sync.WaitGroup, stopper *golib.Stopper, nodes []*collectorNode, interval time.Duration, check func(*collectorNode)) {
+func (source *CollectorSource) loopCheck(wg *sync.WaitGroup, stopper golib.StopChan, nodes []*collectorNode, interval time.Duration, check func(*collectorNode)) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
 			for _, node := range nodes {
 				check(node)
-				if stopper.IsStopped() {
+				if stopper.Stopped() {
 					return
 				}
 			}
-			if stopper.Stopped(interval) {
+			if !stopper.WaitTimeout(interval) {
 				return
 			}
 		}

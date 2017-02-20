@@ -79,7 +79,7 @@ func (node *collectorNode) getFilteredMetrics(exclude []*regexp.Regexp, include 
 	return filtered
 }
 
-func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper *golib.Stopper) {
+func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper golib.StopChan) {
 	for _, dependsCol := range node.collector.Depends() {
 		depends := node.graph.resolve(dependsCol)
 		cond := NewBoolCondition()
@@ -97,7 +97,7 @@ func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper *golib.Stopper
 			for _, cond := range node.preconditions {
 				cond.WaitAndUnset()
 			}
-			if stopper.IsStopped() {
+			if stopper.Stopped() {
 				return
 			}
 
@@ -114,14 +114,14 @@ func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper *golib.Stopper
 			for _, cond := range node.postconditions {
 				cond.Broadcast()
 			}
-			if stopper.IsStopped() {
+			if stopper.Stopped() {
 				return
 			}
 		}
 	}()
 }
 
-func (node *collectorNode) update(stopper *golib.Stopper) {
+func (node *collectorNode) update(stopper golib.StopChan) {
 	err := node.collector.Update()
 	if err == MetricsChanged {
 		log.Warnln("Metrics of", node, "have changed! Restarting metric collection.")

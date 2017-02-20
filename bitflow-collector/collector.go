@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"regexp"
 	"strconv"
@@ -27,8 +26,8 @@ var (
 	user_include_metrics  golib.StringSlice
 	user_exclude_metrics  golib.StringSlice
 
-	proc_collectors      golib.StringSlice
-	proc_collector_regex golib.StringSlice
+	proc_collectors      golib.KeyValueStringSlice
+	proc_collector_regex golib.KeyValueStringSlice
 	proc_show_errors     = false
 	proc_update_pids     = 1500 * time.Millisecond
 
@@ -116,16 +115,14 @@ func createCollectorSource() *collector.CollectorSource {
 	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, new(libvirt.DriverImpl), &ringFactory))
 	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
 
-	if len(proc_collectors) > 0 || len(proc_collector_regex) > 0 {
+	if len(proc_collectors.Keys) > 0 || len(proc_collector_regex.Keys) > 0 {
 		psutil.PidUpdateInterval = proc_update_pids
 		regexes := make(map[string][]*regexp.Regexp)
-		for _, substr := range proc_collectors {
-			key, value := splitKeyValue(substr)
+		for key, value := range proc_collectors.Map() {
 			regex := regexp.MustCompile(regexp.QuoteMeta(value))
 			regexes[key] = append(regexes[key], regex)
 		}
-		for _, regexStr := range proc_collector_regex {
-			key, value := splitKeyValue(regexStr)
+		for key, value := range proc_collector_regex.Map() {
 			regex, err := regexp.Compile(value)
 			golib.Checkerr(err)
 			regexes[key] = append(regexes[key], regex)
@@ -159,13 +156,4 @@ func createCollectorSource() *collector.CollectorSource {
 		FailedCollectorCheckInterval:   FailedCollectorCheckInterval,
 		FilteredCollectorCheckInterval: FilteredCollectorCheckInterval,
 	}
-}
-
-func splitKeyValue(pair string) (string, string) {
-	index := strings.Index(pair, "=")
-	if index > 0 {
-		return pair[:index], pair[index+1:]
-	}
-	golib.Checkerr(errors.New("-proc and -proc_regex must have argument format 'key=value'"))
-	return "", ""
 }

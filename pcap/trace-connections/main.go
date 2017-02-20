@@ -33,20 +33,22 @@ func traceConnections(nics ...string) {
 		log.Fatalln(err)
 	}
 
-	task := golib.NewLoopTask("print connections", func(stop golib.StopChan) {
-		log.Println("========================================================")
-		for _, con := range cons.Sorted() {
-			if con.HasData() {
-				log.Println(con)
+	task := &golib.LoopTask{
+		Description: "print connections",
+		Loop: func(stop golib.StopChan) error {
+			log.Println("========================================================")
+			for _, con := range cons.Sorted() {
+				if con.HasData() {
+					log.Println(con)
+				}
 			}
-		}
-		select {
-		case <-time.After(500 * time.Millisecond):
-		case <-stop:
-		}
-	})
-	golib.NewTaskGroup(task, &golib.NoopTask{
+			stop.WaitTimeout(500 * time.Millisecond)
+			return nil
+		},
+	}
+	group := golib.TaskGroup{task, &golib.NoopTask{
 		Chan:        golib.ExternalInterrupt(),
 		Description: "external interrupt",
-	}).PrintWaitAndStop()
+	}}
+	group.PrintWaitAndStop()
 }

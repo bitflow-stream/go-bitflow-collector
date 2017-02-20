@@ -62,7 +62,7 @@ func do_main() int {
 	// Print requested information
 	stop := false
 	if *print_pipeline {
-		for _, str := range p.Format() {
+		for _, str := range p.FormatLines() {
 			log.Println(str)
 		}
 		stop = true
