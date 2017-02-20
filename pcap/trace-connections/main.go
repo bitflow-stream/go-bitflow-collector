@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io"
 	"math"
 	"time"
 
@@ -9,18 +11,38 @@ import (
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
 	"github.com/antongulenko/golib"
+	"github.com/antongulenko/golib/gotermBox"
 )
 
-const snaplen = math.MaxInt32
+const (
+	snaplen         = math.MaxInt32
+	refreshInterval = 500 * time.Millisecond
+)
 
 func main() {
 	bitflow.RegisterGolibFlags()
+	var nics golib.StringSlice
+	flag.Var(&nics, "n", "One or more network interfaces to capture packets from")
 	flag.Parse()
+	golib.ConfigureLogging()
+	if len(nics) == 0 {
+		log.Fatalln("Please provide at least one -n <NIC> parameter")
+	}
 	defer golib.ProfileCpu()()
-	traceConnections("wlan0")
+	traceConnections(nics...)
 }
 
 func traceConnections(nics ...string) {
+	task := gotermBox.CliLogBoxTask{
+		UpdateInterval: refreshInterval,
+		CliLogBox: gotermBox.CliLogBox{
+			NoUtf8:        false,
+			LogLines:      10,
+			MessageBuffer: 1000,
+		},
+	}
+	task.Init()
+
 	cons := pcap.NewConnections()
 	err := cons.CaptureNics(nics, snaplen, func(err error) {
 		if captureErr, ok := err.(pcap.CaptureError); ok {
@@ -33,20 +55,22 @@ func traceConnections(nics ...string) {
 		log.Fatalln(err)
 	}
 
-	task := &golib.LoopTask{
-		Description: "print connections",
-		Loop: func(stop golib.StopChan) error {
-			log.Println("========================================================")
-			for _, con := range cons.Sorted() {
-				if con.HasData() {
-					log.Println(con)
-				}
+	task.Update = func(out io.Writer, textWidth int) error {
+		noData := 0
+		for _, con := range cons.Sorted() {
+			if con.HasData() {
+				fmt.Fprintln(out, con)
+			} else {
+				noData++
 			}
-			stop.WaitTimeout(500 * time.Millisecond)
-			return nil
-		},
+		}
+		if noData > 0 {
+			fmt.Fprintf(out, "\n(+ %v connections without data)\n", noData)
+		}
+		fmt.Sprintln("HELLO")
+		return nil
 	}
-	group := golib.TaskGroup{task, &golib.NoopTask{
+	group := golib.TaskGroup{&task, &golib.NoopTask{
 		Chan:        golib.ExternalInterrupt(),
 		Description: "external interrupt",
 	}}
