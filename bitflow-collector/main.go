@@ -43,7 +43,7 @@ func do_main() int {
 	flag.Parse()
 	golib.ConfigureLogging()
 	if flag.NArg() > 0 {
-		log.Fatalln("Stray command line argument(s):", flag.Args())
+		golib.Fatalln("Stray command line argument(s):", flag.Args())
 	}
 	defer golib.ProfileCpu()()
 
@@ -126,7 +126,7 @@ func create_outputs(f *bitflow.EndpointFactory, outputs []string) []bitflow.Metr
 			consoleOutputs++
 		}
 		if consoleOutputs > 1 {
-			log.Fatalln("Cannot define multiple outputs to stdout")
+			golib.Fatalln("Cannot define multiple outputs to stdout")
 		}
 	}
 	return sinks

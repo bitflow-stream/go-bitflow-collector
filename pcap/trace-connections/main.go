@@ -26,7 +26,7 @@ func main() {
 	flag.Parse()
 	golib.ConfigureLogging()
 	if len(nics) == 0 {
-		log.Fatalln("Please provide at least one -n <NIC> parameter")
+		golib.Fatalln("Please provide at least one -n <NIC> parameter")
 	}
 	defer golib.ProfileCpu()()
 	traceConnections(nics...)
@@ -48,11 +48,11 @@ func traceConnections(nics ...string) {
 		if captureErr, ok := err.(pcap.CaptureError); ok {
 			log.Warnln("Capture error:", captureErr)
 		} else {
-			log.Fatalln(err)
+			golib.Fatalln(err)
 		}
 	})
 	if err != nil {
-		log.Fatalln(err)
+		golib.Fatalln(err)
 	}
 
 	task.Update = func(out io.Writer, textWidth int) error {

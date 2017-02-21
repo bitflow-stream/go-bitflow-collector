@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/libvirt"
 	"github.com/antongulenko/go-bitflow-collector/mock"
@@ -96,7 +95,7 @@ func configurePcap() {
 	if pcap_nics == "" {
 		allNics, err := pcap.PhysicalInterfaces()
 		if err != nil {
-			log.Fatalln("Failed to enumerate physical NICs:", err)
+			golib.Fatalln("Failed to enumerate physical NICs:", err)
 		}
 		psutil.PcapNics = allNics
 	} else {
