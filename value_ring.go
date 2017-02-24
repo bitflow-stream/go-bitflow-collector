@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -40,6 +41,10 @@ type LogbackValue interface {
 type TimedValue struct {
 	time.Time // Timestamp of recording
 	val       LogbackValue
+}
+
+func (val TimedValue) String() string {
+	return fmt.Sprintf("%v", val.val)
 }
 
 func (ring *ValueRing) AddValueToHead(val bitflow.Value) {
