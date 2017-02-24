@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,10 +26,9 @@ var (
 	user_include_metrics  golib.StringSlice
 	user_exclude_metrics  golib.StringSlice
 
-	proc_collectors      golib.KeyValueStringSlice
-	proc_collector_regex golib.KeyValueStringSlice
-	proc_show_errors     = false
-	proc_update_pids     = 1500 * time.Millisecond
+	proc_collectors  golib.KeyValueStringSlice
+	proc_show_errors = false
+	proc_update_pids = 1500 * time.Millisecond
 
 	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyfile")
 	ovsdb_host  = ""
@@ -79,8 +79,7 @@ func init() {
 	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (substring match)")
 	flag.BoolVar(&include_basic_metrics, "basic", include_basic_metrics, "Include only a certain basic subset of metrics")
 
-	flag.Var(&proc_collectors, "proc", "'key=substring' Processes to collect metrics for (substring match on entire command line)")
-	flag.Var(&proc_collector_regex, "proc-regex", "'key=regex' Processes to collect metrics for (regex match on entire command line)")
+	flag.Var(&proc_collectors, "proc", "'key=regex' Processes to collect metrics for (regex match on entire command line)")
 	flag.BoolVar(&proc_show_errors, "proc-show-errors", proc_show_errors, "Verbose: show errors encountered while getting process metrics")
 	flag.DurationVar(&proc_update_pids, "proc-interval", proc_update_pids, "Interval for updating list of observed pids")
 
@@ -105,7 +104,7 @@ func configurePcap() {
 
 func createCollectorSource() *collector.CollectorSource {
 	configurePcap()
-	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 3 // Make sure enough samples can be buffered
+	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 10 // Make sure enough samples can be buffered
 	var cols []collector.Collector
 
 	cols = append(cols, mock.NewMockCollector(&ringFactory))
@@ -114,14 +113,10 @@ func createCollectorSource() *collector.CollectorSource {
 	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, new(libvirt.DriverImpl), &ringFactory))
 	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
 
-	if len(proc_collectors.Keys) > 0 || len(proc_collector_regex.Keys) > 0 {
+	if len(proc_collectors.Keys) > 0 {
 		psutil.PidUpdateInterval = proc_update_pids
 		regexes := make(map[string][]*regexp.Regexp)
 		for key, value := range proc_collectors.Map() {
-			regex := regexp.MustCompile(regexp.QuoteMeta(value))
-			regexes[key] = append(regexes[key], regex)
-		}
-		for key, value := range proc_collector_regex.Map() {
 			regex, err := regexp.Compile(value)
 			golib.Checkerr(err)
 			regexes[key] = append(regexes[key], regex)
@@ -137,12 +132,18 @@ func createCollectorSource() *collector.CollectorSource {
 		includeMetricsRegexes = append(includeMetricsRegexes, includeBasicMetricsRegexes...)
 	}
 	for _, exclude := range user_exclude_metrics {
-		excludeMetricsRegexes = append(excludeMetricsRegexes,
-			regexp.MustCompile(regexp.QuoteMeta(exclude)))
+		regex, err := regexp.Compile(exclude)
+		if err != nil {
+			golib.Checkerr(fmt.Errorf("Error compiling exclude regex: %v", err))
+		}
+		excludeMetricsRegexes = append(excludeMetricsRegexes, regex)
 	}
 	for _, include := range user_include_metrics {
-		includeMetricsRegexes = append(includeMetricsRegexes,
-			regexp.MustCompile(regexp.QuoteMeta(include)))
+		regex, err := regexp.Compile(include)
+		if err != nil {
+			golib.Checkerr(fmt.Errorf("Error compiling include regex: %v", err))
+		}
+		includeMetricsRegexes = append(includeMetricsRegexes, regex)
 	}
 
 	return &collector.CollectorSource{
