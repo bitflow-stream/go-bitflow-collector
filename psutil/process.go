@@ -4,6 +4,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -29,6 +30,7 @@ type PsutilProcessCollector struct {
 
 	pidsUpdated bool
 	procs       map[int32]*processInfo
+	procsLock   sync.RWMutex
 }
 
 func (root *PsutilRootCollector) NewProcessCollector(filter []*regexp.Regexp, name string, printErrors bool) *PsutilProcessCollector {
@@ -102,7 +104,9 @@ func (col *PsutilProcessCollector) updatePids() error {
 		}
 		for _, regex := range col.cmdlineFilter {
 			if regex.MatchString(cmdline) {
+				col.procsLock.RLock()
 				procCollector, ok := col.procs[pid]
+				col.procsLock.RUnlock()
 				if !ok {
 					procCollector = col.newProcess(proc)
 				}
@@ -146,6 +150,8 @@ func (col *PsutilProcessCollector) newProcess(proc *process.Process) *processInf
 
 func (col *PsutilProcessCollector) sum(getval func(*processInfo) bitflow.Value) func() bitflow.Value {
 	return func() (res bitflow.Value) {
+		col.procsLock.RLock()
+		defer col.procsLock.RUnlock()
 		for _, proc := range col.procs {
 			res += getval(proc)
 		}
@@ -188,7 +194,9 @@ func (col *processSubcollector) Update() error {
 	for pid, proc := range col.parent.procs {
 		if err := col.impl.updateProc(proc); err != nil {
 			// Process probably does not exist anymore
+			col.parent.procsLock.Lock()
 			delete(col.parent.procs, pid)
+			col.parent.procsLock.Unlock()
 			if col.parent.printErrors {
 				log.WithField("pid", pid).Warnln("Process info update failed:", err)
 			}
