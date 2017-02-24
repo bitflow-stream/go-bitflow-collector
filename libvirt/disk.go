@@ -68,17 +68,16 @@ func (col *vmBlockIoCollector) Metrics() collector.MetricReaderMap {
 }
 
 func (col *vmBlockIoCollector) Update() error {
-	col.stats = col.stats[0:0]
-	stats := make([]lib.VirDomainBlockStats, 0, len(col.parent.devices))
+	new_stats := make([]lib.VirDomainBlockStats, 0, len(col.parent.devices))
 	for _, dev := range col.parent.devices {
 		// More detailed alternative: domain.BlockStatsFlags()
-		if stats, err := col.parent.parent.domain.BlockStats(dev); err == nil {
-			col.stats = append(col.stats, stats)
+		if block_stats, err := col.parent.parent.domain.BlockStats(dev); err == nil {
+			new_stats = append(new_stats, block_stats)
 		} else {
 			return fmt.Errorf("Failed to get block-device stats for %s: %v", dev, err)
 		}
 	}
-	col.stats = stats
+	col.stats = new_stats
 	return nil
 }
 
@@ -122,16 +121,15 @@ func (col *vmBlockStatsCollector) Metrics() collector.MetricReaderMap {
 }
 
 func (col *vmBlockStatsCollector) Update() error {
-	col.info = col.info[0:0]
-	info := make([]lib.VirDomainBlockInfo, 0, len(col.parent.devices))
+	new_info := make([]lib.VirDomainBlockInfo, 0, len(col.parent.devices))
 	for _, dev := range col.parent.devices {
-		if info, err := col.parent.parent.domain.BlockInfo(dev); err == nil {
-			col.info = append(col.info, info)
+		if block_info, err := col.parent.parent.domain.BlockInfo(dev); err == nil {
+			new_info = append(new_info, block_info)
 		} else {
 			return fmt.Errorf("Failed to get block-device info for %s: %v", dev, err)
 		}
 	}
-	col.info = info
+	col.info = new_info
 	return nil
 }
 
