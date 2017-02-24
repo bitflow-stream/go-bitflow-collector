@@ -51,9 +51,9 @@ type LogbackCpuVal uint64
 func (val LogbackCpuVal) DiffValue(logback collector.LogbackValue, interval time.Duration) bitflow.Value {
 	switch previous := logback.(type) {
 	case LogbackCpuVal:
-		return bitflow.Value(val-previous) / bitflow.Value(interval.Nanoseconds())
+		return bitflow.Value(val-previous) / bitflow.Value(interval.Nanoseconds()) * 100
 	case *LogbackCpuVal:
-		return bitflow.Value(val-*previous) / bitflow.Value(interval.Nanoseconds())
+		return bitflow.Value(val-*previous) / bitflow.Value(interval.Nanoseconds()) * 100
 	default:
 		log.Errorf("Cannot diff %v (%T) and %v (%T)", val, val, logback, logback)
 		return bitflow.Value(0)
