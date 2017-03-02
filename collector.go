@@ -145,7 +145,7 @@ func (s MetricSlice) Less(i, j int) bool {
 	return s[i].name < s[j].name
 }
 
-func (s MetricSlice) ConstructSample() ([]string, func() []bitflow.Value) {
+func (s MetricSlice) ConstructSample(source *CollectorSource) ([]string, func() []bitflow.Value) {
 	var sampleLock sync.RWMutex // See comment at Metric.sampleLock
 
 	sort.Sort(s)
@@ -158,8 +158,10 @@ func (s MetricSlice) ConstructSample() ([]string, func() []bitflow.Value) {
 		metric.sampleLock = &sampleLock
 	}
 
+	valueLen := len(values)
+	valueCap := bitflow.RequiredValues(valueLen, source.OutgoingSink)
 	return fields, func() []bitflow.Value {
-		sampleCopy := make([]bitflow.Value, len(values))
+		sampleCopy := make([]bitflow.Value, valueLen, valueCap)
 		sampleLock.Lock()
 		defer sampleLock.Unlock()
 		copy(sampleCopy, values)

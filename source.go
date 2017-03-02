@@ -82,7 +82,7 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (golib.StopChan, erro
 	}
 
 	metrics := graph.getMetrics()
-	fields, getValues := metrics.ConstructSample()
+	fields, getValues := metrics.ConstructSample(source)
 	log.Println("Collecting", len(metrics), "metrics through", len(graph.collectors), "collectors")
 	graph.applyUpdateFrequencies(source.UpdateFrequencies)
 
