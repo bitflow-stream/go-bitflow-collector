@@ -110,7 +110,7 @@ func createCollectorSource() *collector.CollectorSource {
 	cols = append(cols, mock.NewMockCollector(&ringFactory))
 	psutilRoot := psutil.NewPsutilRootCollector(&ringFactory)
 	cols = append(cols, psutilRoot)
-	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, new(libvirt.DriverImpl), &ringFactory))
+	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, libvirt.NewDriver(), &ringFactory))
 	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
 
 	if len(proc_collectors.Keys) > 0 {

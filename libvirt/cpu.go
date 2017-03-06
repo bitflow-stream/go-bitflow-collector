@@ -42,12 +42,12 @@ func (col *cpuCollector) Update() error {
 	if stats, err := col.parent.domain.CpuStats(); err != nil {
 		return err
 	} else {
-		for _, param := range stats {
-			val, ok := param.Value.(uint64)
+		for name, val := range stats {
+			val, ok := val.(uint64)
 			if !ok {
 				continue
 			}
-			switch param.Name {
+			switch name {
 			case VIR_DOMAIN_CPU_STATS_CPUTIME:
 				col.cpu_total.Add(LogbackCpuVal(val))
 			case VIR_DOMAIN_CPU_STATS_USERTIME:

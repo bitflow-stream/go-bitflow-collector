@@ -67,7 +67,6 @@ func traceConnections(nics ...string) {
 		if noData > 0 {
 			fmt.Fprintf(out, "\n(+ %v connections without data)\n", noData)
 		}
-		fmt.Sprintln("HELLO")
 		return nil
 	}
 	group := golib.TaskGroup{&task, &golib.NoopTask{

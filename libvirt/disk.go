@@ -5,7 +5,6 @@ import (
 
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
-	lib "github.com/rgbkrk/libvirt-go"
 	"gopkg.in/xmlpath.v1"
 )
 
@@ -47,7 +46,7 @@ func (col *vmBlockCollector) description(xmlDesc *xmlpath.Node) {
 type vmBlockIoCollector struct {
 	collector.AbstractCollector
 	parent      *vmBlockCollector
-	stats       []lib.VirDomainBlockStats
+	stats       []VirDomainBlockStats
 	ioRing      *collector.ValueRing
 	ioBytesRing *collector.ValueRing
 }
@@ -68,7 +67,7 @@ func (col *vmBlockIoCollector) Metrics() collector.MetricReaderMap {
 }
 
 func (col *vmBlockIoCollector) Update() error {
-	new_stats := make([]lib.VirDomainBlockStats, 0, len(col.parent.devices))
+	new_stats := make([]VirDomainBlockStats, 0, len(col.parent.devices))
 	for _, dev := range col.parent.devices {
 		// More detailed alternative: domain.BlockStatsFlags()
 		if block_stats, err := col.parent.parent.domain.BlockStats(dev); err == nil {
@@ -108,7 +107,7 @@ func (col *vmBlockIoCollector) readIoBytes() bitflow.Value {
 type vmBlockStatsCollector struct {
 	collector.AbstractCollector
 	parent *vmBlockCollector
-	info   []lib.VirDomainBlockInfo
+	info   []VirDomainBlockInfo
 }
 
 func (col *vmBlockStatsCollector) Metrics() collector.MetricReaderMap {
@@ -121,7 +120,7 @@ func (col *vmBlockStatsCollector) Metrics() collector.MetricReaderMap {
 }
 
 func (col *vmBlockStatsCollector) Update() error {
-	new_info := make([]lib.VirDomainBlockInfo, 0, len(col.parent.devices))
+	new_info := make([]VirDomainBlockInfo, 0, len(col.parent.devices))
 	for _, dev := range col.parent.devices {
 		if block_info, err := col.parent.parent.domain.BlockInfo(dev); err == nil {
 			new_info = append(new_info, block_info)
@@ -139,21 +138,21 @@ func (col *vmBlockStatsCollector) Depends() []collector.Collector {
 
 func (col *vmBlockStatsCollector) readAllocation() (result bitflow.Value) {
 	for _, info := range col.info {
-		result += bitflow.Value(info.Allocation())
+		result += bitflow.Value(info.Allocation)
 	}
 	return
 }
 
 func (col *vmBlockStatsCollector) readCapacity() (result bitflow.Value) {
 	for _, info := range col.info {
-		result += bitflow.Value(info.Capacity())
+		result += bitflow.Value(info.Capacity)
 	}
 	return
 }
 
 func (col *vmBlockStatsCollector) readPhysical() (result bitflow.Value) {
 	for _, info := range col.info {
-		result += bitflow.Value(info.Physical())
+		result += bitflow.Value(info.Physical)
 	}
 	return
 }

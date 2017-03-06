@@ -45,13 +45,13 @@ func (col *memoryStatCollector) Update() error {
 		foundAvailable := false
 		foundUnused := false
 		var available, unused uint64
-		for _, stat := range memStats {
-			switch stat.Tag {
+		for tag, val := range memStats {
+			switch tag {
 			case VIR_DOMAIN_MEMORY_STAT_AVAILABLE:
-				available = stat.Val
+				available = val
 				foundAvailable = true
 			case VIR_DOMAIN_MEMORY_STAT_UNUSED:
-				unused = stat.Val
+				unused = val
 				foundUnused = true
 			}
 		}
