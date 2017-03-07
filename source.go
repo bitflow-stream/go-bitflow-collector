@@ -182,8 +182,8 @@ func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper golib.St
 	}()
 }
 
-func (source *CollectorSource) setAll(conds []*BoolCondition) {
-	for _, cond := range conds {
+func (source *CollectorSource) setAll(conditions []*BoolCondition) {
+	for _, cond := range conditions {
 		cond.Broadcast()
 	}
 }

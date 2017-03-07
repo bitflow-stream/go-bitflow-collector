@@ -33,14 +33,14 @@ func (col *PsutilDiskUsageCollector) Init() ([]collector.Collector, error) {
 		return nil, err
 	}
 	result := make([]collector.Collector, 0, len(partitions)+1)
-	for name, mountpoint := range partitions {
-		disk := &diskUsageCollector{
+	for name, mountPoint := range partitions {
+		diskCollector := &diskUsageCollector{
 			AbstractCollector: col.Child(name),
-			mountpoint:        mountpoint,
+			mountPoint:        mountPoint,
 			parent:            col,
 		}
-		col.partitions[name] = disk
-		result = append(result, disk)
+		col.partitions[name] = diskCollector
+		result = append(result, diskCollector)
 	}
 	result = append(result, &allDiskUsageCollector{
 		AbstractCollector: col.Child(diskUsageAll),
@@ -97,7 +97,7 @@ func (col *PsutilDiskUsageCollector) partitionName(partition disk.PartitionStat)
 type diskUsageCollector struct {
 	collector.AbstractCollector
 	parent     *PsutilDiskUsageCollector
-	mountpoint string
+	mountPoint string
 	stats      disk.UsageStat
 }
 
@@ -106,10 +106,10 @@ func (col *diskUsageCollector) Depends() []collector.Collector {
 }
 
 func (col *diskUsageCollector) Update() error {
-	stats, err := disk.Usage(col.mountpoint)
+	stats, err := disk.Usage(col.mountPoint)
 	if err != nil || stats == nil {
 		col.stats = disk.UsageStat{}
-		err = fmt.Errorf("Error reading disk-usage of disk mounted at %v: %v", col.mountpoint, err)
+		err = fmt.Errorf("Error reading disk-usage of disk mounted at %v: %v", col.mountPoint, err)
 	} else {
 		col.stats = *stats
 	}

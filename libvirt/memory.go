@@ -18,14 +18,14 @@ const (
 )
 
 type memoryStatCollector struct {
-	vmSubcollectorImpl
+	vmSubCollectorImpl
 	unused    uint64
 	available uint64
 }
 
 func NewMemoryCollector(parent *vmCollector) *memoryStatCollector {
 	return &memoryStatCollector{
-		vmSubcollectorImpl: parent.child("mem"),
+		vmSubCollectorImpl: parent.child("mem"),
 	}
 }
 

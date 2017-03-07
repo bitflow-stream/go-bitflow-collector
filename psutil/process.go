@@ -148,12 +148,12 @@ func (col *PsutilProcessCollector) newProcess(proc *process.Process) *processInf
 	}
 }
 
-func (col *PsutilProcessCollector) sum(getval func(*processInfo) bitflow.Value) func() bitflow.Value {
+func (col *PsutilProcessCollector) sum(getVal func(*processInfo) bitflow.Value) func() bitflow.Value {
 	return func() (res bitflow.Value) {
 		col.procsLock.RLock()
 		defer col.procsLock.RUnlock()
 		for _, proc := range col.procs {
-			res += getval(proc)
+			res += getVal(proc)
 		}
 		return
 	}
@@ -163,34 +163,34 @@ func (col *PsutilProcessCollector) prefix() string {
 	return "proc/" + col.groupName
 }
 
-type processSubcollector struct {
+type processSubCollector struct {
 	collector.AbstractCollector
 	parent *PsutilProcessCollector
-	impl   processSubcollectorImpl
+	impl   processSubCollectorImpl
 }
 
-type processSubcollectorImpl interface {
+type processSubCollectorImpl interface {
 	metrics(parent *PsutilProcessCollector) collector.MetricReaderMap
 	updateProc(info *processInfo) error
 }
 
-func (col *PsutilProcessCollector) Child(name string, impl processSubcollectorImpl) *processSubcollector {
-	return &processSubcollector{
+func (col *PsutilProcessCollector) Child(name string, impl processSubCollectorImpl) *processSubCollector {
+	return &processSubCollector{
 		AbstractCollector: col.AbstractCollector.Child(name),
 		parent:            col,
 		impl:              impl,
 	}
 }
 
-func (col *processSubcollector) Metrics() collector.MetricReaderMap {
+func (col *processSubCollector) Metrics() collector.MetricReaderMap {
 	return col.impl.metrics(col.parent)
 }
 
-func (col *processSubcollector) Depends() []collector.Collector {
+func (col *processSubCollector) Depends() []collector.Collector {
 	return []collector.Collector{col.parent}
 }
 
-func (col *processSubcollector) Update() error {
+func (col *processSubCollector) Update() error {
 	for pid, proc := range col.parent.procs {
 		if err := col.impl.updateProc(proc); err != nil {
 			// Process probably does not exist anymore

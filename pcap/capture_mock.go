@@ -28,10 +28,10 @@ func PhysicalInterfaces() ([]string, error) {
 	return []string{mock_interface}, nil
 }
 
-func OpenPcap(nic string, snaplen int32) (PacketSource, error) {
+func OpenPcap(string, int32) (PacketSource, error) {
 	return PacketSource(1), nil
 }
 
-func CaptureOnePacket(source PacketSource, connections *Connections) error {
+func CaptureOnePacket(_ PacketSource, connections *Connections) error {
 	return connections.LogPacket(mock_packet_info, mock_packet_size)
 }

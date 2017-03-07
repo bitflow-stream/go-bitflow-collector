@@ -29,14 +29,14 @@ func (col *PsutilLoadCollector) Metrics() collector.MetricReaderMap {
 }
 
 func (col *PsutilLoadCollector) Update() error {
-	loadavg, err := load.Avg()
+	loadAvg, err := load.Avg()
 
 	col.loadLock.Lock()
 	defer col.loadLock.Unlock()
-	if err != nil || loadavg == nil {
+	if err != nil || loadAvg == nil {
 		col.load = load.AvgStat{}
 	} else {
-		col.load = *loadavg
+		col.load = *loadAvg
 	}
 	return err
 }

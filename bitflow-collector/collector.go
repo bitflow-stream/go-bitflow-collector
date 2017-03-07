@@ -30,7 +30,7 @@ var (
 	proc_show_errors = false
 	proc_update_pids = 1500 * time.Millisecond
 
-	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyfile")
+	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyFile")
 	ovsdb_host  = ""
 
 	pcap_nics = ""
@@ -51,6 +51,9 @@ var (
 const (
 	FailedCollectorCheckInterval   = 5 * time.Second
 	FilteredCollectorCheckInterval = 3 * time.Second
+
+	// Negative look-ahead is not supported, so explicitly encode the negation of the substring "all"
+	negatedAll = "([^a]|a[^l]|al[^l])"
 )
 
 var (
@@ -58,8 +61,8 @@ var (
 	excludeMetricsRegexes = []*regexp.Regexp{
 		regexp.MustCompile("^mock/.$"),
 		regexp.MustCompile("^net-proto/(UdpLite|IcmpMsg)"),                         // Some extended protocol-metrics
-		regexp.MustCompile("^disk-io/[^all]"),                                      // Disk IO for specific partitions/disks
-		regexp.MustCompile("^disk-usage/[^all]"),                                   // Disk usage for specific partitions
+		regexp.MustCompile("^disk-io/" + negatedAll),                               // Disk IO for specific partitions/disks
+		regexp.MustCompile("^disk-usage/" + negatedAll),                            // Disk usage for specific partitions
 		regexp.MustCompile("^net-proto/tcp/(MaxConn|RtpAlgorithm|RtpMin|RtoMax)$"), // Some irrelevant TCP/IP settings
 		regexp.MustCompile("^net-proto/ip/(DefaultTTL|Forwarding)$"),
 	}

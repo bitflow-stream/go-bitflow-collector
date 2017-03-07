@@ -102,8 +102,8 @@ func (graph *collectorGraph) applyMetricFilters(exclude []*regexp.Regexp, includ
 	}
 }
 
-func (graph *collectorGraph) applyUpdateFrequencies(freqs map[*regexp.Regexp]time.Duration) {
-	for regex, freq := range freqs {
+func (graph *collectorGraph) applyUpdateFrequencies(frequencies map[*regexp.Regexp]time.Duration) {
+	for regex, freq := range frequencies {
 		count := 0
 		for node := range graph.nodes {
 			if regex.MatchString(node.String()) {
@@ -239,8 +239,8 @@ func sortGraph(graph graph.Directed) []*collectorNode {
 	return sorted
 }
 
-func createCollectorSubgraph(nodes []graph.Node) *collectorGraph {
-	graph := &collectorGraph{
+func createCollectorSubGraph(nodes []graph.Node) *collectorGraph {
+	newGraph := &collectorGraph{
 		nodes:      make(map[*collectorNode]bool),
 		failed:     make(map[*collectorNode]bool),
 		filtered:   make(map[*collectorNode]bool),
@@ -248,10 +248,10 @@ func createCollectorSubgraph(nodes []graph.Node) *collectorGraph {
 	}
 	for _, graphNode := range nodes {
 		node := graphNode.(*collectorNode)
-		graph.nodes[node] = true
-		graph.collectors[node.collector] = node
+		newGraph.nodes[node] = true
+		newGraph.collectors[node.collector] = node
 	}
-	return graph
+	return newGraph
 }
 
 func (g *collectorGraph) createUpdatePlan() [][]*collectorNode {
@@ -261,8 +261,8 @@ func (g *collectorGraph) createUpdatePlan() [][]*collectorNode {
 	result := make([][]*collectorNode, len(parts))
 
 	for i, part := range parts {
-		subgraph := createCollectorSubgraph(part)
-		sorted := sortGraph(subgraph)
+		subGraph := createCollectorSubGraph(part)
+		sorted := sortGraph(subGraph)
 		result[i] = sorted
 	}
 	return result
@@ -280,9 +280,9 @@ func (g *collectorGraph) sortedFilteredNodes() []*collectorNode {
 	}
 
 	// Sort the graph including filtered and unfiltered nodes,
-	// then exract only the filtered ones in the correct order
+	// then extract only the filtered ones in the correct order
 	res := make([]*collectorNode, 0, len(g.filtered))
-	fullGraph := createCollectorSubgraph(makeNodeList(g.nodes, g.filtered))
+	fullGraph := createCollectorSubGraph(makeNodeList(g.nodes, g.filtered))
 	sorted := sortGraph(fullGraph)
 	for _, node := range sorted {
 		if g.filtered[node] {

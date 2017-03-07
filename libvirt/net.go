@@ -11,14 +11,14 @@ import (
 var DomainInterfaceXPath = xmlpath.MustCompile("/domain/devices/interface/target/@dev")
 
 type interfaceStatCollector struct {
-	vmSubcollectorImpl
+	vmSubCollectorImpl
 	interfaces []string
 	net        psutil.NetIoCounters
 }
 
 func NewInterfaceStatCollector(parent *vmCollector) *interfaceStatCollector {
 	return &interfaceStatCollector{
-		vmSubcollectorImpl: parent.child("net-io"),
+		vmSubCollectorImpl: parent.child("net-io"),
 		net:                psutil.NewNetIoCounters(parent.parent.factory),
 	}
 }

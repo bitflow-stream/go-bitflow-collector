@@ -25,11 +25,11 @@ const LocalUri = "qemu:///system"
 	v.GetAutostart()
 */
 
-func SshUri(host string, keyfile string) string {
-	if keyfile != "" {
-		keyfile = "&keyfile=" + keyfile
+func SshUri(host string, keyFile string) string {
+	if keyFile != "" {
+		keyFile = "&keyfile=" + keyFile
 	}
-	return fmt.Sprintf("qemu+ssh://%s/system?no_verify=1%s", host, keyfile)
+	return fmt.Sprintf("qemu+ssh://%s/system?no_verify=1%s", host, keyFile)
 }
 
 type LibvirtCollector struct {

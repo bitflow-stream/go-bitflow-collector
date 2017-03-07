@@ -199,8 +199,8 @@ func (col *processFdCollector) procNumFds(info *processInfo) (int32, error) {
 		return 0, err
 	}
 	defer d.Close()
-	fnames, err := d.Readdirnames(-1)
-	numFDs := int32(len(fnames))
+	fileNames, err := d.Readdirnames(-1)
+	numFDs := int32(len(fileNames))
 	return numFDs, err
 }
 
@@ -231,7 +231,7 @@ func (col *processMiscCollector) metrics(parent *PsutilProcessCollector) collect
 }
 
 func (col *processMiscCollector) updateProc(info *processInfo) error {
-	// Misc, Alternatice: col.NumThreads(), col.NumCtxSwitches()
+	// Misc, Alternative: col.NumThreads(), col.NumCtxSwitches()
 	if numThreads, ctxSwitches, err := col.procGetMisc(info); err != nil {
 		return fmt.Errorf("Failed to get number of threads/ctx-switches: %v", err)
 	} else {

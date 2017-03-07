@@ -11,13 +11,13 @@ import (
 var DomainBlockXPath = xmlpath.MustCompile("/domain/devices/disk[@type=\"file\"]/target/@dev")
 
 type vmBlockCollector struct {
-	vmSubcollectorImpl
+	vmSubCollectorImpl
 	devices []string
 }
 
 func NewBlockCollector(parent *vmCollector) *vmBlockCollector {
 	return &vmBlockCollector{
-		vmSubcollectorImpl: parent.child("block"),
+		vmSubCollectorImpl: parent.child("block"),
 	}
 }
 

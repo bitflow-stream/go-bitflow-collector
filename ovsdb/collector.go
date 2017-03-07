@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"errors"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/socketplane/libovsdb"
 )
@@ -99,7 +100,7 @@ func (col *OvsdbCollector) openConnection() (*libovsdb.TableUpdates, *libovsdb.O
 
 	// Request all updates for all Interface statistics
 	requests := map[string]libovsdb.MonitorRequest{
-		"Interface": libovsdb.MonitorRequest{
+		"Interface": {
 			Columns: []string{"name", "statistics"},
 		},
 	}
@@ -153,13 +154,13 @@ func (col *OvsdbCollector) parseRowUpdate(row libovsdb.Row) (name string, stats 
 	}()
 
 	if nameObj, ok := row.Fields["name"]; !ok {
-		err = fmt.Errorf("Row update did not include 'name' field")
+		err = errors.New("Row update did not include 'name' field")
 		return
 	} else {
 		name = nameObj.(string)
 	}
 	if statsObj, ok := row.Fields["statistics"]; !ok {
-		err = fmt.Errorf("Row update did not include 'statistics' field")
+		err = errors.New("Row update did not include 'statistics' field")
 	} else {
 		statMap := statsObj.(libovsdb.OvsMap)
 		stats = make(map[string]float64)

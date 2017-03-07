@@ -45,7 +45,7 @@ func (col *PsutilNetProtoCollector) Init() ([]collector.Collector, error) {
 		return nil, err
 	}
 	for proto, counters := range col.protocols {
-		for statName, _ := range counters.Stats {
+		for statName := range counters.Stats {
 			var ring *collector.ValueRing
 			if !absoluteNetProtoValues[statName] {
 				ring = col.factory.NewValueRing()

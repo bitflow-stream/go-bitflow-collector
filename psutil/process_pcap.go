@@ -53,17 +53,17 @@ func (*pcapCollector) Update() (err error) {
 }
 
 type processPcapCollector struct {
-	processSubcollector
+	processSubCollector
 }
 
 func (col *PsutilProcessCollector) newProcessPcapCollector() *processPcapCollector {
 	result := new(processPcapCollector)
-	sub := processSubcollector{
+	sub := processSubCollector{
 		AbstractCollector: col.AbstractCollector.Child("pcap"),
 		parent:            col,
 		impl:              result,
 	}
-	result.processSubcollector = sub
+	result.processSubCollector = sub
 	return result
 }
 
@@ -72,7 +72,7 @@ func (col *processPcapCollector) Init() ([]collector.Collector, error) {
 }
 
 func (col *processPcapCollector) Depends() []collector.Collector {
-	res := col.processSubcollector.Depends()
+	res := col.processSubCollector.Depends()
 	res = append(res, &globalPcapCollector)
 	return res
 }

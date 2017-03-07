@@ -57,7 +57,7 @@ type Collector interface {
 	// Update(), should use Update() as implementation for MetricsChanged().
 	MetricsChanged() error
 
-	// String returns a short but unique label for the colldector.
+	// String returns a short but unique label for the collector.
 	String() string
 }
 

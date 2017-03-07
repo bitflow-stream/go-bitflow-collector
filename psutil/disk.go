@@ -75,7 +75,7 @@ func (col *PsutilDiskIOCollector) update(checkChange bool) error {
 		return err
 	}
 	if checkChange {
-		for k, _ := range col.disks {
+		for k := range col.disks {
 			if _, ok := disks[k]; !ok {
 				return collector.MetricsChanged
 			}

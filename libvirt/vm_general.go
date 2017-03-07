@@ -9,14 +9,14 @@ import (
 )
 
 type vmGeneralCollector struct {
-	vmSubcollectorImpl
+	vmSubCollectorImpl
 	info DomainInfo
 	cpu  *collector.ValueRing
 }
 
 func NewVmGeneralCollector(parent *vmCollector) *vmGeneralCollector {
 	return &vmGeneralCollector{
-		vmSubcollectorImpl: parent.child("general"),
+		vmSubCollectorImpl: parent.child("general"),
 		cpu:                parent.parent.factory.NewValueRing(),
 	}
 }
