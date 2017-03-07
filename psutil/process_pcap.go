@@ -15,7 +15,7 @@ var (
 	PcapSnaplen = int32(65535)
 	PcapNics    []string
 
-	pcapStartOnce       sync.Once
+	pcapStartOnce       = new(sync.Once)
 	pcapCons            = pcap.NewConnections()
 	globalPcapCollector = pcapCollector{
 		AbstractCollector: collector.RootCollector("pcap"),
@@ -37,17 +37,17 @@ func (*pcapCollector) Update() (err error) {
 	pcapStartOnce.Do(func() {
 		err = pcapCons.CaptureNics(PcapNics, PcapSnaplen, func(err error) {
 			if captureErr, ok := err.(pcap.CaptureError); ok {
-				log.Debug("PCAP capture error:", captureErr)
+				log.Debugln("PCAP capture error:", captureErr)
 			} else if err == io.EOF {
 				// Packet capture is finished, restart on next Update()
-				pcapStartOnce = sync.Once{}
+				pcapStartOnce = new(sync.Once)
 			} else {
 				log.Warnln("PCAP capture error:", captureErr)
 			}
 		})
 	})
 	if err != nil {
-		pcapStartOnce = sync.Once{}
+		pcapStartOnce = new(sync.Once)
 	}
 	return
 }

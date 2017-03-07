@@ -21,7 +21,7 @@ func (cons *Connections) CaptureNics(nics []string, snaplen int32, errorCallback
 	}
 	log.Println("Capturing packets from", nics)
 	for _, source := range sources {
-		go func() {
+		go func(source PacketSource) {
 			for {
 				err := CaptureOnePacket(source, cons)
 				if err != nil {
@@ -31,7 +31,7 @@ func (cons *Connections) CaptureNics(nics []string, snaplen int32, errorCallback
 					}
 				}
 			}
-		}()
+		}(source)
 	}
 	return nil
 }
