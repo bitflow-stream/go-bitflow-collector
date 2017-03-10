@@ -9,14 +9,21 @@ import (
 
 type PsutilNetCollector struct {
 	collector.AbstractCollector
-	factory  *collector.ValueRingFactory
-	counters NetIoCounters
+	factory      *collector.ValueRingFactory
+	counters     NetIoCounters
+	specific_nic bool
 }
 
-func newNetCollector(root *PsutilRootCollector) *PsutilNetCollector {
+func newNetCollector(root *PsutilRootCollector, nicname ...string) *PsutilNetCollector {
+	name := "net-io"
+
+	if len(nicname) > 0 {
+		name = nicname[0]
+	}
 	return &PsutilNetCollector{
-		AbstractCollector: root.Child("net-io"),
+		AbstractCollector: root.Child(name),
 		factory:           root.Factory,
+		specific_nic:      len(nicname) > 0,
 	}
 }
 
@@ -26,18 +33,30 @@ func (col *PsutilNetCollector) Init() ([]collector.Collector, error) {
 }
 
 func (col *PsutilNetCollector) Update() error {
-	io, err := psnet.IOCounters(false)
-	if err == nil && len(io) != 1 {
+	io, err := psnet.IOCounters(col.specific_nic)
+	if !col.specific_nic && err == nil && len(io) != 1 {
 		err = fmt.Errorf("gopsutil/net.NetIOCounters() returned %v NetIOCountersStat instead of %v", len(io), 1)
 	}
-	if err == nil {
+	if !col.specific_nic && err == nil {
 		col.counters.Add(&io[0])
+	}
+	if col.specific_nic && err == nil {
+		for _, nic := range io {
+			if nic.Name == col.Name {
+				col.counters.Add(&nic)
+				break
+			}
+		}
 	}
 	return err
 }
 
 func (col *PsutilNetCollector) Metrics() collector.MetricReaderMap {
-	return col.counters.Metrics("net-io")
+	prefix := col.Name
+	if col.specific_nic {
+		prefix = "nic/" + prefix
+	}
+	return col.counters.Metrics(prefix)
 }
 
 type BaseNetIoCounters struct {
