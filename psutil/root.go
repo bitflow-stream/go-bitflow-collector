@@ -13,7 +13,6 @@ type PsutilRootCollector struct {
 	load      *PsutilLoadCollector
 	net       *PsutilNetCollector
 	netProto  *PsutilNetProtoCollector
-	nics      *NetPerNicCollector
 	diskIo    *PsutilDiskIOCollector
 	diskUsage *PsutilDiskUsageCollector
 }
@@ -30,7 +29,6 @@ func NewPsutilRootCollector(factory *collector.ValueRingFactory) *PsutilRootColl
 	col.load = newLoadCollector(col)
 	col.net = newNetCollector(col)
 	col.netProto = newNetProtoCollector(col)
-	col.nics = NewNetPerNicCollector(col)
 	col.diskIo = newDiskIoCollector(col)
 	col.diskUsage = newDiskUsageCollector(col)
 	return col
@@ -44,7 +42,6 @@ func (col *PsutilRootCollector) Init() ([]collector.Collector, error) {
 		col.load,
 		col.net,
 		col.netProto,
-		col.nics,
 		col.diskIo,
 		col.diskUsage,
 	}, nil
