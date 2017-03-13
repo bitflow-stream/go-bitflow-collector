@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/libvirt"
 	"github.com/antongulenko/go-bitflow-collector/mock"
 	"github.com/antongulenko/go-bitflow-collector/ovsdb"
-	"github.com/antongulenko/go-bitflow-collector/pcap"
 	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/antongulenko/golib"
 )
@@ -33,7 +31,7 @@ var (
 	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyFile")
 	ovsdb_host  = ""
 
-	pcap_nics = ""
+	pcap_nics golib.StringSlice
 
 	updateFrequencies = map[*regexp.Regexp]time.Duration{
 		regexp.MustCompile("^psutil/pids$"):       1500 * time.Millisecond, // Changed processes
@@ -89,20 +87,12 @@ func init() {
 	flag.DurationVar(&collect_local_interval, "ci", collect_local_interval, "Interval for collecting local samples")
 	flag.DurationVar(&sink_interval, "si", sink_interval, "Interval for sinking (sending/printing/...) data when collecting local samples")
 
-	flag.StringVar(&pcap_nics, "nics", pcap_nics, "Comma-separated list of NICs to capture packets from for PCAP-based"+
+	flag.Var(&pcap_nics, "nic", "NICs to capture packets from for PCAP-based "+
 		"monitoring of process network IO (/proc/.../net-pcap/...). Defaults to all physical NICs.")
 }
 
 func configurePcap() {
-	if pcap_nics == "" {
-		allNics, err := pcap.PhysicalInterfaces()
-		if err != nil {
-			golib.Fatalln("Failed to enumerate physical NICs:", err)
-		}
-		psutil.PcapNics = allNics
-	} else {
-		psutil.PcapNics = strings.Split(pcap_nics, ",")
-	}
+	psutil.PcapNics = pcap_nics
 }
 
 func createCollectorSource() *collector.CollectorSource {

@@ -4,11 +4,13 @@ import (
 	"flag"
 	"log"
 
+	"io"
+
 	"github.com/antongulenko/go-bitflow"
-	libpcap "github.com/antongulenko/go-bitflow-collector/pcap"
+	"github.com/antongulenko/go-bitflow-collector/pcap"
+	"github.com/antongulenko/go-bitflow-collector/pcap/pcap_impl"
 	"github.com/antongulenko/golib"
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/pcap"
 )
 
 const snaplen = int32(65535)
@@ -16,34 +18,22 @@ const snaplen = int32(65535)
 func main() {
 	bitflow.RegisterGolibFlags()
 	filename := flag.String("f", "", "PCAP file to parse")
-	useNic := flag.Bool("n", false, "Capture packets from local NICs")
 	flag.Parse()
 	golib.ConfigureLogging()
 
-	var source *gopacket.PacketSource
-	if *useNic {
-		nics, err := libpcap.PhysicalInterfaces()
-		golib.Checkerr(err)
-		if len(nics) == 0 {
-			golib.Fatalln("No public NICs found")
-		}
-		nic := nics[0]
-		log.Println("Capturing from interface", nic)
-		var src libpcap.PacketSource
-		src, err = libpcap.OpenPcap(nic, snaplen)
-		golib.Checkerr(err)
-		source = src.PacketSource
-	} else if *filename == "" {
-		golib.Fatalln("Please pass -f or -n parameter")
-	} else {
-		if handle, err := pcap.OpenOffline(*filename); err != nil {
-			golib.Fatalln(err)
+	sources, err := pcap_impl.OpenSources(*filename, nil, true)
+	golib.Checkerr(err)
+	c := pcap.CapturePackets(sources)
+	for packet := range c {
+		if packet.Err != nil {
+			if packet.Err == io.EOF {
+				break
+			} else {
+				log.Println(packet.Err)
+			}
 		} else {
-			source = gopacket.NewPacketSource(handle, handle.LinkType())
+			parsePacket(packet.Packet.(pcap_impl.Packet).Packet)
 		}
-	}
-	for packet := range source.Packets() {
-		parsePacket(packet)
 	}
 }
 

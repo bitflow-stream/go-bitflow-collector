@@ -2,46 +2,52 @@ package pcap
 
 import (
 	"io"
-
-	log "github.com/Sirupsen/logrus"
 )
-
-const PacketFilter = "tcp or udp"
 
 type CaptureError error
 
-func (cons *Connections) CaptureNics(nics []string, snaplen int32, errorCallback func(error)) error {
-	sources := make([]PacketSource, 0, len(nics))
-	for _, nic := range nics {
-		source, err := OpenPcap(nic, snaplen)
-		if err != nil {
-			return err
-		}
-		sources = append(sources, source)
-	}
-	log.Println("Capturing packets from", nics)
+type PacketSource interface {
+	Capture() CapturedPacket
+}
+
+type CapturedPacket struct {
+	Packet Packet
+	Size   uint64
+	Err    error
+}
+
+type Packet interface {
+	Info() (*Connection, error)
+}
+
+func CapturePackets(sources []PacketSource) <-chan CapturedPacket {
+	c := make(chan CapturedPacket)
 	for _, source := range sources {
 		go func(source PacketSource) {
 			for {
-				err := CaptureOnePacket(source, cons)
-				if err != nil {
-					errorCallback(err)
-					if err == io.EOF {
-						break
-					}
-				}
+				c <- source.Capture()
 			}
 		}(source)
 	}
-	return nil
+	return c
 }
 
-func TestCapture(nics []string, snaplen int32) error {
-	for _, nic := range nics {
-		_, err := OpenPcap(nic, snaplen)
-		if err != nil {
-			return err
+func (cons *Connections) CapturePackets(sources []PacketSource, errorCallback func(error)) {
+	go func() {
+		for pkg := range CapturePackets(sources) {
+			if pkg.Err != nil {
+				errorCallback(pkg.Err)
+				if pkg.Err == io.EOF {
+					break
+				}
+			} else {
+				con, err := pkg.Packet.Info()
+				if err != nil {
+					errorCallback(err)
+				} else {
+					cons.LogPacket(con, pkg.Size)
+				}
+			}
 		}
-	}
-	return nil
+	}()
 }

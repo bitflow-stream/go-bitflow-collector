@@ -9,14 +9,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
+	"github.com/antongulenko/go-bitflow-collector/pcap/pcap_impl"
 	"github.com/antongulenko/golib"
 	"github.com/antongulenko/golib/gotermBox"
 )
 
-const (
-	snaplen         = int32(65535)
-	refreshInterval = 500 * time.Millisecond
-)
+const refreshInterval = 500 * time.Millisecond
 
 func main() {
 	bitflow.RegisterGolibFlags()
@@ -24,9 +22,6 @@ func main() {
 	flag.Var(&nics, "n", "One or more network interfaces to capture packets from")
 	flag.Parse()
 	golib.ConfigureLogging()
-	if len(nics) == 0 {
-		golib.Fatalln("Please provide at least one -n <NIC> parameter")
-	}
 	defer golib.ProfileCpu()()
 	traceConnections(nics...)
 }
@@ -43,16 +38,15 @@ func traceConnections(nics ...string) {
 	task.Init()
 
 	cons := pcap.NewConnections()
-	err := cons.CaptureNics(nics, snaplen, func(err error) {
+	sources, err := pcap_impl.OpenSources("", nics, true)
+	golib.Checkerr(err)
+	cons.CapturePackets(sources, func(err error) {
 		if captureErr, ok := err.(pcap.CaptureError); ok {
 			log.Warnln("Capture error:", captureErr)
 		} else {
 			golib.Fatalln(err)
 		}
 	})
-	if err != nil {
-		golib.Fatalln(err)
-	}
 
 	task.Update = func(out io.Writer, textWidth int) error {
 		noData := 0

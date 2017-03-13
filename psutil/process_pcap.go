@@ -9,11 +9,11 @@ import (
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
+	"github.com/antongulenko/go-bitflow-collector/pcap/pcap_impl"
 )
 
 var (
-	PcapSnaplen = int32(65535)
-	PcapNics    []string
+	PcapNics []string
 
 	pcapStartOnce       = new(sync.Once)
 	pcapCons            = pcap.NewConnections()
@@ -30,21 +30,25 @@ func (*pcapCollector) Init() ([]collector.Collector, error) {
 	if len(PcapNics) == 0 {
 		return nil, errors.New("psutil.PcapNics must be set to at least one NIC")
 	}
-	return nil, pcap.TestCapture(PcapNics, PcapSnaplen)
+	return nil, pcap_impl.TestLiveCapture(PcapNics)
 }
 
 func (*pcapCollector) Update() (err error) {
 	pcapStartOnce.Do(func() {
-		err = pcapCons.CaptureNics(PcapNics, PcapSnaplen, func(err error) {
-			if captureErr, ok := err.(pcap.CaptureError); ok {
-				log.Debugln("PCAP capture error:", captureErr)
-			} else if err == io.EOF {
-				// Packet capture is finished, restart on next Update()
-				pcapStartOnce = new(sync.Once)
-			} else {
-				log.Warnln("PCAP capture error:", captureErr)
-			}
-		})
+		var sources []pcap.PacketSource
+		sources, err = pcap_impl.OpenSources("", PcapNics, true)
+		if err == nil {
+			pcapCons.CapturePackets(sources, func(err error) {
+				if captureErr, ok := err.(pcap.CaptureError); ok {
+					log.Debugln("PCAP capture error:", captureErr)
+				} else if err == io.EOF {
+					// Packet capture is finished, restart on next Update()
+					pcapStartOnce = new(sync.Once)
+				} else {
+					log.Warnln("PCAP capture error:", captureErr)
+				}
+			})
+		}
 	})
 	if err != nil {
 		pcapStartOnce = new(sync.Once)
