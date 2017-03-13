@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -15,7 +14,7 @@ import (
 )
 
 const (
-	snaplen         = math.MaxInt32
+	snaplen         = int32(65535)
 	refreshInterval = 500 * time.Millisecond
 )
 
