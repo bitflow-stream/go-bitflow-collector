@@ -1,3 +1,5 @@
+// +build !nopcap
+
 package pcap_impl
 
 import (
