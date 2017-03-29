@@ -7,7 +7,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/gonum/graph"
-	"github.com/gonum/graph/simple"
 	"github.com/gonum/graph/topo"
 )
 
@@ -252,20 +251,6 @@ func createCollectorSubGraph(nodes []graph.Node) *collectorGraph {
 		newGraph.collectors[node.collector] = node
 	}
 	return newGraph
-}
-
-func (g *collectorGraph) createUpdatePlan() [][]*collectorNode {
-	undirected := simple.NewUndirectedGraph(1, 1)
-	graph.Copy(undirected, g)
-	parts := topo.ConnectedComponents(undirected)
-	result := make([][]*collectorNode, len(parts))
-
-	for i, part := range parts {
-		subGraph := createCollectorSubGraph(part)
-		sorted := sortGraph(subGraph)
-		result[i] = sorted
-	}
-	return result
 }
 
 func (g *collectorGraph) sortedFilteredNodes() []*collectorNode {
