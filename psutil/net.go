@@ -16,7 +16,7 @@ type PsutilNetCollector struct {
 
 func newNetCollector(root *PsutilRootCollector) *PsutilNetCollector {
 	return &PsutilNetCollector{
-		AbstractCollector: collector.RootCollector("net"),
+		AbstractCollector: collector.RootCollector("net-io"),
 		factory:           root.Factory,
 	}
 }
@@ -106,9 +106,9 @@ func (col *psutilNetInterfaceCollector) Update() error {
 func (col *psutilNetInterfaceCollector) Metrics() collector.MetricReaderMap {
 	prefix := col.nicName
 	if prefix == "" {
-		prefix = "net"
+		prefix = "net-io"
 	} else {
-		prefix = "net/nic/" + prefix
+		prefix = "net-io/nic/" + prefix
 	}
 	return col.counters.Metrics(prefix)
 }
