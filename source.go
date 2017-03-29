@@ -162,7 +162,7 @@ func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper golib.St
 	}
 	log.Debugln("Initial updates complete, now starting background updates")
 
-	// Now do regular updated in the background
+	// Now do regular updates in the background
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -195,43 +195,51 @@ func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopp
 	}
 	log.Debugln("Watching filtered collectors:", filtered)
 
-	source.loopCheck(wg, stopper, filtered, source.FilteredCollectorCheckInterval, func(node *collectorNode) {
+	source.loopCheck(wg, stopper, &filtered, source.FilteredCollectorCheckInterval, func(node *collectorNode) {
 		err := node.collector.MetricsChanged()
 		if err == MetricsChanged {
 			log.Warnln("Metrics of", node, " (filtered) have changed! Restarting metric collection.")
 			stopper.Stop()
 		} else if err != nil {
-			// TODO move this collector (and all that depend on it) to the failed collectors
-			// see also collectorNode.update()
-			log.Warnln("Update of ", node, " (filtered) failed:", err)
+			log.Warnln("Update of", node, " (filtered) failed:", err)
+			if node.updateFailed() {
+				graph.errorLock.Lock()
+				filtered = graph.sortedFilteredNodes()
+				log.Debugln("Watching filtered collectors:", filtered)
+				graph.errorLock.Unlock()
+			}
 		}
 	})
 }
 
 func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
-	if len(graph.failed) == 0 {
-		return
-	}
-	failed := make([]*collectorNode, 0, len(graph.failed))
-	for node := range graph.failed {
-		failed = append(failed, node)
-	}
-	log.Debugln("Watching failed collectors:", failed)
+	var previousList []*collectorNode
+	source.loopCheck(wg, stopper, &graph.failedList, source.FailedCollectorCheckInterval, func(node *collectorNode) {
+		// Check if graph.failedList changed in any way
+		if len(previousList) != len(graph.failedList) || (len(previousList) > 0 && &(previousList[0]) != &(graph.failedList[0])) {
+			log.Debugln("Watching failed collectors:", graph.failedList)
+			previousList = graph.failedList
+		}
 
-	source.loopCheck(wg, stopper, failed, source.FailedCollectorCheckInterval, func(node *collectorNode) {
-		if _, err := node.init(); err == nil {
+		var err error
+		if node.isInitialized() {
+			err = node.collector.Update()
+		} else {
+			_, err = node.init()
+		}
+		if err == nil {
 			log.Warnln("Collector", node, "is not failing anymore. Restarting metric collection.")
 			stopper.Stop()
 		}
 	})
 }
 
-func (source *CollectorSource) loopCheck(wg *sync.WaitGroup, stopper golib.StopChan, nodes []*collectorNode, interval time.Duration, check func(*collectorNode)) {
+func (source *CollectorSource) loopCheck(wg *sync.WaitGroup, stopper golib.StopChan, nodes *[]*collectorNode, interval time.Duration, check func(*collectorNode)) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for {
-			for _, node := range nodes {
+			for _, node := range *nodes {
 				check(node)
 				if stopper.Stopped() {
 					return

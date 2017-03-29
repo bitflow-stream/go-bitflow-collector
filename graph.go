@@ -5,17 +5,21 @@ import (
 	"regexp"
 	"time"
 
+	"sync"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/gonum/graph"
 	"github.com/gonum/graph/topo"
 )
 
 type collectorGraph struct {
-	nodes    map[*collectorNode]bool
-	failed   map[*collectorNode]bool
-	filtered map[*collectorNode]bool
+	nodes      map[*collectorNode]bool
+	failed     map[*collectorNode]bool
+	failedList []*collectorNode
+	filtered   map[*collectorNode]bool
 
 	collectors map[Collector]*collectorNode
+	errorLock  sync.Mutex
 }
 
 func initCollectorGraph(collectors []Collector) (*collectorGraph, error) {
@@ -73,7 +77,10 @@ func (graph *collectorGraph) deleteCollector(node *collectorNode) {
 func (graph *collectorGraph) collectorFailed(node *collectorNode) {
 	delete(graph.nodes, node)
 	delete(graph.filtered, node)
-	graph.failed[node] = true
+	if !graph.failed[node] {
+		graph.failed[node] = true
+		graph.failedList = append(graph.failedList, node)
+	}
 }
 
 func (graph *collectorGraph) collectorFiltered(node *collectorNode) {
@@ -81,6 +88,14 @@ func (graph *collectorGraph) collectorFiltered(node *collectorNode) {
 		delete(graph.nodes, node)
 		graph.filtered[node] = true
 	}
+}
+
+func (graph *collectorGraph) collectorUpdateFailed(node *collectorNode) {
+	// This means the collector Init() method was successful, but then Update() returned errors too many times.
+	graph.errorLock.Lock()
+	defer graph.errorLock.Unlock()
+	graph.collectorFailed(node)
+	graph.pruneAndRepair()
 }
 
 func (graph *collectorGraph) checkMissingDependencies() error {

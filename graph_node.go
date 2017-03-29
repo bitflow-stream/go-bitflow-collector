@@ -9,12 +9,19 @@ import (
 	"github.com/antongulenko/golib"
 )
 
+const (
+	ToleratedUpdateFailures = 2
+)
+
 var __nodeID = 0
 
 type collectorNode struct {
 	collector Collector
 	graph     *collectorGraph
 	uniqueID  int
+
+	failedUpdates int
+	hasFailed     bool
 
 	metrics MetricReaderMap
 
@@ -43,7 +50,15 @@ func (node *collectorNode) init() ([]Collector, error) {
 		return nil, err
 	}
 	node.metrics = node.collector.Metrics()
+	if node.metrics == nil {
+		// Implement isInitialized: make sure a successful init() leaves a non-nil metrics map.
+		node.metrics = make(MetricReaderMap)
+	}
 	return children, nil
+}
+
+func (node *collectorNode) isInitialized() bool {
+	return node.metrics != nil
 }
 
 func (node *collectorNode) applyMetricFilters(exclude []*regexp.Regexp, include []*regexp.Regexp) {
@@ -93,42 +108,61 @@ func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper golib.StopChan
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for i := uint(0); ; i++ {
+		for {
 			for _, cond := range node.preconditions {
 				cond.WaitAndUnset()
 			}
 			if stopper.Stopped() {
 				return
 			}
+			if !node.graph.nodes[node] {
+				// Node has been deleted due to failed dependency
+				return
+			}
 
+			successfulUpdate := true
 			if frequencyLimited {
 				now := time.Now()
 				if now.Sub(lastUpdate) >= freq {
-					node.update(stopper)
+					successfulUpdate = node.update(stopper)
 					lastUpdate = now
 				}
 			} else {
-				node.update(stopper)
+				successfulUpdate = node.update(stopper)
 			}
 
 			for _, cond := range node.postconditions {
 				cond.Broadcast()
 			}
-			if stopper.Stopped() {
+			if !successfulUpdate || stopper.Stopped() {
 				return
 			}
 		}
 	}()
 }
 
-func (node *collectorNode) update(stopper golib.StopChan) {
+func (node *collectorNode) update(stopper golib.StopChan) bool {
 	err := node.collector.Update()
 	if err == MetricsChanged {
 		log.Warnln("Metrics of", node, "have changed! Restarting metric collection.")
 		stopper.Stop()
+		return false
 	} else if err != nil {
-		// TODO move this collector (and all that depend on it) to the failed collectors
-		// see also CollectorSource.watchFilteredCollectors()
 		log.Warnln("Update of", node, "failed:", err)
+		return !node.updateFailed()
+	} else {
+		node.failedUpdates = 0
+		return true
 	}
+}
+
+func (node *collectorNode) updateFailed() bool {
+	node.failedUpdates++
+	if node.failedUpdates >= ToleratedUpdateFailures {
+		log.Warnln("Collector", node, "exceeded tolerated number of", ToleratedUpdateFailures, "consecutive failures")
+		node.failedUpdates = 0
+		node.graph.collectorUpdateFailed(node)
+		return true
+	}
+	return false
 }
