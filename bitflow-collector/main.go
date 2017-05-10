@@ -36,7 +36,7 @@ func do_main() int {
 		"POST: /tag?timeout=<SECONDS>&<TAG1>=<VAL1>&<TAG2>=<VAL2>&... ")
 
 	// Parse command line flags
-	var f bitflow.EndpointFactory
+	f := bitflow.NewEndpointFactory()
 	f.RegisterGeneralFlagsTo(flag.CommandLine)
 	f.RegisterOutputFlagsTo(flag.CommandLine)
 	bitflow.RegisterGolibFlags()
@@ -57,7 +57,7 @@ func do_main() int {
 	if httpTagger.Port > 0 {
 		p.Add(&httpTagger)
 	}
-	add_outputs(&p, &f, sink_flags)
+	add_outputs(&p, f, sink_flags)
 
 	// Print requested information
 	stop := false
