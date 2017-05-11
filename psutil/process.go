@@ -191,18 +191,30 @@ func (col *processSubCollector) Depends() []collector.Collector {
 }
 
 func (col *processSubCollector) Update() error {
+	deletedProcesses := col.doUpdate()
+	if len(deletedProcesses) > 0 {
+		col.parent.procsLock.Lock()
+		defer col.parent.procsLock.Unlock()
+		for _, pid := range deletedProcesses {
+			delete(col.parent.procs, pid)
+		}
+	}
+	return nil
+}
+
+func (col *processSubCollector) doUpdate() (deletedProcesses []int32) {
+	col.parent.procsLock.RLock()
+	defer col.parent.procsLock.RUnlock()
 	for pid, proc := range col.parent.procs {
 		if err := col.impl.updateProc(proc); err != nil {
 			// Process probably does not exist anymore
-			col.parent.procsLock.Lock()
-			delete(col.parent.procs, pid)
-			col.parent.procsLock.Unlock()
+			deletedProcesses = append(deletedProcesses, pid)
 			if col.parent.printErrors {
 				log.WithField("pid", pid).Warnln("Process info update failed:", err)
 			}
 		}
 	}
-	return nil
+	return
 }
 
 type processInfo struct {
