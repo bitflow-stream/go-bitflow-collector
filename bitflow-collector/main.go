@@ -4,20 +4,26 @@ import (
 	"flag"
 	"os"
 
+	"net/http"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-pipeline"
 	"github.com/antongulenko/go-bitflow-pipeline/fork"
+	"github.com/antongulenko/go-bitflow-pipeline/http_tags"
 	"github.com/antongulenko/golib"
+	"github.com/gorilla/mux"
 )
 
 func main() {
 	os.Exit(do_main())
 }
 
+const restApiPathPrefix = "/api"
+
 var (
-	filterAnomalies bool
-	httpTagger      pipeline.HttpTagger
+	restApiEndpoint string
+	fileOutputApi   FileOutputFilterApi
 )
 
 func do_main() int {
@@ -29,11 +35,8 @@ func do_main() int {
 	flag.Var(&sink_flags, "o", "Data sink(s) for outputting data")
 	var flagTags golib.KeyValueStringSlice
 	flag.Var(&flagTags, "tag", "All collected samples will have the given tags (key=value) attached.")
-	flag.BoolVar(&filterAnomalies, "store-tagged", false,
-		"If true, only write Samples to files as long as tags are defined via the REST API (-listen-tags flag). Ignored when -listen-tags is not defined.")
-	flag.IntVar(&httpTagger.Port, "listen-tags", 0, "Enable tagging HTTP API on the given port. "+
-		"Samples will carry the defined tags until the timeout expires. Tags can be arbitrary, empty list is allowed. "+
-		"POST: /tag?timeout=<SECONDS>&<TAG1>=<VAL1>&<TAG2>=<VAL2>&... ")
+	flag.StringVar(&restApiEndpoint, "api", "", "Enable REST API for controlling the collector. "+
+		"The API can be used to control tags and enable/disable file output.")
 
 	// Parse command line flags
 	f := bitflow.NewEndpointFactory()
@@ -54,8 +57,19 @@ func do_main() int {
 	if len(flagTags.Keys) > 0 {
 		p.Add(pipeline.NewTaggingProcessor(flagTags.Map()))
 	}
-	if httpTagger.Port > 0 {
-		p.Add(&httpTagger)
+	if restApiEndpoint != "" {
+		router := mux.NewRouter()
+		tagger := http_tags.NewHttpTagger(restApiPathPrefix, router)
+		fileOutputApi.Register(restApiPathPrefix, router)
+		server := http.Server{
+			Addr:    restApiEndpoint,
+			Handler: router,
+		}
+		// Do not add this routine to any wait group, as it cannot be stopped
+		go func() {
+			tagger.Error(server.ListenAndServe())
+		}()
+		p.Add(tagger)
 	}
 	add_outputs(&p, f, sink_flags)
 
@@ -137,11 +151,11 @@ func set_sink(p *pipeline.SamplePipeline, sink bitflow.MetricSink) {
 
 	// Add a filter to file outputs
 	if _, isFile := sink.(*bitflow.FileSink); isFile {
-		if filterAnomalies && httpTagger.Port > 0 {
+		if restApiEndpoint != "" {
 			p.Add(&pipeline.SampleFilter{
 				Description: pipeline.String("Filter samples while no tags are defined via REST"),
 				IncludeFilter: func(sample *bitflow.Sample, header *bitflow.Header) (bool, error) {
-					return httpTagger.HttpTagsSet(), nil
+					return fileOutputApi.FileOutputEnabled, nil
 				},
 			})
 		}
