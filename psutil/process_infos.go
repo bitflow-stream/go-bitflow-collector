@@ -120,35 +120,35 @@ type processNetCollector struct {
 func (col *processNetCollector) metrics(parent *PsutilProcessCollector) collector.MetricReaderMap {
 	prefix := parent.prefix()
 	return collector.MetricReaderMap{
-		prefix + "/net-io/bytes": parent.sum(
+		prefix + "/net-io/bytes": parent.netIoSum(
 			func(proc *processInfo) bitflow.Value {
 				return proc.net.Bytes.GetDiff()
 			}),
-		prefix + "/net-io/packets": parent.sum(
+		prefix + "/net-io/packets": parent.netIoSum(
 			func(proc *processInfo) bitflow.Value {
 				return proc.net.Packets.GetDiff()
 			}),
-		prefix + "/net-io/rx_bytes": parent.sum(
+		prefix + "/net-io/rx_bytes": parent.netIoSum(
 			func(proc *processInfo) bitflow.Value {
 				return proc.net.RxBytes.GetDiff()
 			}),
-		prefix + "/net-io/rx_packets": parent.sum(
+		prefix + "/net-io/rx_packets": parent.netIoSum(
 			func(proc *processInfo) bitflow.Value {
 				return proc.net.RxPackets.GetDiff()
 			}),
-		prefix + "/net-io/tx_bytes": parent.sum(
+		prefix + "/net-io/tx_bytes": parent.netIoSum(
 			func(proc *processInfo) bitflow.Value {
 				return proc.net.TxBytes.GetDiff()
 			}),
-		prefix + "/net-io/tx_packets": parent.sum(
+		prefix + "/net-io/tx_packets": parent.netIoSum(
 			func(proc *processInfo) bitflow.Value {
 				return proc.net.TxPackets.GetDiff()
 			}),
-		prefix + "/net-io/errors": parent.sum(
+		prefix + "/net-io/errors": parent.netIoSum(
 			func(proc *processInfo) bitflow.Value {
 				return proc.net.Errors.GetDiff()
 			}),
-		prefix + "/net-io/dropped": parent.sum(
+		prefix + "/net-io/dropped": parent.netIoSum(
 			func(proc *processInfo) bitflow.Value {
 				return proc.net.Dropped.GetDiff()
 			}),

@@ -159,6 +159,23 @@ func (col *PsutilProcessCollector) sum(getVal func(*processInfo) bitflow.Value) 
 	}
 }
 
+func (col *PsutilProcessCollector) netIoSum(getVal func(*processInfo) bitflow.Value) func() bitflow.Value {
+	return func() (res bitflow.Value) {
+		col.procsLock.RLock()
+		defer col.procsLock.RUnlock()
+		for _, proc := range col.procs {
+			res += getVal(proc)
+
+			// TODO HACK
+			// Process specific network statistics read from the proc filesystem are not actually network specific,
+			// but simply copies of the host-wide statistics. Therefore, do not sum them up, but simply use the info of one process.
+			// The data is still not correctly representing the network usage of the processes, but the only way to do that is PCAP
+			break
+		}
+		return
+	}
+}
+
 func (col *PsutilProcessCollector) prefix() string {
 	return "proc/" + col.groupName
 }
