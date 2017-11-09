@@ -3,7 +3,7 @@ package libvirt
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow-collector"
 )
 

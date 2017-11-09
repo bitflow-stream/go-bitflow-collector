@@ -7,7 +7,7 @@ import (
 
 	"sync"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/gonum/graph"
 	"github.com/gonum/graph/topo"
 )

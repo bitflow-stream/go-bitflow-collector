@@ -5,7 +5,7 @@ package libvirt
 import (
 	"errors"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	lib "github.com/rgbkrk/libvirt-go"
 )
 
