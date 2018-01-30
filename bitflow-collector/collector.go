@@ -24,9 +24,10 @@ var (
 	user_include_metrics  golib.StringSlice
 	user_exclude_metrics  golib.StringSlice
 
-	proc_collectors  golib.KeyValueStringSlice
-	proc_show_errors = false
-	proc_update_pids = 1500 * time.Millisecond
+	proc_collectors          golib.KeyValueStringSlice
+	proc_children_collectors golib.KeyValueStringSlice
+	proc_show_errors         = false
+	proc_update_pids         = 1500 * time.Millisecond
 
 	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyFile")
 	ovsdb_host  = ""
@@ -81,6 +82,7 @@ func init() {
 	flag.BoolVar(&include_basic_metrics, "basic", include_basic_metrics, "Include only a certain basic subset of metrics")
 
 	flag.Var(&proc_collectors, "proc", "'key=regex' Processes to collect metrics for (regex match on entire command line)")
+	flag.Var(&proc_children_collectors, "proc-children", "'key=regex' Processes to collect metrics for (regex match on entire command line). Include all child processes of matched processes.")
 	flag.BoolVar(&proc_show_errors, "proc-show-errors", proc_show_errors, "Verbose: show errors encountered while getting process metrics")
 	flag.DurationVar(&proc_update_pids, "proc-interval", proc_update_pids, "Interval for updating list of observed pids")
 
@@ -106,18 +108,8 @@ func createCollectorSource() *collector.CollectorSource {
 	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, libvirt.NewDriver(), &ringFactory))
 	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
 
-	if len(proc_collectors.Keys) > 0 {
-		psutil.PidUpdateInterval = proc_update_pids
-		regexes := make(map[string][]*regexp.Regexp)
-		for key, value := range proc_collectors.Map() {
-			regex, err := regexp.Compile(value)
-			golib.Checkerr(err)
-			regexes[key] = append(regexes[key], regex)
-		}
-		for key, list := range regexes {
-			cols = append(cols, psutilRoot.NewProcessCollector(list, key, proc_show_errors))
-		}
-	}
+	createProcessCollectors(&cols, psutilRoot, proc_collectors, false)
+	createProcessCollectors(&cols, psutilRoot, proc_children_collectors, true)
 	if all_metrics {
 		excludeMetricsRegexes = nil
 	}
@@ -148,5 +140,20 @@ func createCollectorSource() *collector.CollectorSource {
 		IncludeMetrics:                 includeMetricsRegexes,
 		FailedCollectorCheckInterval:   FailedCollectorCheckInterval,
 		FilteredCollectorCheckInterval: FilteredCollectorCheckInterval,
+	}
+}
+
+func createProcessCollectors(cols *[]collector.Collector, psutilRoot *psutil.PsutilRootCollector, parameters golib.KeyValueStringSlice, includeChildren bool) {
+	if len(parameters.Keys) > 0 {
+		psutil.PidUpdateInterval = proc_update_pids
+		regexes := make(map[string][]*regexp.Regexp)
+		for key, value := range parameters.Map() {
+			regex, err := regexp.Compile(value)
+			golib.Checkerr(err)
+			regexes[key] = append(regexes[key], regex)
+		}
+		for key, list := range regexes {
+			*cols = append(*cols, psutilRoot.NewProcessCollector(list, key, proc_show_errors, includeChildren))
+		}
 	}
 }

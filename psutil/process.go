@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/shirou/gopsutil/process"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -22,23 +22,25 @@ var (
 
 type PsutilProcessCollector struct {
 	collector.AbstractCollector
-	factory       *collector.ValueRingFactory
-	cmdlineFilter []*regexp.Regexp
-	groupName     string
-	printErrors   bool
-	pids          *PsutilPidCollector
+	factory         *collector.ValueRingFactory
+	cmdlineFilter   []*regexp.Regexp
+	groupName       string
+	printErrors     bool
+	includeChildren bool
+	pids            *PsutilPidCollector
 
 	pidsUpdated bool
 	procs       map[int32]*processInfo
 	procsLock   sync.RWMutex
 }
 
-func (root *PsutilRootCollector) NewProcessCollector(filter []*regexp.Regexp, name string, printErrors bool) *PsutilProcessCollector {
+func (root *PsutilRootCollector) NewProcessCollector(filter []*regexp.Regexp, name string, printErrors bool, includeChildProcesses bool) *PsutilProcessCollector {
 	return &PsutilProcessCollector{
 		AbstractCollector: root.Child(name),
 		cmdlineFilter:     filter,
 		groupName:         name,
 		printErrors:       printErrors,
+		includeChildren:   includeChildProcesses,
 		factory:           root.Factory,
 		pids:              root.pids,
 	}
@@ -104,20 +106,24 @@ func (col *PsutilProcessCollector) updatePids() error {
 		}
 		for _, regex := range col.cmdlineFilter {
 			if regex.MatchString(cmdline) {
-				col.procsLock.RLock()
-				procCollector, ok := col.procs[pid]
-				col.procsLock.RUnlock()
-				if !ok {
-					procCollector = col.newProcess(proc)
-				}
-				newProcs[pid] = procCollector
+				newProcs[pid] = col.getProcInfo(pid, proc)
 				break
 			}
+		}
+	}
+	if col.includeChildren {
+		pidList := make([]*processInfo, 0, len(newProcs))
+		for _, proc := range newProcs {
+			pidList = append(pidList, proc)
+		}
+		for _, proc := range pidList {
+			col.addChildren(proc.Process, newProcs)
 		}
 	}
 	if len(newProcs) == 0 && errors > 0 && col.printErrors {
 		log.Errorln("Warning: Observing no processes, failed to check", errors, "out of", len(pids), "PIDs")
 	}
+
 	col.procs = newProcs
 
 	if PidUpdateInterval > 0 {
@@ -129,6 +135,33 @@ func (col *PsutilProcessCollector) updatePids() error {
 		col.pidsUpdated = false
 	}
 	return nil
+}
+
+func (col *PsutilProcessCollector) getProcInfo(pid int32, proc *process.Process) *processInfo {
+	col.procsLock.RLock()
+	procCollector, ok := col.procs[pid]
+	col.procsLock.RUnlock()
+	if !ok {
+		procCollector = col.newProcess(proc)
+	}
+	return procCollector
+}
+
+func (col *PsutilProcessCollector) addChildren(proc *process.Process, newProcs map[int32]*processInfo) {
+	children, err := proc.Children()
+	if err == process.ErrorNoChildren {
+		return
+	}
+	if err != nil {
+		log.WithField("pid", proc.Pid).Warnln("Obtaining child processes of", proc.Pid, "failed:", err)
+		return
+	}
+	for _, child := range children {
+		if _, ok := newProcs[child.Pid]; !ok && child.Pid != own_pid {
+			newProcs[child.Pid] = col.getProcInfo(child.Pid, child)
+		}
+		col.addChildren(child, newProcs)
+	}
 }
 
 func (col *PsutilProcessCollector) newProcess(proc *process.Process) *processInfo {
