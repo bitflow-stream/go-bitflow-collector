@@ -14,11 +14,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const RestApiPathPrefix = "/api"
+const (
+	RestApiPathPrefix = "/api"
+	DefaultOutput     = "box://-"
+)
 
 type CmdDataCollector struct {
-	Endpoints         *bitflow.EndpointFactory
-	RestApiPathPrefix string
+	Endpoints     *bitflow.EndpointFactory
+	DefaultOutput string
 
 	restApiEndpoint string
 	fileOutputApi   FileOutputFilterApi
@@ -88,8 +91,8 @@ func (c *CmdDataCollector) add_outputs(p *pipeline.SamplePipeline) {
 }
 
 func (c *CmdDataCollector) create_outputs() []bitflow.MetricSink {
-	if len(c.outputs) == 0 {
-		c.outputs = []string{"box://-"} // Print to console as default
+	if len(c.outputs) == 0 && c.DefaultOutput != "" {
+		c.outputs = []string{c.DefaultOutput}
 	}
 	var sinks []bitflow.MetricSink
 	consoleOutputs := 0

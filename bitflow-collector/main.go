@@ -20,7 +20,7 @@ func do_main() int {
 	print_graph_dot := flag.String("graph-dot", "", "Create dot-file for the collector-graph and exit")
 
 	// Parse command line flags
-	var cmd cmd_helper.CmdDataCollector
+	cmd := cmd_helper.CmdDataCollector{DefaultOutput: "box://-"}
 	cmd.ParseFlags()
 	if flag.NArg() > 0 {
 		golib.Fatalln("Stray command line argument(s):", flag.Args())
