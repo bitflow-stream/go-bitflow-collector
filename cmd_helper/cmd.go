@@ -117,7 +117,7 @@ func (c *CmdDataCollector) set_sink(p *pipeline.SamplePipeline, sink bitflow.Met
 	if _, isFile := sink.(*bitflow.FileSink); isFile {
 		if c.restApiEndpoint != "" {
 			p.Add(&pipeline.SampleFilter{
-				Description: pipeline.String("Filter samples while no tags are defined via REST"),
+				Description: pipeline.String("Filter samples based on /file_output REST API."),
 				IncludeFilter: func(sample *bitflow.Sample, header *bitflow.Header) (bool, error) {
 					return c.fileOutputApi.FileOutputEnabled, nil
 				},
