@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"time"
@@ -14,6 +17,8 @@ import (
 	"github.com/antongulenko/go-bitflow-collector/ovsdb"
 	"github.com/antongulenko/go-bitflow-collector/psutil"
 	"github.com/antongulenko/golib"
+	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -27,8 +32,6 @@ var (
 
 	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyFile")
 	ovsdb_host  = ""
-
-	proc_update_pids time.Duration
 
 	pcap_nics golib.StringSlice
 
@@ -79,8 +82,6 @@ func init() {
 	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (substring match)")
 	flag.BoolVar(&include_basic_metrics, "basic", include_basic_metrics, "Include only a certain basic subset of metrics")
 
-	flag.DurationVar(&proc_update_pids, "proc-interval", 1500*time.Millisecond, "Interval for updating list of observed pids")
-
 	flag.DurationVar(&collect_local_interval, "ci", collect_local_interval, "Interval for collecting local samples")
 	flag.DurationVar(&sink_interval, "si", sink_interval, "Interval for sinking (sending/printing/...) data when collecting local samples")
 
@@ -88,12 +89,8 @@ func init() {
 		"monitoring of process network IO (/proc/.../net-pcap/...). Defaults to all physical NICs.")
 }
 
-func configurePcap() {
-	psutil.PcapNics = pcap_nics
-}
-
 func createCollectorSource(cmd *cmd_helper.CmdDataCollector) *collector.CollectorSource {
-	configurePcap()
+	psutil.PcapNics = pcap_nics
 	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 10 // Make sure enough samples can be buffered
 	var cols []collector.Collector
 
@@ -123,7 +120,7 @@ func createCollectorSource(cmd *cmd_helper.CmdDataCollector) *collector.Collecto
 		includeMetricsRegexes = append(includeMetricsRegexes, regex)
 	}
 
-	return &collector.CollectorSource{
+	source := &collector.CollectorSource{
 		RootCollectors:                 cols,
 		UpdateFrequencies:              updateFrequencies,
 		CollectInterval:                collect_local_interval,
@@ -132,5 +129,40 @@ func createCollectorSource(cmd *cmd_helper.CmdDataCollector) *collector.Collecto
 		IncludeMetrics:                 includeMetricsRegexes,
 		FailedCollectorCheckInterval:   FailedCollectorCheckInterval,
 		FilteredCollectorCheckInterval: FilteredCollectorCheckInterval,
+	}
+	cmd.RestApis = append(cmd.RestApis, &AvailableMetricsApi{Source: source})
+	return source
+}
+
+type AvailableMetricsApi struct {
+	Source *collector.CollectorSource
+}
+
+func (api *AvailableMetricsApi) Register(rootPath string, router *mux.Router) {
+	router.HandleFunc(rootPath+"/metrics", api.handleGetMetrics).Methods("GET")
+	router.HandleFunc(rootPath+"/freq", api.handleGetFrequency).Methods("GET")
+}
+
+func (api *AvailableMetricsApi) handleGetMetrics(w http.ResponseWriter, r *http.Request) {
+	var out bytes.Buffer
+	for _, name := range api.Source.CurrentMetrics() {
+		out.WriteString(name + "\n")
+	}
+	w.Write(out.Bytes())
+}
+
+func (api *AvailableMetricsApi) handleGetFrequency(w http.ResponseWriter, r *http.Request) {
+	data := map[string]string{
+		"collect": api.Source.CollectInterval.String(),
+		"sink":    api.Source.SinkInterval.String(),
+	}
+	out, err := json.Marshal(data)
+	if err != nil {
+		log.Errorln("Error marshalling frequency data:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error: " + err.Error()))
+	} else {
+		w.Write(out)
+		w.Write([]byte{'\n'})
 	}
 }

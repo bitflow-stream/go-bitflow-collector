@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"sync"
+	"time"
 
 	collector "github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/cmd_helper"
@@ -15,6 +16,12 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
+
+var proc_update_pids time.Duration
+
+func init() {
+	flag.DurationVar(&proc_update_pids, "proc-interval", 1500*time.Millisecond, "Interval for updating list of observed pids")
+}
 
 func createProcessCollectors(cmd *cmd_helper.CmdDataCollector) []collector.Collector {
 	psutilRoot := psutil.NewPsutilRootCollector(&ringFactory)

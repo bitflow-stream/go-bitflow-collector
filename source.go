@@ -26,11 +26,16 @@ type CollectorSource struct {
 	FailedCollectorCheckInterval   time.Duration
 	FilteredCollectorCheckInterval time.Duration
 
-	loopTask *golib.LoopTask
+	loopTask       *golib.LoopTask
+	currentMetrics []string
 }
 
 func (source *CollectorSource) String() string {
 	return fmt.Sprintf("CollectorSource (%v collectors)", len(source.RootCollectors))
+}
+
+func (source *CollectorSource) CurrentMetrics() []string {
+	return source.currentMetrics
 }
 
 func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
@@ -112,6 +117,7 @@ func (source *CollectorSource) createFilteredGraph() (*collectorGraph, error) {
 func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, getValues func() []bitflow.Value, stopper golib.StopChan) {
 	defer wg.Done()
 
+	source.currentMetrics = fields
 	header := &bitflow.Header{Fields: fields}
 	sink := source.OutgoingSink
 
