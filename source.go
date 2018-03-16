@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/golib"
+	log "github.com/sirupsen/logrus"
 )
 
 type CollectorSource struct {
@@ -198,10 +198,10 @@ func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopp
 	source.loopCheck(wg, stopper, &filtered, source.FilteredCollectorCheckInterval, func(node *collectorNode) {
 		err := node.collector.MetricsChanged()
 		if err == MetricsChanged {
-			log.Warnln("Metrics of", node, " (filtered) have changed! Restarting metric collection.")
+			log.Warnln("Metrics of", node, "(filtered) have changed! Restarting metric collection.")
 			stopper.Stop()
 		} else if err != nil {
-			log.Warnln("Update of", node, " (filtered) failed:", err)
+			log.Warnln("Update of", node, "(filtered) failed:", err)
 			if node.updateFailed() {
 				graph.errorLock.Lock()
 				filtered = graph.sortedFilteredNodes()

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/antongulenko/go-bitflow-collector/cmd_helper"
 	"github.com/antongulenko/go-bitflow-collector/libvirt"
 	"github.com/antongulenko/go-bitflow-collector/mock"
 	"github.com/antongulenko/go-bitflow-collector/ovsdb"
@@ -24,13 +25,10 @@ var (
 	user_include_metrics  golib.StringSlice
 	user_exclude_metrics  golib.StringSlice
 
-	proc_collectors          golib.KeyValueStringSlice
-	proc_children_collectors golib.KeyValueStringSlice
-	proc_show_errors         = false
-	proc_update_pids         = 1500 * time.Millisecond
-
 	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyFile")
 	ovsdb_host  = ""
+
+	proc_update_pids time.Duration
 
 	pcap_nics golib.StringSlice
 
@@ -81,10 +79,7 @@ func init() {
 	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (substring match)")
 	flag.BoolVar(&include_basic_metrics, "basic", include_basic_metrics, "Include only a certain basic subset of metrics")
 
-	flag.Var(&proc_collectors, "proc", "'key=regex' Processes to collect metrics for (regex match on entire command line)")
-	flag.Var(&proc_children_collectors, "proc-children", "'key=regex' Processes to collect metrics for (regex match on entire command line). Include all child processes of matched processes.")
-	flag.BoolVar(&proc_show_errors, "proc-show-errors", proc_show_errors, "Verbose: show errors encountered while getting process metrics")
-	flag.DurationVar(&proc_update_pids, "proc-interval", proc_update_pids, "Interval for updating list of observed pids")
+	flag.DurationVar(&proc_update_pids, "proc-interval", 1500*time.Millisecond, "Interval for updating list of observed pids")
 
 	flag.DurationVar(&collect_local_interval, "ci", collect_local_interval, "Interval for collecting local samples")
 	flag.DurationVar(&sink_interval, "si", sink_interval, "Interval for sinking (sending/printing/...) data when collecting local samples")
@@ -97,19 +92,16 @@ func configurePcap() {
 	psutil.PcapNics = pcap_nics
 }
 
-func createCollectorSource() *collector.CollectorSource {
+func createCollectorSource(cmd *cmd_helper.CmdDataCollector) *collector.CollectorSource {
 	configurePcap()
 	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 10 // Make sure enough samples can be buffered
 	var cols []collector.Collector
 
 	cols = append(cols, mock.NewMockCollector(&ringFactory))
-	psutilRoot := psutil.NewPsutilRootCollector(&ringFactory)
-	cols = append(cols, psutilRoot)
+	cols = append(cols, createProcessCollectors(cmd)...)
 	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, libvirt.NewDriver(), &ringFactory))
 	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
 
-	createProcessCollectors(&cols, psutilRoot, proc_collectors, false)
-	createProcessCollectors(&cols, psutilRoot, proc_children_collectors, true)
 	if all_metrics {
 		excludeMetricsRegexes = nil
 	}
@@ -140,20 +132,5 @@ func createCollectorSource() *collector.CollectorSource {
 		IncludeMetrics:                 includeMetricsRegexes,
 		FailedCollectorCheckInterval:   FailedCollectorCheckInterval,
 		FilteredCollectorCheckInterval: FilteredCollectorCheckInterval,
-	}
-}
-
-func createProcessCollectors(cols *[]collector.Collector, psutilRoot *psutil.PsutilRootCollector, parameters golib.KeyValueStringSlice, includeChildren bool) {
-	if len(parameters.Keys) > 0 {
-		psutil.PidUpdateInterval = proc_update_pids
-		regexes := make(map[string][]*regexp.Regexp)
-		for key, value := range parameters.Map() {
-			regex, err := regexp.Compile(value)
-			golib.Checkerr(err)
-			regexes[key] = append(regexes[key], regex)
-		}
-		for key, list := range regexes {
-			*cols = append(*cols, psutilRoot.NewProcessCollector(list, key, proc_show_errors, includeChildren))
-		}
 	}
 }

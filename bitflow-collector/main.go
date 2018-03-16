@@ -28,7 +28,7 @@ func do_main() int {
 	defer golib.ProfileCpu()()
 
 	// Configure the data collector pipeline
-	collector := createCollectorSource()
+	collector := createCollectorSource(&cmd)
 	p := cmd.MakePipeline()
 	p.Source = collector
 

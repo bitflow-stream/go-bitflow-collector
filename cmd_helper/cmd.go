@@ -22,6 +22,7 @@ const (
 type CmdDataCollector struct {
 	Endpoints     *bitflow.EndpointFactory
 	DefaultOutput string
+	RestApis      []RestApiPath // HttpTagger and FileOutputFilterApi included by default
 
 	restApiEndpoint string
 	fileOutputApi   FileOutputFilterApi
@@ -32,6 +33,7 @@ type CmdDataCollector struct {
 func (c *CmdDataCollector) ParseFlags() {
 	flag.Var(&c.outputs, "o", "Data sink(s) for outputting data")
 	flag.Var(&c.flagTags, "tag", "All collected samples will have the given tags (key=value) attached.")
+	flag.BoolVar(&c.fileOutputApi.FileOutputEnabled, "default-enable-file-output", false, "Enables file output immediately. By default it must be enable through the REST API first.")
 	flag.StringVar(&c.restApiEndpoint, "api", "", "Enable REST API for controlling the collector. "+
 		"The API can be used to control tags and enable/disable file output.")
 
@@ -54,6 +56,9 @@ func (c *CmdDataCollector) MakePipeline() *pipeline.SamplePipeline {
 		router := mux.NewRouter()
 		tagger := http_tags.NewHttpTagger(RestApiPathPrefix, router)
 		c.fileOutputApi.Register(RestApiPathPrefix, router)
+		for _, api := range c.RestApis {
+			api.Register(RestApiPathPrefix, router)
+		}
 		server := http.Server{
 			Addr:    c.restApiEndpoint,
 			Handler: router,
@@ -124,6 +129,10 @@ func (c *CmdDataCollector) set_sink(p *pipeline.SamplePipeline, sink bitflow.Met
 			})
 		}
 	}
+}
+
+type RestApiPath interface {
+	Register(pathPrefix string, router *mux.Router)
 }
 
 type FileOutputFilterApi struct {

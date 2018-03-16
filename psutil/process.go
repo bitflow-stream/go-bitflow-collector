@@ -46,6 +46,55 @@ func (root *PsutilRootCollector) NewProcessCollector(filter []*regexp.Regexp, na
 	}
 }
 
+func (root *PsutilRootCollector) NewMultiProcessCollector(name string) *PsutilMultiProcessCollector {
+	return &PsutilMultiProcessCollector{
+		AbstractCollector: root.Child(name),
+		root:              root,
+	}
+}
+
+type PsutilMultiProcessCollector struct {
+	collector.AbstractCollector
+	root                *PsutilRootCollector
+	Processes           []PsutilProcessCollectorDescription
+	descriptionsChanged bool
+}
+
+type PsutilProcessCollectorDescription struct {
+	Name                  string
+	Filter                []*regexp.Regexp
+	PrintErrors           bool
+	IncludeChildProcesses bool
+}
+
+func (multi *PsutilMultiProcessCollector) UpdateProcesses() {
+	multi.descriptionsChanged = true
+}
+
+func (multi *PsutilMultiProcessCollector) Init() ([]collector.Collector, error) {
+	cols := make([]collector.Collector, len(multi.Processes))
+	for i, params := range multi.Processes {
+		cols[i] = multi.root.NewProcessCollector(params.Filter, params.Name, params.PrintErrors, params.IncludeChildProcesses)
+	}
+	multi.descriptionsChanged = false
+	return cols, nil
+}
+
+func (multi *PsutilMultiProcessCollector) Depends() []collector.Collector {
+	return []collector.Collector{multi.root}
+}
+
+func (multi *PsutilMultiProcessCollector) Update() error {
+	if multi.descriptionsChanged {
+		return collector.MetricsChanged
+	}
+	return nil
+}
+
+func (multi *PsutilMultiProcessCollector) MetricsChanged() error {
+	return multi.Update()
+}
+
 func (col *PsutilProcessCollector) Init() ([]collector.Collector, error) {
 	return []collector.Collector{
 		col.Child("cpu", new(processCpuCollector)),
