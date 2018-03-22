@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/golib"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -101,44 +101,46 @@ func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper golib.StopChan
 		node.preconditions = append(node.preconditions, cond)
 		depends.postconditions = append(depends.postconditions, cond)
 	}
-	freq := node.UpdateFrequency
-	frequencyLimited := freq > 0
 	var lastUpdate time.Time
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for {
-			for _, cond := range node.preconditions {
-				cond.WaitAndUnset()
-			}
-			if stopper.Stopped() {
-				return
-			}
-			if !node.graph.nodes[node] {
-				// Node has been deleted due to failed dependency
-				return
-			}
-
-			successfulUpdate := true
-			if frequencyLimited {
-				now := time.Now()
-				if now.Sub(lastUpdate) >= freq {
-					successfulUpdate = node.update(stopper)
-					lastUpdate = now
-				}
-			} else {
-				successfulUpdate = node.update(stopper)
-			}
-
-			for _, cond := range node.postconditions {
-				cond.Broadcast()
-			}
-			if !successfulUpdate || stopper.Stopped() {
-				return
-			}
+		for node.updateAndBroadcast(stopper, &lastUpdate) {
 		}
 	}()
+}
+
+func (node *collectorNode) updateAndBroadcast(stopper golib.StopChan, lastUpdate *time.Time) bool {
+	defer func() {
+		// Make sure we notify our post-conditions regardless of our own state
+		for _, cond := range node.postconditions {
+			cond.Broadcast()
+		}
+	}()
+	for _, cond := range node.preconditions {
+		cond.WaitAndUnset()
+	}
+
+	if stopper.Stopped() {
+		return false
+	}
+	if !node.graph.nodes[node] {
+		// Node has been deleted due to failed dependency
+		return false
+	}
+
+	successfulUpdate := true
+	if node.UpdateFrequency > 0 {
+		now := time.Now()
+		if now.Sub(*lastUpdate) >= node.UpdateFrequency {
+			successfulUpdate = node.update(stopper)
+			*lastUpdate = now
+		}
+	} else {
+		successfulUpdate = node.update(stopper)
+	}
+	return successfulUpdate && !stopper.Stopped()
 }
 
 func (node *collectorNode) update(stopper golib.StopChan) bool {

@@ -2,7 +2,6 @@ package cmd_helper
 
 import (
 	"flag"
-	"log"
 	"net/http"
 	"sync"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/antongulenko/go-bitflow-pipeline/http_tags"
 	"github.com/antongulenko/golib"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
