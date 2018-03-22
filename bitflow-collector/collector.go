@@ -63,7 +63,7 @@ var (
 		regexp.MustCompile("^net-proto/(UdpLite|IcmpMsg)"),                         // Some extended protocol-metrics
 		regexp.MustCompile("^disk-io/" + negatedAll),                               // Disk IO for specific partitions/disks
 		regexp.MustCompile("^disk-usage/" + negatedAll),                            // Disk usage for specific partitions
-		regexp.MustCompile("^net-proto/tcp/(MaxConn|RtpAlgorithm|RtpMin|RtoMax)$"), // Some irrelevant TCP/IP settings
+		regexp.MustCompile("^net-proto/tcp/(MaxConn|RtoAlgorithm|RtoMin|RtoMax)$"), // Some irrelevant TCP/IP settings
 		regexp.MustCompile("^net-proto/ip/(DefaultTTL|Forwarding)$"),
 	}
 	includeBasicMetricsRegexes = []*regexp.Regexp{

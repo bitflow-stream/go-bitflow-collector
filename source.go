@@ -31,7 +31,7 @@ type CollectorSource struct {
 }
 
 func (source *CollectorSource) String() string {
-	return fmt.Sprintf("CollectorSource (%v collectors)", len(source.RootCollectors))
+	return fmt.Sprintf("CollectorSource (%v root-collectors)", len(source.RootCollectors))
 }
 
 func (source *CollectorSource) CurrentMetrics() []string {

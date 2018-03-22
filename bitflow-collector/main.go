@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	"github.com/antongulenko/go-bitflow-collector/cmd_helper"
 	"github.com/antongulenko/golib"
@@ -16,6 +17,7 @@ func main() {
 func do_main() int {
 	print_metrics := flag.Bool("print-metrics", false, "Print all available metrics and exit")
 	print_pipeline := flag.Bool("print-pipeline", false, "Print the data collection pipeline and exit")
+	print_root_collectors := flag.Bool("print-root-collectors", false, "Print the available root collectors and exit")
 	print_graph := flag.String("graph", "", "Create png-file for the collector-graph and exit")
 	print_graph_dot := flag.String("graph-dot", "", "Create dot-file for the collector-graph and exit")
 
@@ -43,6 +45,14 @@ func do_main() int {
 		for _, str := range p.FormatLines() {
 			log.Debugln(str)
 		}
+	}
+	if *print_root_collectors {
+		rootNames := make([]string, len(collector.RootCollectors))
+		for i, col := range collector.RootCollectors {
+			rootNames[i] = col.String()
+		}
+		log.Println("Root collectors:", strings.Join(rootNames, ", "))
+		stop = true
 	}
 	if *print_metrics {
 		golib.Checkerr(collector.PrintMetrics())
