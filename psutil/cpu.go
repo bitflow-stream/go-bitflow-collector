@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/shirou/gopsutil/cpu"
+	log "github.com/sirupsen/logrus"
 )
 
 type PsutilCpuCollector struct {
@@ -96,4 +96,9 @@ func (t *cpuTime) AddValue(incoming collector.LogbackValue) collector.LogbackVal
 		log.Errorf("Cannot add %v (%T) and %v (%T)", t, t, incoming, incoming)
 		return collector.StoredValue(0)
 	}
+}
+
+func (val *cpuTime) GetValue() bitflow.Value {
+	_, busy := val.getAllBusy()
+	return bitflow.Value(busy)
 }

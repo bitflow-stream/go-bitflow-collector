@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
+	log "github.com/sirupsen/logrus"
 )
 
 type ValueRingFactory struct {
@@ -29,13 +29,15 @@ type ValueRing struct {
 	aggregator   LogbackValue
 	previousDiff bitflow.Value
 
-	// Serializes GetDiff() and FlushHead()
+	// Serializes GetDiff()/GetHead() and FlushHead()
+	// Writing access must be serialized extnerallly!
 	lock sync.Mutex
 }
 
 type LogbackValue interface {
 	DiffValue(previousValue LogbackValue, interval time.Duration) bitflow.Value
 	AddValue(val LogbackValue) LogbackValue
+	GetValue() bitflow.Value
 }
 
 type TimedValue struct {
@@ -81,6 +83,18 @@ func (ring *ValueRing) AddValue(val bitflow.Value) {
 	ring.Add(StoredValue(val))
 }
 
+func (ring *ValueRing) Increment(val LogbackValue) {
+	cur := ring.getHead().val
+	if cur != nil {
+		val = cur.AddValue(val)
+	}
+	ring.Add(val)
+}
+
+func (ring *ValueRing) IncrementValue(val bitflow.Value) {
+	ring.Increment(StoredValue(val))
+}
+
 func (ring *ValueRing) GetDiff() bitflow.Value {
 	ring.lock.Lock()
 	defer ring.lock.Unlock()
@@ -94,6 +108,21 @@ func (ring *ValueRing) GetDiff() bitflow.Value {
 		ring.previousDiff = val
 	}
 	return val
+}
+
+// May return nil in case of an empty ring
+func (ring *ValueRing) GetHead() LogbackValue {
+	ring.lock.Lock()
+	defer ring.lock.Unlock()
+	return ring.getHead().val
+}
+
+func (ring *ValueRing) GetHeadValue() bitflow.Value {
+	head := ring.GetHead()
+	if head == nil {
+		return bitflow.Value(0)
+	}
+	return head.GetValue()
 }
 
 // ============================ Internal functions ============================
@@ -194,4 +223,8 @@ func (val StoredValue) AddValue(incoming LogbackValue) LogbackValue {
 		log.Errorf("Cannot add %v (%T) and %v (%T)", val, val, incoming, incoming)
 		return StoredValue(0)
 	}
+}
+
+func (val StoredValue) GetValue() bitflow.Value {
+	return bitflow.Value(val)
 }

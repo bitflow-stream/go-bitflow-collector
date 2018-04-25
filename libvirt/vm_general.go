@@ -3,9 +3,9 @@ package libvirt
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
+	log "github.com/sirupsen/logrus"
 )
 
 type vmGeneralCollector struct {
@@ -70,4 +70,8 @@ func (val LogbackCpuVal) AddValue(logback collector.LogbackValue) collector.Logb
 		log.Errorf("Cannot add %v (%T) and %v (%T)", val, val, logback, logback)
 		return LogbackCpuVal(0)
 	}
+}
+
+func (val LogbackCpuVal) GetValue() bitflow.Value {
+	return bitflow.Value(val)
 }
