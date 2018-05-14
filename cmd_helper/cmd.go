@@ -38,7 +38,9 @@ func (c *CmdDataCollector) ParseFlags() {
 		"The API can be used to control tags and enable/disable file output.")
 
 	// Parse command line flags
-	c.Endpoints = bitflow.NewEndpointFactory()
+	if c.Endpoints == nil {
+		c.Endpoints = bitflow.NewEndpointFactory()
+	}
 	c.Endpoints.RegisterGeneralFlagsTo(flag.CommandLine)
 	c.Endpoints.RegisterOutputFlagsTo(flag.CommandLine)
 	bitflow.RegisterGolibFlags()
