@@ -80,8 +80,6 @@ func (c *CmdDataCollector) add_outputs(p *pipeline.SamplePipeline) {
 	if len(outputs) == 1 {
 		c.set_sink(p, outputs[0])
 	} else {
-		p.Sink = new(bitflow.EmptyMetricSink)
-
 		// Create a multiplex-fork for all outputs
 		num := len(outputs)
 		builder := make(fork.MultiplexPipelineBuilder, num)
@@ -97,11 +95,11 @@ func (c *CmdDataCollector) add_outputs(p *pipeline.SamplePipeline) {
 	}
 }
 
-func (c *CmdDataCollector) create_outputs() []bitflow.MetricSink {
+func (c *CmdDataCollector) create_outputs() []bitflow.SampleProcessor {
 	if len(c.outputs) == 0 && c.DefaultOutput != "" {
 		c.outputs = []string{c.DefaultOutput}
 	}
-	var sinks []bitflow.MetricSink
+	var sinks []bitflow.SampleProcessor
 	consoleOutputs := 0
 	for _, output := range c.outputs {
 		sink, err := c.Endpoints.CreateOutput(output)
@@ -117,9 +115,7 @@ func (c *CmdDataCollector) create_outputs() []bitflow.MetricSink {
 	return sinks
 }
 
-func (c *CmdDataCollector) set_sink(p *pipeline.SamplePipeline, sink bitflow.MetricSink) {
-	p.Sink = sink
-
+func (c *CmdDataCollector) set_sink(p *pipeline.SamplePipeline, sink bitflow.SampleProcessor) {
 	// Add a filter to file outputs
 	if _, isFile := sink.(*bitflow.FileSink); isFile {
 		if c.restApiEndpoint != "" {
@@ -131,6 +127,7 @@ func (c *CmdDataCollector) set_sink(p *pipeline.SamplePipeline, sink bitflow.Met
 			})
 		}
 	}
+	p.Add(sink)
 }
 
 type RestApiPath interface {

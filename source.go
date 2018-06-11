@@ -14,7 +14,7 @@ import (
 )
 
 type CollectorSource struct {
-	bitflow.AbstractMetricSource
+	bitflow.AbstractSampleSource
 
 	RootCollectors    []Collector
 	CollectInterval   time.Duration
@@ -49,9 +49,6 @@ func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
 			return golib.NewStoppedChan(fmt.Errorf("The field CollectorSource.%v must be set to a positive value (have %v)", name, val))
 		}
 	}
-	if err := source.CheckSink(); err != nil {
-		return golib.NewStoppedChan(err)
-	}
 
 	source.loopTask = &golib.LoopTask{
 		Description: source.String(),
@@ -76,7 +73,7 @@ func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
 	return source.loopTask.Start(wg)
 }
 
-func (source *CollectorSource) Stop() {
+func (source *CollectorSource) Close() {
 	source.loopTask.Stop()
 }
 
