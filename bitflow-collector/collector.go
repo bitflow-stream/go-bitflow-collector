@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/antongulenko/go-bitflow-collector"
-	"github.com/antongulenko/go-bitflow-collector/cmd_helper"
 	"github.com/antongulenko/go-bitflow-collector/libvirt"
 	"github.com/antongulenko/go-bitflow-collector/mock"
 	"github.com/antongulenko/go-bitflow-collector/ovsdb"
 	"github.com/antongulenko/go-bitflow-collector/psutil"
+	"github.com/antongulenko/go-bitflow-pipeline/collector_helpers"
 	"github.com/antongulenko/golib"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
@@ -89,7 +89,7 @@ func init() {
 		"monitoring of process network IO (/proc/.../net-pcap/...). Defaults to all physical NICs.")
 }
 
-func createCollectorSource(cmd *cmd_helper.CmdDataCollector) *collector.CollectorSource {
+func createCollectorSource(cmd *collector_helpers.CmdDataCollector) *collector.CollectorSource {
 	psutil.PcapNics = pcap_nics
 	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 10 // Make sure enough samples can be buffered
 	var cols []collector.Collector
