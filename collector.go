@@ -159,7 +159,7 @@ func (s MetricSlice) ConstructSample(source *CollectorSource) ([]string, func() 
 	}
 
 	valueLen := len(values)
-	valueCap := bitflow.RequiredValues(valueLen, source.OutgoingSink)
+	valueCap := bitflow.RequiredValues(valueLen, source.GetSink())
 	return fields, func() []bitflow.Value {
 		sampleCopy := make([]bitflow.Value, valueLen, valueCap)
 		sampleLock.Lock()

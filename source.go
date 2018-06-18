@@ -53,7 +53,7 @@ func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
 	source.loopTask = &golib.LoopTask{
 		Description: source.String(),
 		StopHook: func() {
-			source.CloseSink(wg)
+			source.CloseSinkParallel(wg)
 		},
 		Loop: func(loopStop golib.StopChan) error {
 			var collectWg sync.WaitGroup
@@ -116,7 +116,7 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 
 	source.currentMetrics = fields
 	header := &bitflow.Header{Fields: fields}
-	sink := source.OutgoingSink
+	sink := source.GetSink()
 
 	for {
 		metrics.UpdateAll()
