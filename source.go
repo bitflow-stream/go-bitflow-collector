@@ -13,6 +13,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// For the update and sink interval, the sleep duration accuracy is increased by
+// waking up regularly inbetween and checking of the desired sleep time has passed already.
+// This stabilizes sleep times in high-CPU and low-priority situations.
+const timeoutLoopFactor = 0.1
+
 type CollectorSource struct {
 	bitflow.AbstractSampleSource
 
@@ -118,6 +123,7 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 	header := &bitflow.Header{Fields: fields}
 	sink := source.GetSink()
 
+	sinkTime := time.Now()
 	for {
 		metrics.UpdateAll()
 		values := getValues()
@@ -128,7 +134,7 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 		if err := sink.Sample(sample, header); err != nil {
 			log.Warnln("Failed to sink", len(values), "metrics:", err)
 		}
-		if !stopper.WaitTimeout(source.SinkInterval) {
+		if !stopper.WaitTimeoutPrecise(source.SinkInterval, timeoutLoopFactor, &sinkTime) {
 			return
 		}
 	}
@@ -176,9 +182,10 @@ func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper golib.St
 				source.setAll(node.preconditions)
 			}
 		}()
+		triggerTime := time.Now()
 		for {
 			source.setAll(rootConditions)
-			if !stopper.WaitTimeout(source.CollectInterval) {
+			if !stopper.WaitTimeoutPrecise(source.CollectInterval, timeoutLoopFactor, &triggerTime) {
 				break
 			}
 		}
