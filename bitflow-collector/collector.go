@@ -91,7 +91,10 @@ func init() {
 
 func createCollectorSource(cmd *collector_helpers.CmdDataCollector) *collector.CollectorSource {
 	psutil.PcapNics = pcap_nics
-	ringFactory.Length = int(ringFactory.Interval/collect_local_interval) * 10 // Make sure enough samples can be buffered
+	ringFactory.Length = int(float64(ringFactory.Interval) / float64(collect_local_interval) * 10) // Make sure enough samples can be buffered
+	if ringFactory.Length <= 0 {
+		ringFactory.Length = 1
+	}
 	var cols []collector.Collector
 
 	cols = append(cols, mock.NewMockCollector(&ringFactory))
