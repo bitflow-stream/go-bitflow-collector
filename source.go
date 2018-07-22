@@ -145,15 +145,15 @@ func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper golib.St
 	log.Debugln("Root collectors:", len(roots), roots)
 	log.Debugln("Leaf collectors:", len(leafs), leafs)
 
-	rootConditions := make([]*BoolCondition, len(roots))
-	leafConditions := make([]*BoolCondition, len(leafs))
+	rootConditions := make([]*golib.BoolCondition, len(roots))
+	leafConditions := make([]*golib.BoolCondition, len(leafs))
 	for i, root := range roots {
-		cond := NewBoolCondition()
+		cond := golib.NewBoolCondition()
 		rootConditions[i] = cond
 		root.preconditions = append(root.preconditions, cond)
 	}
 	for i, leaf := range leafs {
-		cond := NewBoolCondition()
+		cond := golib.NewBoolCondition()
 		leafConditions[i] = cond
 		leaf.postconditions = append(leaf.postconditions, cond)
 	}
@@ -192,7 +192,7 @@ func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper golib.St
 	}()
 }
 
-func (source *CollectorSource) setAll(conditions []*BoolCondition) {
+func (source *CollectorSource) setAll(conditions []*golib.BoolCondition) {
 	for _, cond := range conditions {
 		cond.Broadcast()
 	}

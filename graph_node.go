@@ -25,8 +25,8 @@ type collectorNode struct {
 
 	metrics MetricReaderMap
 
-	preconditions  []*BoolCondition
-	postconditions []*BoolCondition
+	preconditions  []*golib.BoolCondition
+	postconditions []*golib.BoolCondition
 
 	UpdateFrequency time.Duration
 }
@@ -97,7 +97,7 @@ func (node *collectorNode) getFilteredMetrics(exclude []*regexp.Regexp, include 
 func (node *collectorNode) loopUpdate(wg *sync.WaitGroup, stopper golib.StopChan) {
 	for _, dependsCol := range node.collector.Depends() {
 		depends := node.graph.resolve(dependsCol)
-		cond := NewBoolCondition()
+		cond := golib.NewBoolCondition()
 		node.preconditions = append(node.preconditions, cond)
 		depends.postconditions = append(depends.postconditions, cond)
 	}
