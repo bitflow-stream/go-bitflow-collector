@@ -210,13 +210,16 @@ func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopp
 		if err == MetricsChanged {
 			log.Warnln("Metrics of", node, "(filtered) have changed! Restarting metric collection.")
 			stopper.Stop()
-		} else if err != nil {
+		} else if err == nil {
+			// Reset the update failure counter since there was no error
+			node.failedUpdates = 0
+		} else {
 			log.Warnln("Update of", node, "(filtered) failed:", err)
 			if node.updateFailed() {
-				graph.errorLock.Lock()
+				graph.modificationLock.Lock()
 				filtered = graph.sortedFilteredNodes()
 				log.Debugln("Watching filtered collectors:", filtered)
-				graph.errorLock.Unlock()
+				graph.modificationLock.Unlock()
 			}
 		}
 	})

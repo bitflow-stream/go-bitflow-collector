@@ -7,9 +7,9 @@ import (
 
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gonum/graph"
 	"github.com/gonum/graph/topo"
+	log "github.com/sirupsen/logrus"
 )
 
 type collectorGraph struct {
@@ -18,8 +18,8 @@ type collectorGraph struct {
 	failedList []*collectorNode
 	filtered   map[*collectorNode]bool
 
-	collectors map[Collector]*collectorNode
-	errorLock  sync.Mutex
+	collectors       map[Collector]*collectorNode
+	modificationLock sync.Mutex
 }
 
 func initCollectorGraph(collectors []Collector) (*collectorGraph, error) {
@@ -71,7 +71,8 @@ func (graph *collectorGraph) deleteCollector(node *collectorNode) {
 	delete(graph.nodes, node)
 	delete(graph.filtered, node)
 	delete(graph.failed, node)
-	delete(graph.collectors, node.collector)
+	// Keep the collector in the graph.collectors map in case it needs to be
+	// accessed through resolve()
 }
 
 func (graph *collectorGraph) collectorFailed(node *collectorNode) {
@@ -92,8 +93,8 @@ func (graph *collectorGraph) collectorFiltered(node *collectorNode) {
 
 func (graph *collectorGraph) collectorUpdateFailed(node *collectorNode) {
 	// This means the collector Init() method was successful, but then Update() returned errors too many times.
-	graph.errorLock.Lock()
-	defer graph.errorLock.Unlock()
+	graph.modificationLock.Lock()
+	defer graph.modificationLock.Unlock()
 	graph.collectorFailed(node)
 	graph.pruneAndRepair()
 }
@@ -144,9 +145,10 @@ func (graph *collectorGraph) pruneAndRepair() {
 	sorted := sortGraph(graph)
 
 	// Walk "root" nodes first: delete nodes with failed dependencies
+	// Since we walk the sorted graph, all transitive dependencies will be deleted as well
 	for i, node := range sorted {
 		if graph.dependsOnFailedOrFiltered(node) {
-			log.Debugln("Deleting collector", node, "because of a failed dependency")
+			log.Warnln("Deleting collector", node, "because of a failed/filtered dependency")
 			graph.deleteCollector(node)
 			sorted[i] = nil
 		}
@@ -279,10 +281,10 @@ func (g *collectorGraph) sortedFilteredNodes() []*collectorNode {
 		return res
 	}
 
-	// Sort the graph including filtered and unfiltered nodes,
+	// Sort the graph including filtered, failed and unfiltered nodes,
 	// then extract only the filtered ones in the correct order
 	res := make([]*collectorNode, 0, len(g.filtered))
-	fullGraph := createCollectorSubGraph(makeNodeList(g.nodes, g.filtered))
+	fullGraph := createCollectorSubGraph(makeNodeList(g.nodes, g.filtered, g.failed))
 	sorted := sortGraph(fullGraph)
 	for _, node := range sorted {
 		if g.filtered[node] {
