@@ -29,6 +29,7 @@ var (
 	include_basic_metrics = false
 	user_include_metrics  golib.StringSlice
 	user_exclude_metrics  golib.StringSlice
+	disabled_collectors   golib.StringSlice
 
 	libvirt_uri = libvirt.LocalUri // libvirt.SshUri("host", "keyFile")
 	ovsdb_host  = ""
@@ -81,6 +82,7 @@ func init() {
 	flag.Var(&user_exclude_metrics, "exclude", "Metrics to exclude (substring match)")
 	flag.Var(&user_include_metrics, "include", "Metrics to include exclusively (substring match)")
 	flag.BoolVar(&include_basic_metrics, "basic", include_basic_metrics, "Include only a certain basic subset of metrics")
+	flag.Var(&disabled_collectors, "disable", "Entirely disable given root-collectors (exact string match)")
 
 	flag.DurationVar(&collect_local_interval, "ci", collect_local_interval, "Interval for collecting local samples")
 	flag.DurationVar(&sink_interval, "si", sink_interval, "Interval for sinking (sending/printing/...) data when collecting local samples")
@@ -130,6 +132,7 @@ func createCollectorSource(cmd *collector_helpers.CmdDataCollector) *collector.C
 		SinkInterval:                   sink_interval,
 		ExcludeMetrics:                 excludeMetricsRegexes,
 		IncludeMetrics:                 includeMetricsRegexes,
+		DisabledCollectors:             disabled_collectors,
 		FailedCollectorCheckInterval:   FailedCollectorCheckInterval,
 		FilteredCollectorCheckInterval: FilteredCollectorCheckInterval,
 	}

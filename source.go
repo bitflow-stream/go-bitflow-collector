@@ -21,12 +21,13 @@ const timeoutLoopFactor = 0.1
 type CollectorSource struct {
 	bitflow.AbstractSampleSource
 
-	RootCollectors    []Collector
-	CollectInterval   time.Duration
-	UpdateFrequencies map[*regexp.Regexp]time.Duration
-	SinkInterval      time.Duration
-	ExcludeMetrics    []*regexp.Regexp
-	IncludeMetrics    []*regexp.Regexp
+	RootCollectors     []Collector
+	CollectInterval    time.Duration
+	UpdateFrequencies  map[*regexp.Regexp]time.Duration
+	SinkInterval       time.Duration
+	ExcludeMetrics     []*regexp.Regexp
+	IncludeMetrics     []*regexp.Regexp
+	DisabledCollectors []string
 
 	FailedCollectorCheckInterval   time.Duration
 	FilteredCollectorCheckInterval time.Duration
@@ -103,7 +104,24 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (golib.StopChan, erro
 }
 
 func (source *CollectorSource) createGraph() (*collectorGraph, error) {
-	return initCollectorGraph(source.RootCollectors)
+	roots := make([]Collector, 0, len(source.RootCollectors))
+	for _, root := range source.RootCollectors {
+		name := root.String()
+		isEnabled := true
+		for _, disabled := range source.DisabledCollectors {
+			// Disabled root collectors are ignored immediately
+			if name == disabled {
+				isEnabled = false
+				break
+			}
+		}
+		if isEnabled {
+			roots = append(roots, root)
+		} else {
+			log.Debugln("Disabling root collector", name)
+		}
+	}
+	return initCollectorGraph(roots)
 }
 
 func (source *CollectorSource) createFilteredGraph() (*collectorGraph, error) {
@@ -112,6 +130,7 @@ func (source *CollectorSource) createFilteredGraph() (*collectorGraph, error) {
 		return nil, err
 	}
 	graph.applyMetricFilters(source.ExcludeMetrics, source.IncludeMetrics)
+	graph.applyCollectorFilters(source.DisabledCollectors)
 	graph.pruneAndRepair()
 	return graph, nil
 }

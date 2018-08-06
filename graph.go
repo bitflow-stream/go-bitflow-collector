@@ -117,6 +117,18 @@ func (graph *collectorGraph) applyMetricFilters(exclude []*regexp.Regexp, includ
 	}
 }
 
+func (graph *collectorGraph) applyCollectorFilters(deleteNames []string) {
+	for node := range graph.nodes {
+		for _, deleteName := range deleteNames {
+			if deleteName == node.String() {
+				log.Debugln("Disabling collector", deleteName)
+				graph.deleteCollector(node)
+				break
+			}
+		}
+	}
+}
+
 func (graph *collectorGraph) applyUpdateFrequencies(frequencies map[*regexp.Regexp]time.Duration) {
 	for regex, freq := range frequencies {
 		count := 0
