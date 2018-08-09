@@ -18,7 +18,7 @@ import (
 // This stabilizes sleep times in high-CPU and low-priority situations.
 const timeoutLoopFactor = 0.1
 
-type CollectorSource struct {
+type SampleSource struct {
 	bitflow.AbstractSampleSource
 
 	RootCollectors     []Collector
@@ -36,15 +36,15 @@ type CollectorSource struct {
 	currentMetrics []string
 }
 
-func (source *CollectorSource) String() string {
+func (source *SampleSource) String() string {
 	return fmt.Sprintf("CollectorSource (%v root-collectors)", len(source.RootCollectors))
 }
 
-func (source *CollectorSource) CurrentMetrics() []string {
+func (source *SampleSource) CurrentMetrics() []string {
 	return source.currentMetrics
 }
 
-func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
+func (source *SampleSource) Start(wg *sync.WaitGroup) golib.StopChan {
 	for name, val := range map[string]time.Duration{
 		"CollectInterval":                source.CollectInterval,
 		"SinkInterval":                   source.SinkInterval,
@@ -79,11 +79,11 @@ func (source *CollectorSource) Start(wg *sync.WaitGroup) golib.StopChan {
 	return source.loopTask.Start(wg)
 }
 
-func (source *CollectorSource) Close() {
+func (source *SampleSource) Close() {
 	source.loopTask.Stop()
 }
 
-func (source *CollectorSource) collect(wg *sync.WaitGroup) (golib.StopChan, error) {
+func (source *SampleSource) collect(wg *sync.WaitGroup) (golib.StopChan, error) {
 	graph, err := source.createFilteredGraph()
 	if err != nil {
 		return golib.StopChan{}, err
@@ -103,7 +103,7 @@ func (source *CollectorSource) collect(wg *sync.WaitGroup) (golib.StopChan, erro
 	return stopper, nil
 }
 
-func (source *CollectorSource) createGraph() (*collectorGraph, error) {
+func (source *SampleSource) createGraph() (*collectorGraph, error) {
 	roots := make([]Collector, 0, len(source.RootCollectors))
 	for _, root := range source.RootCollectors {
 		name := root.String()
@@ -124,7 +124,7 @@ func (source *CollectorSource) createGraph() (*collectorGraph, error) {
 	return initCollectorGraph(roots)
 }
 
-func (source *CollectorSource) createFilteredGraph() (*collectorGraph, error) {
+func (source *SampleSource) createFilteredGraph() (*collectorGraph, error) {
 	graph, err := source.createGraph()
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func (source *CollectorSource) createFilteredGraph() (*collectorGraph, error) {
 	return graph, nil
 }
 
-func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, getValues func() []bitflow.Value, stopper golib.StopChan) {
+func (source *SampleSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSlice, fields []string, getValues func() []bitflow.Value, stopper golib.StopChan) {
 	defer wg.Done()
 
 	source.currentMetrics = fields
@@ -159,7 +159,7 @@ func (source *CollectorSource) sinkMetrics(wg *sync.WaitGroup, metrics MetricSli
 	}
 }
 
-func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
+func (source *SampleSource) startUpdates(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
 	roots, leafs := graph.getRootsAndLeafs()
 	log.Debugln("Root collectors:", len(roots), roots)
 	log.Debugln("Leaf collectors:", len(leafs), leafs)
@@ -211,13 +211,13 @@ func (source *CollectorSource) startUpdates(wg *sync.WaitGroup, stopper golib.St
 	}()
 }
 
-func (source *CollectorSource) setAll(conditions []*golib.BoolCondition) {
+func (source *SampleSource) setAll(conditions []*golib.BoolCondition) {
 	for _, cond := range conditions {
 		cond.Broadcast()
 	}
 }
 
-func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
+func (source *SampleSource) watchFilteredCollectors(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
 	filtered := graph.sortedFilteredNodes()
 	if len(filtered) == 0 {
 		return
@@ -244,7 +244,7 @@ func (source *CollectorSource) watchFilteredCollectors(wg *sync.WaitGroup, stopp
 	})
 }
 
-func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
+func (source *SampleSource) watchFailedCollectors(wg *sync.WaitGroup, stopper golib.StopChan, graph *collectorGraph) {
 	var previousList []*collectorNode
 	source.loopCheck(wg, stopper, &graph.failedList, source.FailedCollectorCheckInterval, func(node *collectorNode) {
 		// Check if graph.failedList changed in any way
@@ -266,7 +266,7 @@ func (source *CollectorSource) watchFailedCollectors(wg *sync.WaitGroup, stopper
 	})
 }
 
-func (source *CollectorSource) loopCheck(wg *sync.WaitGroup, stopper golib.StopChan, nodes *[]*collectorNode, interval time.Duration, check func(*collectorNode)) {
+func (source *SampleSource) loopCheck(wg *sync.WaitGroup, stopper golib.StopChan, nodes *[]*collectorNode, interval time.Duration, check func(*collectorNode)) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -284,7 +284,7 @@ func (source *CollectorSource) loopCheck(wg *sync.WaitGroup, stopper golib.StopC
 	}()
 }
 
-func (source *CollectorSource) PrintMetrics() error {
+func (source *SampleSource) PrintMetrics() error {
 	graph, err := initCollectorGraph(source.RootCollectors)
 	if err != nil {
 		return err
@@ -309,7 +309,7 @@ func (source *CollectorSource) PrintMetrics() error {
 	return nil
 }
 
-func (source *CollectorSource) getGraphForPrinting(fullGraph bool) (*collectorGraph, error) {
+func (source *SampleSource) getGraphForPrinting(fullGraph bool) (*collectorGraph, error) {
 	if fullGraph {
 		return source.createGraph()
 	} else {
@@ -317,7 +317,7 @@ func (source *CollectorSource) getGraphForPrinting(fullGraph bool) (*collectorGr
 	}
 }
 
-func (source *CollectorSource) PrintGraph(file string, fullGraph bool) error {
+func (source *SampleSource) PrintGraph(file string, fullGraph bool) error {
 	graph, err := source.getGraphForPrinting(fullGraph)
 	if err != nil {
 		return err
@@ -331,7 +331,7 @@ func (source *CollectorSource) PrintGraph(file string, fullGraph bool) error {
 	return nil
 }
 
-func (source *CollectorSource) PrintGraphDot(file string, fullGraph bool) error {
+func (source *SampleSource) PrintGraphDot(file string, fullGraph bool) error {
 	graph, err := source.getGraphForPrinting(fullGraph)
 	if err != nil {
 		return err

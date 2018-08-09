@@ -5,8 +5,8 @@ package libvirt
 import (
 	"errors"
 
-	log "github.com/sirupsen/logrus"
 	lib "github.com/rgbkrk/libvirt-go"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -47,33 +47,33 @@ func (d *DriverImpl) ListDomains() ([]Domain, error) {
 	return domains, nil
 }
 
-func (driver *DriverImpl) connection() (*lib.VirConnection, error) {
-	conn := driver.conn
+func (d *DriverImpl) connection() (*lib.VirConnection, error) {
+	conn := d.conn
 	if conn != nil {
 		if alive, err := conn.IsAlive(); err != nil || !alive {
 			log.Warnln("Libvirt alive connection check failed:", err)
-			driver.Close()
+			d.Close()
 			conn = nil
 		}
 	}
 	if conn == nil {
-		if driver.uri == "" {
+		if d.uri == "" {
 			return nil, errors.New("Drier.Connect() has not yet been called.")
 		}
-		newConn, err := lib.NewVirConnection(driver.uri)
+		newConn, err := lib.NewVirConnection(d.uri)
 		if err != nil {
 			return nil, err
 		}
 		conn = &newConn
-		driver.conn = conn
+		d.conn = conn
 	}
 	return conn, nil
 }
 
-func (col *DriverImpl) Close() (err error) {
-	if col.conn != nil {
-		_, err = col.conn.CloseConnection()
-		col.conn = nil
+func (d *DriverImpl) Close() (err error) {
+	if d.conn != nil {
+		_, err = d.conn.CloseConnection()
+		d.conn = nil
 	}
 	return
 }

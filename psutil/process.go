@@ -20,58 +20,58 @@ var (
 	cpu_factor = 100 / float64(runtime.NumCPU())
 )
 
-type PsutilProcessCollector struct {
+type ProcessCollector struct {
 	collector.AbstractCollector
 	factory         *collector.ValueRingFactory
 	cmdlineFilter   []*regexp.Regexp
 	groupName       string
 	printErrors     bool
 	includeChildren bool
-	pids            *PsutilPidCollector
+	pids            *PidCollector
 
 	pidsUpdated bool
 	procs       map[int32]*processInfo
 	procsLock   sync.RWMutex
 }
 
-func (root *PsutilRootCollector) NewProcessCollector(filter []*regexp.Regexp, name string, printErrors bool, includeChildProcesses bool) *PsutilProcessCollector {
-	return &PsutilProcessCollector{
-		AbstractCollector: root.Child(name),
+func (col *RootCollector) NewProcessCollector(filter []*regexp.Regexp, name string, printErrors bool, includeChildProcesses bool) *ProcessCollector {
+	return &ProcessCollector{
+		AbstractCollector: col.Child(name),
 		cmdlineFilter:     filter,
 		groupName:         name,
 		printErrors:       printErrors,
 		includeChildren:   includeChildProcesses,
-		factory:           root.Factory,
-		pids:              root.pids,
+		factory:           col.Factory,
+		pids:              col.pids,
 	}
 }
 
-func (root *PsutilRootCollector) NewMultiProcessCollector(name string) *PsutilMultiProcessCollector {
-	return &PsutilMultiProcessCollector{
-		AbstractCollector: root.Child(name),
-		root:              root,
+func (col *RootCollector) NewMultiProcessCollector(name string) *MultiProcessCollector {
+	return &MultiProcessCollector{
+		AbstractCollector: col.Child(name),
+		root:              col,
 	}
 }
 
-type PsutilMultiProcessCollector struct {
+type MultiProcessCollector struct {
 	collector.AbstractCollector
-	root                *PsutilRootCollector
-	Processes           []PsutilProcessCollectorDescription
+	root                *RootCollector
+	Processes           []ProcessCollectorDescription
 	descriptionsChanged bool
 }
 
-type PsutilProcessCollectorDescription struct {
+type ProcessCollectorDescription struct {
 	Name                  string
 	Filter                []*regexp.Regexp
 	PrintErrors           bool
 	IncludeChildProcesses bool
 }
 
-func (multi *PsutilMultiProcessCollector) UpdateProcesses() {
+func (multi *MultiProcessCollector) UpdateProcesses() {
 	multi.descriptionsChanged = true
 }
 
-func (multi *PsutilMultiProcessCollector) Init() ([]collector.Collector, error) {
+func (multi *MultiProcessCollector) Init() ([]collector.Collector, error) {
 	cols := make([]collector.Collector, len(multi.Processes))
 	for i, params := range multi.Processes {
 		cols[i] = multi.root.NewProcessCollector(params.Filter, params.Name, params.PrintErrors, params.IncludeChildProcesses)
@@ -80,22 +80,22 @@ func (multi *PsutilMultiProcessCollector) Init() ([]collector.Collector, error) 
 	return cols, nil
 }
 
-func (multi *PsutilMultiProcessCollector) Depends() []collector.Collector {
+func (multi *MultiProcessCollector) Depends() []collector.Collector {
 	return []collector.Collector{multi.root}
 }
 
-func (multi *PsutilMultiProcessCollector) Update() error {
+func (multi *MultiProcessCollector) Update() error {
 	if multi.descriptionsChanged {
 		return collector.MetricsChanged
 	}
 	return nil
 }
 
-func (multi *PsutilMultiProcessCollector) MetricsChanged() error {
+func (multi *MultiProcessCollector) MetricsChanged() error {
 	return multi.Update()
 }
 
-func (col *PsutilProcessCollector) Init() ([]collector.Collector, error) {
+func (col *ProcessCollector) Init() ([]collector.Collector, error) {
 	return []collector.Collector{
 		col.Child("cpu", new(processCpuCollector)),
 		col.Child("disk", new(processDiskCollector)),
@@ -107,7 +107,7 @@ func (col *PsutilProcessCollector) Init() ([]collector.Collector, error) {
 	}, nil
 }
 
-func (col *PsutilProcessCollector) Metrics() collector.MetricReaderMap {
+func (col *ProcessCollector) Metrics() collector.MetricReaderMap {
 	return collector.MetricReaderMap{
 		col.prefix() + "/num": func() bitflow.Value {
 			return bitflow.Value(len(col.procs))
@@ -115,15 +115,15 @@ func (col *PsutilProcessCollector) Metrics() collector.MetricReaderMap {
 	}
 }
 
-func (col *PsutilProcessCollector) Depends() []collector.Collector {
+func (col *ProcessCollector) Depends() []collector.Collector {
 	return []collector.Collector{col.pids}
 }
 
-func (col *PsutilProcessCollector) Update() error {
+func (col *ProcessCollector) Update() error {
 	return col.updatePids()
 }
 
-func (col *PsutilProcessCollector) updatePids() error {
+func (col *ProcessCollector) updatePids() error {
 	if col.pidsUpdated {
 		return nil
 	}
@@ -186,7 +186,7 @@ func (col *PsutilProcessCollector) updatePids() error {
 	return nil
 }
 
-func (col *PsutilProcessCollector) getProcInfo(pid int32, proc *process.Process) *processInfo {
+func (col *ProcessCollector) getProcInfo(pid int32, proc *process.Process) *processInfo {
 	col.procsLock.RLock()
 	procCollector, ok := col.procs[pid]
 	col.procsLock.RUnlock()
@@ -196,7 +196,7 @@ func (col *PsutilProcessCollector) getProcInfo(pid int32, proc *process.Process)
 	return procCollector
 }
 
-func (col *PsutilProcessCollector) addChildren(proc *process.Process, newProcs map[int32]*processInfo) {
+func (col *ProcessCollector) addChildren(proc *process.Process, newProcs map[int32]*processInfo) {
 	children, err := proc.Children()
 	if err == process.ErrorNoChildren {
 		return
@@ -213,7 +213,7 @@ func (col *PsutilProcessCollector) addChildren(proc *process.Process, newProcs m
 	}
 }
 
-func (col *PsutilProcessCollector) newProcess(proc *process.Process) *processInfo {
+func (col *ProcessCollector) newProcess(proc *process.Process) *processInfo {
 	return &processInfo{
 		Process:              proc,
 		cpu:                  col.factory.NewValueRing(),
@@ -230,7 +230,7 @@ func (col *PsutilProcessCollector) newProcess(proc *process.Process) *processInf
 	}
 }
 
-func (col *PsutilProcessCollector) sum(getVal func(*processInfo) bitflow.Value) func() bitflow.Value {
+func (col *ProcessCollector) sum(getVal func(*processInfo) bitflow.Value) func() bitflow.Value {
 	return func() (res bitflow.Value) {
 		col.procsLock.RLock()
 		defer col.procsLock.RUnlock()
@@ -241,7 +241,7 @@ func (col *PsutilProcessCollector) sum(getVal func(*processInfo) bitflow.Value) 
 	}
 }
 
-func (col *PsutilProcessCollector) netIoSum(getVal func(*processInfo) bitflow.Value) func() bitflow.Value {
+func (col *ProcessCollector) netIoSum(getVal func(*processInfo) bitflow.Value) func() bitflow.Value {
 	return func() (res bitflow.Value) {
 		col.procsLock.RLock()
 		defer col.procsLock.RUnlock()
@@ -258,22 +258,22 @@ func (col *PsutilProcessCollector) netIoSum(getVal func(*processInfo) bitflow.Va
 	}
 }
 
-func (col *PsutilProcessCollector) prefix() string {
+func (col *ProcessCollector) prefix() string {
 	return "proc/" + col.groupName
 }
 
 type processSubCollector struct {
 	collector.AbstractCollector
-	parent *PsutilProcessCollector
+	parent *ProcessCollector
 	impl   processSubCollectorImpl
 }
 
 type processSubCollectorImpl interface {
-	metrics(parent *PsutilProcessCollector) collector.MetricReaderMap
+	metrics(parent *ProcessCollector) collector.MetricReaderMap
 	updateProc(info *processInfo) error
 }
 
-func (col *PsutilProcessCollector) Child(name string, impl processSubCollectorImpl) *processSubCollector {
+func (col *ProcessCollector) Child(name string, impl processSubCollectorImpl) *processSubCollector {
 	return &processSubCollector{
 		AbstractCollector: col.AbstractCollector.Child(name),
 		parent:            col,

@@ -3,8 +3,8 @@ package libvirt
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow-collector"
+	log "github.com/sirupsen/logrus"
 )
 
 const LocalUri = "qemu:///system"
@@ -32,7 +32,7 @@ func SshUri(host string, keyFile string) string {
 	return fmt.Sprintf("qemu+ssh://%s/system?no_verify=1%s", host, keyFile)
 }
 
-type LibvirtCollector struct {
+type Collector struct {
 	collector.AbstractCollector
 	connectUri string
 	driver     Driver
@@ -40,8 +40,8 @@ type LibvirtCollector struct {
 	domains    map[string]Domain
 }
 
-func NewLibvirtCollector(uri string, driver Driver, factory *collector.ValueRingFactory) *LibvirtCollector {
-	return &LibvirtCollector{
+func NewLibvirtCollector(uri string, driver Driver, factory *collector.ValueRingFactory) *Collector {
+	return &Collector{
 		AbstractCollector: collector.RootCollector("libvirt"),
 		driver:            driver,
 		connectUri:        uri,
@@ -49,36 +49,36 @@ func NewLibvirtCollector(uri string, driver Driver, factory *collector.ValueRing
 	}
 }
 
-func (col *LibvirtCollector) Init() ([]collector.Collector, error) {
-	col.Close()
-	col.domains = make(map[string]Domain)
-	if err := col.fetchDomains(false); err != nil {
+func (parent *Collector) Init() ([]collector.Collector, error) {
+	parent.Close()
+	parent.domains = make(map[string]Domain)
+	if err := parent.fetchDomains(false); err != nil {
 		return nil, err
 	}
-	res := make([]collector.Collector, 0, len(col.domains))
-	for name, domain := range col.domains {
-		res = append(res, col.newVmCollector(name, domain))
+	res := make([]collector.Collector, 0, len(parent.domains))
+	for name, domain := range parent.domains {
+		res = append(res, parent.newVmCollector(name, domain))
 	}
 	return res, nil
 }
 
-func (col *LibvirtCollector) Update() error {
-	return col.fetchDomains(true)
+func (parent *Collector) Update() error {
+	return parent.fetchDomains(true)
 }
 
-func (col *LibvirtCollector) MetricsChanged() error {
-	return col.Update()
+func (parent *Collector) MetricsChanged() error {
+	return parent.Update()
 }
 
-func (col *LibvirtCollector) fetchDomains(checkChange bool) error {
-	if err := col.driver.Connect(col.connectUri); err != nil {
+func (parent *Collector) fetchDomains(checkChange bool) error {
+	if err := parent.driver.Connect(parent.connectUri); err != nil {
 		return err
 	}
-	domains, err := col.driver.ListDomains()
+	domains, err := parent.driver.ListDomains()
 	if err != nil {
 		return err
 	}
-	if checkChange && len(col.domains) != len(domains) {
+	if checkChange && len(parent.domains) != len(domains) {
 		return collector.MetricsChanged
 	}
 	for _, domain := range domains {
@@ -86,18 +86,18 @@ func (col *LibvirtCollector) fetchDomains(checkChange bool) error {
 			return err
 		} else {
 			if checkChange {
-				if _, ok := col.domains[name]; !ok {
+				if _, ok := parent.domains[name]; !ok {
 					return collector.MetricsChanged
 				}
 			}
-			col.domains[name] = domain
+			parent.domains[name] = domain
 		}
 	}
 	return nil
 }
 
-func (col *LibvirtCollector) Close() {
-	if err := col.driver.Close(); err != nil {
+func (parent *Collector) Close() {
+	if err := parent.driver.Close(); err != nil {
 		log.Errorln("Error closing libvirt connection:", err)
 	}
 }

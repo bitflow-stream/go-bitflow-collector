@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	bitflow "github.com/antongulenko/go-bitflow"
+	"github.com/antongulenko/go-bitflow"
 )
 
 type MetricReader func() bitflow.Value
@@ -145,7 +145,7 @@ func (s MetricSlice) Less(i, j int) bool {
 	return s[i].name < s[j].name
 }
 
-func (s MetricSlice) ConstructSample(source *CollectorSource) ([]string, func() []bitflow.Value) {
+func (s MetricSlice) ConstructSample(source *SampleSource) ([]string, func() []bitflow.Value) {
 	var sampleLock sync.RWMutex // See comment at Metric.sampleLock
 
 	sort.Sort(s)

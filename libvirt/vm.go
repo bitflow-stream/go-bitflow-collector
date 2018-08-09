@@ -10,13 +10,13 @@ import (
 
 type vmCollector struct {
 	collector.AbstractCollector
-	parent        *LibvirtCollector
+	parent        *Collector
 	name          string
 	domain        Domain
 	subCollectors []vmSubCollector
 }
 
-func (parent *LibvirtCollector) newVmCollector(name string, domain Domain) *vmCollector {
+func (parent *Collector) newVmCollector(name string, domain Domain) *vmCollector {
 	return &vmCollector{
 		AbstractCollector: parent.Child(name),
 		parent:            parent,
@@ -80,9 +80,9 @@ func (col *vmSubCollectorImpl) Depends() []collector.Collector {
 func (col *vmSubCollectorImpl) description(xmlDesc *xmlpath.Node) {
 }
 
-func (parent *vmCollector) child(name string) vmSubCollectorImpl {
+func (col *vmCollector) child(name string) vmSubCollectorImpl {
 	return vmSubCollectorImpl{
-		AbstractCollector: parent.Child(name),
-		parent:            parent,
+		AbstractCollector: col.Child(name),
+		parent:            col,
 	}
 }

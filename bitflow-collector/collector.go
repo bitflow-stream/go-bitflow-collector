@@ -91,7 +91,7 @@ func init() {
 		"monitoring of process network IO (/proc/.../net-pcap/...). Defaults to all physical NICs.")
 }
 
-func createCollectorSource(cmd *collector_helpers.CmdDataCollector) *collector.CollectorSource {
+func createCollectorSource(cmd *collector_helpers.CmdDataCollector) *collector.SampleSource {
 	psutil.PcapNics = pcap_nics
 	ringFactory.Length = int(float64(ringFactory.Interval) / float64(collect_local_interval) * 10) // Make sure enough samples can be buffered
 	if ringFactory.Length <= 0 {
@@ -125,7 +125,7 @@ func createCollectorSource(cmd *collector_helpers.CmdDataCollector) *collector.C
 		includeMetricsRegexes = append(includeMetricsRegexes, regex)
 	}
 
-	source := &collector.CollectorSource{
+	source := &collector.SampleSource{
 		RootCollectors:                 cols,
 		UpdateFrequencies:              updateFrequencies,
 		CollectInterval:                collect_local_interval,
@@ -141,7 +141,7 @@ func createCollectorSource(cmd *collector_helpers.CmdDataCollector) *collector.C
 }
 
 type AvailableMetricsApi struct {
-	Source *collector.CollectorSource
+	Source *collector.SampleSource
 }
 
 func (api *AvailableMetricsApi) Register(rootPath string, router *mux.Router) {

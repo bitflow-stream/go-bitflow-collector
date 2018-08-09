@@ -8,18 +8,18 @@ import (
 	"github.com/shirou/gopsutil/mem"
 )
 
-type PsutilMemCollector struct {
+type MemCollector struct {
 	collector.AbstractCollector
 	memory mem.VirtualMemoryStat
 }
 
-func newMemCollector(root *PsutilRootCollector) *PsutilMemCollector {
-	return &PsutilMemCollector{
+func newMemCollector(root *RootCollector) *MemCollector {
+	return &MemCollector{
 		AbstractCollector: root.Child("mem"),
 	}
 }
 
-func (col *PsutilMemCollector) Update() error {
+func (col *MemCollector) Update() error {
 	memory, err := mem.VirtualMemory()
 	if err != nil || memory == nil {
 		col.memory = mem.VirtualMemoryStat{}
@@ -29,7 +29,7 @@ func (col *PsutilMemCollector) Update() error {
 	return err
 }
 
-func (col *PsutilMemCollector) Metrics() collector.MetricReaderMap {
+func (col *MemCollector) Metrics() collector.MetricReaderMap {
 	return collector.MetricReaderMap{
 		"mem/free":    col.readFreeMem,
 		"mem/used":    col.readUsedMem,
@@ -37,15 +37,15 @@ func (col *PsutilMemCollector) Metrics() collector.MetricReaderMap {
 	}
 }
 
-func (col *PsutilMemCollector) readFreeMem() bitflow.Value {
+func (col *MemCollector) readFreeMem() bitflow.Value {
 	return bitflow.Value(col.memory.Available)
 }
 
-func (col *PsutilMemCollector) readUsedMem() bitflow.Value {
+func (col *MemCollector) readUsedMem() bitflow.Value {
 	return bitflow.Value(col.memory.Used)
 }
 
-func (col *PsutilMemCollector) readUsedPercentMem() bitflow.Value {
+func (col *MemCollector) readUsedPercentMem() bitflow.Value {
 	return bitflow.Value(col.memory.UsedPercent)
 }
 

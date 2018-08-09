@@ -14,18 +14,18 @@ const (
 	diskUsageAll    = "all"
 )
 
-type PsutilDiskUsageCollector struct {
+type DiskUsageCollector struct {
 	collector.AbstractCollector
 	partitions map[string]*diskUsageCollector
 }
 
-func newDiskUsageCollector(root *PsutilRootCollector) *PsutilDiskUsageCollector {
-	return &PsutilDiskUsageCollector{
+func newDiskUsageCollector(root *RootCollector) *DiskUsageCollector {
+	return &DiskUsageCollector{
 		AbstractCollector: root.Child("disk-usage"),
 	}
 }
 
-func (col *PsutilDiskUsageCollector) Init() ([]collector.Collector, error) {
+func (col *DiskUsageCollector) Init() ([]collector.Collector, error) {
 	col.partitions = make(map[string]*diskUsageCollector)
 
 	partitions, err := col.getAllPartitions()
@@ -49,7 +49,7 @@ func (col *PsutilDiskUsageCollector) Init() ([]collector.Collector, error) {
 	return result, nil
 }
 
-func (col *PsutilDiskUsageCollector) Update() error {
+func (col *DiskUsageCollector) Update() error {
 	partitions, err := disk.Partitions(false)
 	if err != nil {
 		return err
@@ -68,11 +68,11 @@ func (col *PsutilDiskUsageCollector) Update() error {
 	return nil
 }
 
-func (col *PsutilDiskUsageCollector) MetricsChanged() error {
+func (col *DiskUsageCollector) MetricsChanged() error {
 	return col.Update()
 }
 
-func (col *PsutilDiskUsageCollector) getAllPartitions() (map[string]string, error) {
+func (col *DiskUsageCollector) getAllPartitions() (map[string]string, error) {
 	partitions, err := disk.Partitions(false)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (col *PsutilDiskUsageCollector) getAllPartitions() (map[string]string, erro
 }
 
 // should return a system-wide unique name
-func (col *PsutilDiskUsageCollector) partitionName(partition disk.PartitionStat) string {
+func (col *DiskUsageCollector) partitionName(partition disk.PartitionStat) string {
 	dev := partition.Device
 	lastSpace := strings.LastIndex(dev, "/")
 	if lastSpace >= 0 {
@@ -96,7 +96,7 @@ func (col *PsutilDiskUsageCollector) partitionName(partition disk.PartitionStat)
 
 type diskUsageCollector struct {
 	collector.AbstractCollector
-	parent     *PsutilDiskUsageCollector
+	parent     *DiskUsageCollector
 	mountPoint string
 	stats      disk.UsageStat
 }
@@ -134,7 +134,7 @@ func (col *diskUsageCollector) readPercent() bitflow.Value {
 
 type allDiskUsageCollector struct {
 	collector.AbstractCollector
-	parent *PsutilDiskUsageCollector
+	parent *DiskUsageCollector
 }
 
 func (col *allDiskUsageCollector) Depends() []collector.Collector {

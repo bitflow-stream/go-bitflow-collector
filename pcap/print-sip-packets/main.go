@@ -15,8 +15,6 @@ import (
 	"github.com/google/gopacket"
 )
 
-const snaplen = int32(65535)
-
 func main() {
 	bitflow.RegisterGolibFlags()
 	filename := flag.String("f", "", "PCAP file to parse")

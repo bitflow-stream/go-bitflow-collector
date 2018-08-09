@@ -15,7 +15,7 @@ import (
 type processCpuCollector struct {
 }
 
-func (col *processCpuCollector) metrics(parent *PsutilProcessCollector) collector.MetricReaderMap {
+func (col *processCpuCollector) metrics(parent *ProcessCollector) collector.MetricReaderMap {
 	return collector.MetricReaderMap{
 		parent.prefix() + "/cpu": parent.sum(
 			func(proc *processInfo) bitflow.Value {
@@ -37,7 +37,7 @@ func (col *processCpuCollector) updateProc(info *processInfo) error {
 type processDiskCollector struct {
 }
 
-func (col *processDiskCollector) metrics(parent *PsutilProcessCollector) collector.MetricReaderMap {
+func (col *processDiskCollector) metrics(parent *ProcessCollector) collector.MetricReaderMap {
 	prefix := parent.prefix()
 	return collector.MetricReaderMap{
 		prefix + "/disk/read": parent.sum(
@@ -84,7 +84,7 @@ func (col *processDiskCollector) updateProc(info *processInfo) error {
 type processMemoryCollector struct {
 }
 
-func (col *processMemoryCollector) metrics(parent *PsutilProcessCollector) collector.MetricReaderMap {
+func (col *processMemoryCollector) metrics(parent *ProcessCollector) collector.MetricReaderMap {
 	prefix := parent.prefix()
 	return collector.MetricReaderMap{
 		prefix + "/mem/rss": parent.sum(
@@ -117,7 +117,7 @@ func (col *processMemoryCollector) updateProc(info *processInfo) error {
 type processNetCollector struct {
 }
 
-func (col *processNetCollector) metrics(parent *PsutilProcessCollector) collector.MetricReaderMap {
+func (col *processNetCollector) metrics(parent *ProcessCollector) collector.MetricReaderMap {
 	prefix := parent.prefix()
 	return collector.MetricReaderMap{
 		prefix + "/net-io/bytes": parent.netIoSum(
@@ -171,7 +171,7 @@ func (col *processNetCollector) updateProc(info *processInfo) error {
 type processFdCollector struct {
 }
 
-func (col *processFdCollector) metrics(parent *PsutilProcessCollector) collector.MetricReaderMap {
+func (col *processFdCollector) metrics(parent *ProcessCollector) collector.MetricReaderMap {
 	return collector.MetricReaderMap{
 		parent.prefix() + "/fds": parent.sum(
 			func(proc *processInfo) bitflow.Value {
@@ -207,7 +207,7 @@ func (col *processFdCollector) procNumFds(info *processInfo) (int32, error) {
 type processMiscCollector struct {
 }
 
-func (col *processMiscCollector) metrics(parent *PsutilProcessCollector) collector.MetricReaderMap {
+func (col *processMiscCollector) metrics(parent *ProcessCollector) collector.MetricReaderMap {
 	prefix := parent.prefix()
 	return collector.MetricReaderMap{
 		prefix + "/threads": parent.sum(

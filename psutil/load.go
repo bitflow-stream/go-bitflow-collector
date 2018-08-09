@@ -8,19 +8,19 @@ import (
 	"github.com/shirou/gopsutil/load"
 )
 
-type PsutilLoadCollector struct {
+type LoadCollector struct {
 	collector.AbstractCollector
 	load     load.AvgStat
 	loadLock sync.RWMutex
 }
 
-func newLoadCollector(root *PsutilRootCollector) *PsutilLoadCollector {
-	return &PsutilLoadCollector{
+func newLoadCollector(root *RootCollector) *LoadCollector {
+	return &LoadCollector{
 		AbstractCollector: root.Child("load"),
 	}
 }
 
-func (col *PsutilLoadCollector) Metrics() collector.MetricReaderMap {
+func (col *LoadCollector) Metrics() collector.MetricReaderMap {
 	return collector.MetricReaderMap{
 		"load/1":  col.readLoad1,
 		"load/5":  col.readLoad5,
@@ -28,7 +28,7 @@ func (col *PsutilLoadCollector) Metrics() collector.MetricReaderMap {
 	}
 }
 
-func (col *PsutilLoadCollector) Update() error {
+func (col *LoadCollector) Update() error {
 	loadAvg, err := load.Avg()
 
 	col.loadLock.Lock()
@@ -41,20 +41,20 @@ func (col *PsutilLoadCollector) Update() error {
 	return err
 }
 
-func (col *PsutilLoadCollector) getLoad() load.AvgStat {
+func (col *LoadCollector) getLoad() load.AvgStat {
 	col.loadLock.Lock()
 	defer col.loadLock.Unlock()
 	return col.load
 }
 
-func (col *PsutilLoadCollector) readLoad1() bitflow.Value {
+func (col *LoadCollector) readLoad1() bitflow.Value {
 	return bitflow.Value(col.getLoad().Load1)
 }
 
-func (col *PsutilLoadCollector) readLoad5() bitflow.Value {
+func (col *LoadCollector) readLoad5() bitflow.Value {
 	return bitflow.Value(col.getLoad().Load5)
 }
 
-func (col *PsutilLoadCollector) readLoad15() bitflow.Value {
+func (col *LoadCollector) readLoad15() bitflow.Value {
 	return bitflow.Value(col.getLoad().Load15)
 }

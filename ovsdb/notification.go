@@ -3,7 +3,7 @@ package ovsdb
 import "github.com/socketplane/libovsdb"
 
 type ovsdbNotifier struct {
-	col *OvsdbCollector
+	col *Collector
 }
 
 func (n *ovsdbNotifier) Update(_ interface{}, tableUpdates libovsdb.TableUpdates) {

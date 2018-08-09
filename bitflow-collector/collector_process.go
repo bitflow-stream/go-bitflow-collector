@@ -38,7 +38,7 @@ func createProcessCollectors(cmd *collector_helpers.CmdDataCollector) []collecto
 }
 
 type MonitorProcessesRestApi struct {
-	procs *psutil.PsutilMultiProcessCollector
+	procs *psutil.MultiProcessCollector
 	lock  sync.Mutex
 
 	proc_collectors          golib.KeyValueStringSlice
@@ -73,8 +73,8 @@ func (api *MonitorProcessesRestApi) updateCollectors() error {
 	return nil
 }
 
-func (api *MonitorProcessesRestApi) createCollectors(parameters golib.KeyValueStringSlice, includeChildren bool) ([]psutil.PsutilProcessCollectorDescription, error) {
-	res := make([]psutil.PsutilProcessCollectorDescription, 0, len(parameters.Keys))
+func (api *MonitorProcessesRestApi) createCollectors(parameters golib.KeyValueStringSlice, includeChildren bool) ([]psutil.ProcessCollectorDescription, error) {
+	res := make([]psutil.ProcessCollectorDescription, 0, len(parameters.Keys))
 	if len(parameters.Keys) > 0 {
 		regexes := make(map[string][]*regexp.Regexp)
 		for key, value := range parameters.Map() {
@@ -85,7 +85,7 @@ func (api *MonitorProcessesRestApi) createCollectors(parameters golib.KeyValueSt
 			regexes[key] = append(regexes[key], regex)
 		}
 		for key, list := range regexes {
-			desc := psutil.PsutilProcessCollectorDescription{key, list, api.proc_show_errors, includeChildren}
+			desc := psutil.ProcessCollectorDescription{key, list, api.proc_show_errors, includeChildren}
 			res = append(res, desc)
 		}
 	}

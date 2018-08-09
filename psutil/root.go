@@ -2,23 +2,23 @@ package psutil
 
 import "github.com/antongulenko/go-bitflow-collector"
 
-type PsutilRootCollector struct {
+type RootCollector struct {
 	collector.AbstractCollector
 
 	Factory *collector.ValueRingFactory
 
-	pids      *PsutilPidCollector
-	cpu       *PsutilCpuCollector
-	mem       *PsutilMemCollector
-	load      *PsutilLoadCollector
-	net       *PsutilNetCollector
-	netProto  *PsutilNetProtoCollector
-	diskIo    *PsutilDiskIOCollector
-	diskUsage *PsutilDiskUsageCollector
+	pids      *PidCollector
+	cpu       *CpuCollector
+	mem       *MemCollector
+	load      *LoadCollector
+	net       *NetCollector
+	netProto  *NetProtoCollector
+	diskIo    *DiskIOCollector
+	diskUsage *DiskUsageCollector
 }
 
-func NewPsutilRootCollector(factory *collector.ValueRingFactory) *PsutilRootCollector {
-	col := &PsutilRootCollector{
+func NewPsutilRootCollector(factory *collector.ValueRingFactory) *RootCollector {
+	col := &RootCollector{
 		AbstractCollector: collector.RootCollector("psutil"),
 		Factory:           factory,
 	}
@@ -34,7 +34,7 @@ func NewPsutilRootCollector(factory *collector.ValueRingFactory) *PsutilRootColl
 	return col
 }
 
-func (col *PsutilRootCollector) Init() ([]collector.Collector, error) {
+func (col *RootCollector) Init() ([]collector.Collector, error) {
 	return []collector.Collector{
 		col.pids,
 		col.cpu,

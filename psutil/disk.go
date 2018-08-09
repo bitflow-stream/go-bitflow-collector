@@ -12,20 +12,20 @@ import (
 // TODO very platform specific
 var physicalDiskRegex = regexp.MustCompile("^[sSvV][dD][a-zA-Z]$")
 
-type PsutilDiskIOCollector struct {
+type DiskIOCollector struct {
 	collector.AbstractCollector
 	factory *collector.ValueRingFactory
 	disks   map[string]disk.IOCountersStat
 }
 
-func newDiskIoCollector(root *PsutilRootCollector) *PsutilDiskIOCollector {
-	return &PsutilDiskIOCollector{
+func newDiskIoCollector(root *RootCollector) *DiskIOCollector {
+	return &DiskIOCollector{
 		AbstractCollector: root.Child("disk"),
 		factory:           root.Factory,
 	}
 }
 
-func (col *PsutilDiskIOCollector) Init() ([]collector.Collector, error) {
+func (col *DiskIOCollector) Init() ([]collector.Collector, error) {
 	col.disks = make(map[string]disk.IOCountersStat)
 	if err := col.update(false); err != nil {
 		return nil, err
@@ -43,15 +43,15 @@ func (col *PsutilDiskIOCollector) Init() ([]collector.Collector, error) {
 	return res, nil
 }
 
-func (col *PsutilDiskIOCollector) Update() error {
+func (col *DiskIOCollector) Update() error {
 	return col.update(true)
 }
 
-func (col *PsutilDiskIOCollector) MetricsChanged() error {
+func (col *DiskIOCollector) MetricsChanged() error {
 	return col.Update()
 }
 
-func (col *PsutilDiskIOCollector) newChild(name string, disks []string) *ioDiskCollector {
+func (col *DiskIOCollector) newChild(name string, disks []string) *ioDiskCollector {
 	return &ioDiskCollector{
 		AbstractCollector: col.Child(name),
 		parent:            col,
@@ -69,7 +69,7 @@ func (col *PsutilDiskIOCollector) newChild(name string, disks []string) *ioDiskC
 	}
 }
 
-func (col *PsutilDiskIOCollector) update(checkChange bool) error {
+func (col *DiskIOCollector) update(checkChange bool) error {
 	disks, err := disk.IOCounters()
 	if err != nil {
 		return err
@@ -88,13 +88,13 @@ func (col *PsutilDiskIOCollector) update(checkChange bool) error {
 	return nil
 }
 
-func (*PsutilDiskIOCollector) isPhysicalDisk(name string) bool {
+func (col *DiskIOCollector) isPhysicalDisk(name string) bool {
 	return physicalDiskRegex.MatchString(name)
 }
 
 type ioDiskCollector struct {
 	collector.AbstractCollector
-	parent *PsutilDiskIOCollector
+	parent *DiskIOCollector
 	disks  []string
 
 	readRing       *collector.ValueRing

@@ -5,11 +5,11 @@ import (
 	"io"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
 	"github.com/antongulenko/go-bitflow-collector/pcap/pcap_impl"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -60,7 +60,7 @@ type processPcapCollector struct {
 	processSubCollector
 }
 
-func (col *PsutilProcessCollector) newProcessPcapCollector() *processPcapCollector {
+func (col *ProcessCollector) newProcessPcapCollector() *processPcapCollector {
 	result := new(processPcapCollector)
 	sub := processSubCollector{
 		AbstractCollector: col.AbstractCollector.Child("pcap"),
@@ -81,7 +81,7 @@ func (col *processPcapCollector) Depends() []collector.Collector {
 	return res
 }
 
-func (col *processPcapCollector) metrics(parent *PsutilProcessCollector) collector.MetricReaderMap {
+func (col *processPcapCollector) metrics(parent *ProcessCollector) collector.MetricReaderMap {
 	prefix := parent.prefix()
 	return collector.MetricReaderMap{
 		prefix + "/net-pcap/bytes": parent.sum(func(proc *processInfo) bitflow.Value {

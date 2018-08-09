@@ -7,11 +7,11 @@ import (
 
 type ovsdbInterfaceCollector struct {
 	collector.AbstractCollector
-	parent   *OvsdbCollector
+	parent   *Collector
 	counters psutil.NetIoCounters
 }
 
-func (parent *OvsdbCollector) newCollector(name string) *ovsdbInterfaceCollector {
+func (parent *Collector) newCollector(name string) *ovsdbInterfaceCollector {
 	return &ovsdbInterfaceCollector{
 		AbstractCollector: parent.Child(name),
 		parent:            parent,

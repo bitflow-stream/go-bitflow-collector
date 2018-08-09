@@ -6,19 +6,19 @@ import (
 	"os/exec"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/gonum/graph"
 	"github.com/gonum/graph/encoding/dot"
 	"github.com/gonum/graph/simple"
+	log "github.com/sirupsen/logrus"
 )
 
-func (graph *collectorGraph) WriteGraphPNG(filename string) error {
-	dotData, err := dot.Marshal(graph, "Collectors", "", "", false)
+func (g *collectorGraph) WriteGraphPNG(filename string) error {
+	dotData, err := dot.Marshal(g, "Collectors", "", "", false)
 	if err != nil {
 		return err
 	}
 
-	log.Debugln("Writing PNG-representation of collector-graph to", filename)
+	log.Debugln("Writing PNG-representation of collector-g to", filename)
 	cmd := exec.Command("dot", "-Tpng", "-o", filename)
 	pipe, err := cmd.StdinPipe()
 	if err != nil {
@@ -41,22 +41,22 @@ func (graph *collectorGraph) WriteGraphPNG(filename string) error {
 	return err
 }
 
-func (graph *collectorGraph) WriteGraphDOT(filename string) error {
-	dotData, err := dot.Marshal(graph, "Collectors", "", "", false)
+func (g *collectorGraph) WriteGraphDOT(filename string) error {
+	dotData, err := dot.Marshal(g, "Collectors", "", "", false)
 	if err != nil {
 		return err
 	}
 
-	log.Debugln("Writing dot-representation of collector-graph to", filename)
+	log.Debugln("Writing dot-representation of collector-g to", filename)
 	return ioutil.WriteFile(filename, dotData, 0644)
 }
 
 // =========================== Implementation of github.com/gonum/graph.Directed and Undirected interfaces ===========================
 
-func (graph *collectorGraph) Has(graphNode graph.Node) bool {
+func (g *collectorGraph) Has(graphNode graph.Node) bool {
 	node, ok := graphNode.(*collectorNode)
 	if ok {
-		_, ok = graph.nodes[node]
+		_, ok = g.nodes[node]
 	}
 	return ok
 }

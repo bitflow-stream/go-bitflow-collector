@@ -7,21 +7,21 @@ import (
 	psnet "github.com/shirou/gopsutil/net"
 )
 
-type PsutilNetCollector struct {
+type NetCollector struct {
 	collector.AbstractCollector
 
 	factory  *collector.ValueRingFactory
 	counters map[string]psnet.IOCountersStat
 }
 
-func newNetCollector(root *PsutilRootCollector) *PsutilNetCollector {
-	return &PsutilNetCollector{
+func newNetCollector(root *RootCollector) *NetCollector {
+	return &NetCollector{
 		AbstractCollector: collector.RootCollector("net-io"),
 		factory:           root.Factory,
 	}
 }
 
-func (col *PsutilNetCollector) Init() ([]collector.Collector, error) {
+func (col *NetCollector) Init() ([]collector.Collector, error) {
 	col.counters = make(map[string]psnet.IOCountersStat)
 	if err := col.update(false); err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (col *PsutilNetCollector) Init() ([]collector.Collector, error) {
 	return readers, nil
 }
 
-func (col *PsutilNetCollector) newChild(collectorName string, nicName string) collector.Collector {
+func (col *NetCollector) newChild(collectorName string, nicName string) collector.Collector {
 	return &psutilNetInterfaceCollector{
 		AbstractCollector: col.Child(collectorName),
 		parent:            col,
@@ -44,15 +44,15 @@ func (col *PsutilNetCollector) newChild(collectorName string, nicName string) co
 	}
 }
 
-func (col *PsutilNetCollector) MetricsChanged() error {
+func (col *NetCollector) MetricsChanged() error {
 	return col.Update()
 }
 
-func (col *PsutilNetCollector) Update() error {
+func (col *NetCollector) Update() error {
 	return col.update(true)
 }
 
-func (col *PsutilNetCollector) update(checkChange bool) error {
+func (col *NetCollector) update(checkChange bool) error {
 	nicsList, err := psnet.IOCounters(true)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func (col *PsutilNetCollector) update(checkChange bool) error {
 
 type psutilNetInterfaceCollector struct {
 	collector.AbstractCollector
-	parent   *PsutilNetCollector
+	parent   *NetCollector
 	counters NetIoCounters
 	nicName  string
 }

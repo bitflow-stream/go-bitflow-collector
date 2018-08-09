@@ -22,7 +22,7 @@ var absoluteNetProtoValues = map[string]bool{
 	"Forwarding":   true,
 }
 
-type PsutilNetProtoCollector struct {
+type NetProtoCollector struct {
 	collector.AbstractCollector
 	factory *collector.ValueRingFactory
 
@@ -30,14 +30,14 @@ type PsutilNetProtoCollector struct {
 	protoReaders []*protoStatReader
 }
 
-func newNetProtoCollector(root *PsutilRootCollector) *PsutilNetProtoCollector {
-	return &PsutilNetProtoCollector{
+func newNetProtoCollector(root *RootCollector) *NetProtoCollector {
+	return &NetProtoCollector{
 		AbstractCollector: root.Child("net-proto"),
 		factory:           root.Factory,
 	}
 }
 
-func (col *PsutilNetProtoCollector) Init() ([]collector.Collector, error) {
+func (col *NetProtoCollector) Init() ([]collector.Collector, error) {
 	col.protocols = make(map[string]psnet.ProtoCountersStat)
 	col.protoReaders = nil
 
@@ -62,7 +62,7 @@ func (col *PsutilNetProtoCollector) Init() ([]collector.Collector, error) {
 	return nil, nil
 }
 
-func (col *PsutilNetProtoCollector) Metrics() collector.MetricReaderMap {
+func (col *NetProtoCollector) Metrics() collector.MetricReaderMap {
 	res := make(collector.MetricReaderMap)
 	for _, reader := range col.protoReaders {
 		name := "net-proto/" + reader.protocol + "/" + reader.field
@@ -71,7 +71,7 @@ func (col *PsutilNetProtoCollector) Metrics() collector.MetricReaderMap {
 	return res
 }
 
-func (col *PsutilNetProtoCollector) update(checkChange bool) error {
+func (col *NetProtoCollector) update(checkChange bool) error {
 	counters, err := psnet.ProtoCounters(nil)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (col *PsutilNetProtoCollector) update(checkChange bool) error {
 	return nil
 }
 
-func (col *PsutilNetProtoCollector) Update() (err error) {
+func (col *NetProtoCollector) Update() (err error) {
 	if err = col.update(true); err == nil {
 		for _, protoReader := range col.protoReaders {
 			if err := protoReader.update(); err != nil {
@@ -102,12 +102,12 @@ func (col *PsutilNetProtoCollector) Update() (err error) {
 	return
 }
 
-func (col *PsutilNetProtoCollector) MetricsChanged() error {
+func (col *NetProtoCollector) MetricsChanged() error {
 	return col.Update()
 }
 
 type protoStatReader struct {
-	col      *PsutilNetProtoCollector
+	col      *NetProtoCollector
 	protocol string
 	field    string
 
@@ -126,10 +126,10 @@ func (reader *protoStatReader) update() error {
 			}
 			return nil
 		} else {
-			return fmt.Errorf("Counter %v not found in protocol %v in PsutilNetProtoCollector", reader.field, reader.protocol)
+			return fmt.Errorf("Counter %v not found in protocol %v in NetProtoCollector", reader.field, reader.protocol)
 		}
 	} else {
-		return fmt.Errorf("Protocol %v not found in PsutilNetProtoCollector", reader.protocol)
+		return fmt.Errorf("Protocol %v not found in NetProtoCollector", reader.protocol)
 	}
 }
 

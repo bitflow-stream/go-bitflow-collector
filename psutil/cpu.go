@@ -10,31 +10,31 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type PsutilCpuCollector struct {
+type CpuCollector struct {
 	collector.AbstractCollector
 	factory *collector.ValueRingFactory
 	ring    *collector.ValueRing
 }
 
-func newCpuCollector(root *PsutilRootCollector) *PsutilCpuCollector {
-	return &PsutilCpuCollector{
+func newCpuCollector(root *RootCollector) *CpuCollector {
+	return &CpuCollector{
 		AbstractCollector: root.Child("cpu"),
 		factory:           root.Factory,
 	}
 }
 
-func (col *PsutilCpuCollector) Init() ([]collector.Collector, error) {
+func (col *CpuCollector) Init() ([]collector.Collector, error) {
 	col.ring = col.factory.NewValueRing()
 	return nil, nil
 }
 
-func (col *PsutilCpuCollector) Metrics() collector.MetricReaderMap {
+func (col *CpuCollector) Metrics() collector.MetricReaderMap {
 	return collector.MetricReaderMap{
 		"cpu": col.ring.GetDiff,
 	}
 }
 
-func (col *PsutilCpuCollector) Update() (err error) {
+func (col *CpuCollector) Update() (err error) {
 	times, err := cpu.Times(false)
 	if err == nil {
 		if len(times) != 1 {
@@ -98,7 +98,7 @@ func (t *cpuTime) AddValue(incoming collector.LogbackValue) collector.LogbackVal
 	}
 }
 
-func (val *cpuTime) GetValue() bitflow.Value {
-	_, busy := val.getAllBusy()
+func (t *cpuTime) GetValue() bitflow.Value {
+	_, busy := t.getAllBusy()
 	return bitflow.Value(busy)
 }

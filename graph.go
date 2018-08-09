@@ -43,66 +43,66 @@ func initCollectorGraph(collectors []Collector) (*collectorGraph, error) {
 	return g, nil
 }
 
-func (graph *collectorGraph) initNodes(collectors []Collector) {
+func (g *collectorGraph) initNodes(collectors []Collector) {
 	for _, col := range collectors {
-		graph.initNode(col)
+		g.initNode(col)
 	}
 }
 
-func (graph *collectorGraph) initNode(col Collector) {
-	if _, ok := graph.collectors[col]; ok {
+func (g *collectorGraph) initNode(col Collector) {
+	if _, ok := g.collectors[col]; ok {
 		// This collector has already been added
 		return
 	}
-	node := newCollectorNode(col, graph)
-	graph.collectors[col] = node
+	node := newCollectorNode(col, g)
+	g.collectors[col] = node
 
-	graph.nodes[node] = true
+	g.nodes[node] = true
 	children, err := node.init()
 	if err == nil {
-		graph.initNodes(children)
+		g.initNodes(children)
 	} else {
-		graph.collectorFailed(node)
+		g.collectorFailed(node)
 		log.Warnf("Collector %v failed: %v", node, err)
 	}
 }
 
-func (graph *collectorGraph) deleteCollector(node *collectorNode) {
-	delete(graph.nodes, node)
-	delete(graph.filtered, node)
-	delete(graph.failed, node)
-	// Keep the collector in the graph.collectors map in case it needs to be
+func (g *collectorGraph) deleteCollector(node *collectorNode) {
+	delete(g.nodes, node)
+	delete(g.filtered, node)
+	delete(g.failed, node)
+	// Keep the collector in the g.collectors map in case it needs to be
 	// accessed through resolve()
 }
 
-func (graph *collectorGraph) collectorFailed(node *collectorNode) {
-	delete(graph.nodes, node)
-	delete(graph.filtered, node)
-	if !graph.failed[node] {
-		graph.failed[node] = true
-		graph.failedList = append(graph.failedList, node)
+func (g *collectorGraph) collectorFailed(node *collectorNode) {
+	delete(g.nodes, node)
+	delete(g.filtered, node)
+	if !g.failed[node] {
+		g.failed[node] = true
+		g.failedList = append(g.failedList, node)
 	}
 }
 
-func (graph *collectorGraph) collectorFiltered(node *collectorNode) {
-	if !graph.failed[node] {
-		delete(graph.nodes, node)
-		graph.filtered[node] = true
+func (g *collectorGraph) collectorFiltered(node *collectorNode) {
+	if !g.failed[node] {
+		delete(g.nodes, node)
+		g.filtered[node] = true
 	}
 }
 
-func (graph *collectorGraph) collectorUpdateFailed(node *collectorNode) {
+func (g *collectorGraph) collectorUpdateFailed(node *collectorNode) {
 	// This means the collector Init() method was successful, but then Update() returned errors too many times.
-	graph.modificationLock.Lock()
-	defer graph.modificationLock.Unlock()
-	graph.collectorFailed(node)
-	graph.pruneAndRepair()
+	g.modificationLock.Lock()
+	defer g.modificationLock.Unlock()
+	g.collectorFailed(node)
+	g.pruneAndRepair()
 }
 
-func (graph *collectorGraph) checkMissingDependencies() error {
-	for node := range graph.nodes {
+func (g *collectorGraph) checkMissingDependencies() error {
+	for node := range g.nodes {
 		for _, depends := range node.collector.Depends() {
-			if _, ok := graph.collectors[depends]; !ok {
+			if _, ok := g.collectors[depends]; !ok {
 				// All collectors (including those from Depends() methods) must be returned by a call to Init()
 				return fmt.Errorf("Collector %v depends on a missing collector: %v", node, depends)
 			}
@@ -111,28 +111,28 @@ func (graph *collectorGraph) checkMissingDependencies() error {
 	return nil
 }
 
-func (graph *collectorGraph) applyMetricFilters(exclude []*regexp.Regexp, include []*regexp.Regexp) {
-	for node := range graph.nodes {
+func (g *collectorGraph) applyMetricFilters(exclude []*regexp.Regexp, include []*regexp.Regexp) {
+	for node := range g.nodes {
 		node.applyMetricFilters(exclude, include)
 	}
 }
 
-func (graph *collectorGraph) applyCollectorFilters(deleteNames []string) {
-	for node := range graph.nodes {
+func (g *collectorGraph) applyCollectorFilters(deleteNames []string) {
+	for node := range g.nodes {
 		for _, deleteName := range deleteNames {
 			if deleteName == node.String() {
 				log.Debugln("Disabling collector", deleteName)
-				graph.deleteCollector(node)
+				g.deleteCollector(node)
 				break
 			}
 		}
 	}
 }
 
-func (graph *collectorGraph) applyUpdateFrequencies(frequencies map[*regexp.Regexp]time.Duration) {
+func (g *collectorGraph) applyUpdateFrequencies(frequencies map[*regexp.Regexp]time.Duration) {
 	for regex, freq := range frequencies {
 		count := 0
-		for node := range graph.nodes {
+		for node := range g.nodes {
 			if regex.MatchString(node.String()) {
 				node.UpdateFrequency = freq
 				count++
@@ -142,32 +142,32 @@ func (graph *collectorGraph) applyUpdateFrequencies(frequencies map[*regexp.Rege
 	}
 }
 
-func (graph *collectorGraph) dependsOnFailedOrFiltered(node *collectorNode) bool {
+func (g *collectorGraph) dependsOnFailedOrFiltered(node *collectorNode) bool {
 	for _, dependencyCol := range node.collector.Depends() {
-		dependency := graph.resolve(dependencyCol)
-		if !graph.nodes[dependency] {
+		dependency := g.resolve(dependencyCol)
+		if !g.nodes[dependency] {
 			return true
 		}
 	}
 	return false
 }
 
-func (graph *collectorGraph) pruneAndRepair() {
-	// Obtain topological order of graph
-	sorted := sortGraph(graph)
+func (g *collectorGraph) pruneAndRepair() {
+	// Obtain topological order of g
+	sorted := sortGraph(g)
 
 	// Walk "root" nodes first: delete nodes with failed dependencies
-	// Since we walk the sorted graph, all transitive dependencies will be deleted as well
+	// Since we walk the sorted g, all transitive dependencies will be deleted as well
 	for i, node := range sorted {
-		if graph.dependsOnFailedOrFiltered(node) {
+		if g.dependsOnFailedOrFiltered(node) {
 			log.Warnln("Deleting collector", node, "because of a failed/filtered dependency")
-			graph.deleteCollector(node)
+			g.deleteCollector(node)
 			sorted[i] = nil
 		}
 	}
 
 	// Walk "leaf" nodes first
-	incoming := graph.reverseDependencies()
+	incoming := g.reverseDependencies()
 	for i := len(sorted) - 1; i >= 0; i-- {
 		if sorted[i] == nil {
 			continue
@@ -175,7 +175,7 @@ func (graph *collectorGraph) pruneAndRepair() {
 		node := sorted[i]
 		if len(node.metrics) == 0 && len(incoming[node]) == 0 {
 			// Nothing depends on this node, and it does not have any metrics
-			graph.collectorFiltered(node)
+			g.collectorFiltered(node)
 			for _, dependencySet := range incoming {
 				delete(dependencySet, node)
 			}
@@ -184,11 +184,11 @@ func (graph *collectorGraph) pruneAndRepair() {
 }
 
 // For every node, collect the set of nodes that depend on that node
-func (graph *collectorGraph) reverseDependencies() map[*collectorNode]map[*collectorNode]bool {
+func (g *collectorGraph) reverseDependencies() map[*collectorNode]map[*collectorNode]bool {
 	incoming := make(map[*collectorNode]map[*collectorNode]bool)
-	for node := range graph.nodes {
+	for node := range g.nodes {
 		for _, depends := range node.collector.Depends() {
-			dependsNode := graph.resolve(depends)
+			dependsNode := g.resolve(depends)
 			m, ok := incoming[dependsNode]
 			if !ok {
 				m = make(map[*collectorNode]bool)
@@ -200,9 +200,9 @@ func (graph *collectorGraph) reverseDependencies() map[*collectorNode]map[*colle
 	return incoming
 }
 
-func (graph *collectorGraph) dependingOn(target *collectorNode) []*collectorNode {
+func (g *collectorGraph) dependingOn(target *collectorNode) []*collectorNode {
 	var nodes []*collectorNode
-	for node := range graph.nodes {
+	for node := range g.nodes {
 		for _, depends := range node.collector.Depends() {
 			if depends == target.collector {
 				nodes = append(nodes, node)
@@ -212,9 +212,9 @@ func (graph *collectorGraph) dependingOn(target *collectorNode) []*collectorNode
 	return nodes
 }
 
-func (graph *collectorGraph) listMetricNames() []string {
+func (g *collectorGraph) listMetricNames() []string {
 	metrics := make(map[string]bool)
-	graph.fillMetricNames(metrics)
+	g.fillMetricNames(metrics)
 	res := make([]string, 0, len(metrics))
 	for metric := range metrics {
 		res = append(res, metric)
@@ -222,8 +222,8 @@ func (graph *collectorGraph) listMetricNames() []string {
 	return res
 }
 
-func (graph *collectorGraph) fillMetricNames(all map[string]bool) {
-	for node := range graph.nodes {
+func (g *collectorGraph) fillMetricNames(all map[string]bool) {
+	for node := range g.nodes {
 		for metric := range node.metrics {
 			if _, ok := all[metric]; ok {
 				log.Errorln("Metric", metric, "is delivered by multiple collectors!")
@@ -233,8 +233,8 @@ func (graph *collectorGraph) fillMetricNames(all map[string]bool) {
 	}
 }
 
-func (graph *collectorGraph) getMetrics() (res MetricSlice) {
-	for node := range graph.nodes {
+func (g *collectorGraph) getMetrics() (res MetricSlice) {
+	for node := range g.nodes {
 		for name, reader := range node.metrics {
 			res = append(res, &Metric{
 				name:   name,
@@ -245,8 +245,8 @@ func (graph *collectorGraph) getMetrics() (res MetricSlice) {
 	return
 }
 
-func (graph *collectorGraph) resolve(col Collector) *collectorNode {
-	node, ok := graph.collectors[col]
+func (g *collectorGraph) resolve(col Collector) *collectorNode {
+	node, ok := g.collectors[col]
 	if !ok {
 		// This should not happen after checkMissingDependencies() returns nil
 		panic(fmt.Sprintf("Node for collector %v not found!", col))
@@ -293,7 +293,7 @@ func (g *collectorGraph) sortedFilteredNodes() []*collectorNode {
 		return res
 	}
 
-	// Sort the graph including filtered, failed and unfiltered nodes,
+	// Sort the g including filtered, failed and unfiltered nodes,
 	// then extract only the filtered ones in the correct order
 	res := make([]*collectorNode, 0, len(g.filtered))
 	fullGraph := createCollectorSubGraph(makeNodeList(g.nodes, g.filtered, g.failed))
