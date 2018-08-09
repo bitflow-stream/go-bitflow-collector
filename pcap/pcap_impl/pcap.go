@@ -3,15 +3,14 @@
 package pcap_impl
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
-	"errors"
-
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
 	"github.com/google/gopacket"
 	pcaplib "github.com/google/gopacket/pcap"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

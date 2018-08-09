@@ -4,9 +4,8 @@ package main
 
 import (
 	"flag"
-	"log"
-
 	"io"
+	"log"
 
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector/pcap"

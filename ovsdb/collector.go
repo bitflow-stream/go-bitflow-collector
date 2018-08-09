@@ -1,10 +1,10 @@
 package ovsdb
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
-	"errors"
 	"github.com/antongulenko/go-bitflow-collector"
 	"github.com/socketplane/libovsdb"
 )

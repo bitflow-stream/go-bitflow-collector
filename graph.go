@@ -3,9 +3,8 @@ package collector
 import (
 	"fmt"
 	"regexp"
-	"time"
-
 	"sync"
+	"time"
 
 	"github.com/gonum/graph"
 	"github.com/gonum/graph/topo"

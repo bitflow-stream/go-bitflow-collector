@@ -6,12 +6,12 @@ import (
 	"io"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/go-bitflow-collector/pcap"
 	"github.com/antongulenko/go-bitflow-collector/pcap/pcap_impl"
 	"github.com/antongulenko/golib"
 	"github.com/antongulenko/golib/gotermBox"
+	log "github.com/sirupsen/logrus"
 )
 
 const refreshInterval = 500 * time.Millisecond
