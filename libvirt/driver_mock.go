@@ -4,6 +4,9 @@ package libvirt
 
 import "errors"
 
+var _ Driver = new(MockDriver)
+var _ Domain = new(MockDomain)
+
 func NewDriver() Driver {
 	return new(MockDriver)
 }
@@ -60,8 +63,8 @@ func (d *MockDomain) GetName() (string, error) {
 	return "", d.err()
 }
 
-func (d *MockDomain) CpuStats() (VirTypedParameters, error) {
-	return VirTypedParameters{}, d.err()
+func (d *MockDomain) CpuStats() (VirDomainCpuStats, error) {
+	return VirDomainCpuStats{}, d.err()
 }
 
 func (d *MockDomain) BlockStats(dev string) (VirDomainBlockStats, error) {
@@ -72,8 +75,8 @@ func (d *MockDomain) BlockInfo(dev string) (VirDomainBlockInfo, error) {
 	return VirDomainBlockInfo{}, d.err()
 }
 
-func (d *MockDomain) MemoryStats() ([]VirDomainMemoryStat, error) {
-	return nil, d.err()
+func (d *MockDomain) MemoryStats() (VirDomainMemoryStat, error) {
+	return VirDomainMemoryStat{}, d.err()
 }
 
 func (d *MockDomain) InterfaceStats(interfaceName string) (VirDomainInterfaceStats, error) {

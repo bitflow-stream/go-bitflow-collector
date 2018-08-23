@@ -11,7 +11,7 @@ type Domain interface {
 	GetXML() (string, error)
 	GetInfo() (DomainInfo, error)
 
-	CpuStats() (VirTypedParameters, error)
+	CpuStats() (VirDomainCpuStats, error)
 	BlockStats(dev string) (VirDomainBlockStats, error)
 	BlockInfo(dev string) (VirDomainBlockInfo, error)
 	MemoryStats() (VirDomainMemoryStat, error)
@@ -24,7 +24,12 @@ type DomainInfo struct {
 	Mem     uint64
 }
 
-type VirTypedParameters map[string]interface{}
+type VirDomainCpuStats struct {
+	CpuTime    uint64
+	UserTime   uint64
+	SystemTime uint64
+	VcpuTime   uint64
+}
 
 type VirDomainBlockStats struct {
 	RdReq   int64
@@ -39,7 +44,10 @@ type VirDomainBlockInfo struct {
 	Physical   uint64
 }
 
-type VirDomainMemoryStat map[int32]uint64
+type VirDomainMemoryStat struct {
+	Available uint64
+	Unused    uint64
+}
 
 type VirDomainInterfaceStats struct {
 	RxBytes   int64

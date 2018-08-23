@@ -4,17 +4,16 @@ package libvirt
 
 import (
 	"errors"
+	"fmt"
 
-	lib "github.com/rgbkrk/libvirt-go"
+	lib "github.com/libvirt/libvirt-go"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	NO_FLAGS            = 0
-	FETCH_DOMAINS_FLAGS = lib.VIR_CONNECT_LIST_DOMAINS_ACTIVE | lib.VIR_CONNECT_LIST_DOMAINS_RUNNING
-
+	NO_FLAGS             = 0
+	FETCH_DOMAINS_FLAGS  = lib.CONNECT_LIST_DOMAINS_ACTIVE | lib.CONNECT_LIST_DOMAINS_RUNNING
 	MAX_NUM_MEMORY_STATS = 8
-	MAX_NUM_CPU_STATS    = 4
 )
 
 func NewDriver() Driver {
@@ -23,7 +22,7 @@ func NewDriver() Driver {
 
 type DriverImpl struct {
 	uri  string
-	conn *lib.VirConnection
+	conn *lib.Connect
 }
 
 func (d *DriverImpl) Connect(uri string) error {
@@ -47,7 +46,7 @@ func (d *DriverImpl) ListDomains() ([]Domain, error) {
 	return domains, nil
 }
 
-func (d *DriverImpl) connection() (*lib.VirConnection, error) {
+func (d *DriverImpl) connection() (*lib.Connect, error) {
 	conn := d.conn
 	if conn != nil {
 		if alive, err := conn.IsAlive(); err != nil || !alive {
@@ -60,11 +59,11 @@ func (d *DriverImpl) connection() (*lib.VirConnection, error) {
 		if d.uri == "" {
 			return nil, errors.New("Drier.Connect() has not yet been called.")
 		}
-		newConn, err := lib.NewVirConnection(d.uri)
+		var err error
+		conn, err = lib.NewConnect(d.uri)
 		if err != nil {
 			return nil, err
 		}
-		conn = &newConn
 		d.conn = conn
 	}
 	return conn, nil
@@ -72,31 +71,35 @@ func (d *DriverImpl) connection() (*lib.VirConnection, error) {
 
 func (d *DriverImpl) Close() (err error) {
 	if d.conn != nil {
-		_, err = d.conn.CloseConnection()
+		_, err = d.conn.Close()
 		d.conn = nil
 	}
 	return
 }
 
 type DomainImpl struct {
-	domain lib.VirDomain
+	domain lib.Domain
 }
 
 func (d *DomainImpl) GetName() (string, error) {
 	return d.domain.GetName()
 }
 
-func (d *DomainImpl) CpuStats() (VirTypedParameters, error) {
-	stats := make(lib.VirTypedParameters, MAX_NUM_CPU_STATS)
-	_, err := d.domain.GetCPUStats(&stats, len(stats), -1, 1, NO_FLAGS)
+func (d *DomainImpl) CpuStats() (VirDomainCpuStats, error) {
+	var res VirDomainCpuStats
+	statSlice, err := d.domain.GetCPUStats(-1, 1, NO_FLAGS)
+	if err == nil && len(statSlice) != 1 {
+		err = fmt.Errorf("Libvirt returned %v CPU stats instead of 1: %v", len(statSlice), statSlice)
+	}
 	if err != nil {
-		return nil, err
+		return res, err
 	}
-	result := make(VirTypedParameters, len(stats))
-	for _, stat := range stats {
-		result[stat.Name] = stat.Value
-	}
-	return result, nil
+	stats := statSlice[0]
+	res.CpuTime = stats.CpuTime
+	res.SystemTime = stats.SystemTime
+	res.UserTime = stats.UserTime
+	res.VcpuTime = stats.VcpuTime
+	return res, nil
 }
 
 func (d *DomainImpl) BlockStats(dev string) (VirDomainBlockStats, error) {
@@ -112,22 +115,27 @@ func (d *DomainImpl) BlockStats(dev string) (VirDomainBlockStats, error) {
 func (d *DomainImpl) BlockInfo(dev string) (VirDomainBlockInfo, error) {
 	stats, err := d.domain.GetBlockInfo(dev, NO_FLAGS)
 	return VirDomainBlockInfo{
-		Allocation: stats.Allocation(),
-		Capacity:   stats.Capacity(),
-		Physical:   stats.Physical(),
+		Allocation: stats.Allocation,
+		Capacity:   stats.Capacity,
+		Physical:   stats.Physical,
 	}, err
 }
 
 func (d *DomainImpl) MemoryStats() (VirDomainMemoryStat, error) {
+	var res VirDomainMemoryStat
 	stats, err := d.domain.MemoryStats(MAX_NUM_MEMORY_STATS, NO_FLAGS)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
-	results := make(VirDomainMemoryStat, len(stats))
 	for _, stat := range stats {
-		results[stat.Tag] = stat.Val
+		switch stat.Tag {
+		case int32(lib.DOMAIN_MEMORY_STAT_UNUSED):
+			res.Unused = stat.Val
+		case int32(lib.DOMAIN_MEMORY_STAT_AVAILABLE):
+			res.Available = stat.Val
+		}
 	}
-	return results, nil
+	return res, nil
 }
 
 func (d *DomainImpl) InterfaceStats(interfaceName string) (VirDomainInterfaceStats, error) {
@@ -149,13 +157,13 @@ func (d *DomainImpl) GetXML() (string, error) {
 }
 
 func (d *DomainImpl) GetInfo() (res DomainInfo, err error) {
-	var info lib.VirDomainInfo
+	var info *lib.DomainInfo
 	info, err = d.domain.GetInfo()
 	if err != nil {
 		return
 	}
-	res.CpuTime = info.GetCpuTime()
-	res.MaxMem = info.GetMaxMem()
-	res.Mem = info.GetMemory()
+	res.CpuTime = info.CpuTime
+	res.MaxMem = info.MaxMem
+	res.Mem = info.Memory
 	return
 }
