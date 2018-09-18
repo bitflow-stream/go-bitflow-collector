@@ -6,13 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gonum/graph"
-	"github.com/gonum/graph/topo"
 	log "github.com/sirupsen/logrus"
+	"gonum.org/v1/gonum/graph"
+	"gonum.org/v1/gonum/graph/topo"
 )
 
 type collectorGraph struct {
 	nodes      map[*collectorNode]bool
+	nodeIDs    map[int64]*collectorNode
 	failed     map[*collectorNode]bool
 	failedList []*collectorNode
 	filtered   map[*collectorNode]bool
@@ -21,13 +22,18 @@ type collectorGraph struct {
 	modificationLock sync.Mutex
 }
 
-func initCollectorGraph(collectors []Collector) (*collectorGraph, error) {
-	g := &collectorGraph{
+func newEmptyGraph() *collectorGraph {
+	return &collectorGraph{
 		nodes:      make(map[*collectorNode]bool),
+		nodeIDs:    make(map[int64]*collectorNode),
 		failed:     make(map[*collectorNode]bool),
 		filtered:   make(map[*collectorNode]bool),
 		collectors: make(map[Collector]*collectorNode),
 	}
+}
+
+func initCollectorGraph(collectors []Collector) (*collectorGraph, error) {
+	g := newEmptyGraph()
 	g.initNodes(collectors)
 	if len(g.nodes) == 0 {
 		return nil, fmt.Errorf("All %v collectors have failed", len(g.failed))
@@ -53,10 +59,7 @@ func (g *collectorGraph) initNode(col Collector) {
 		// This collector has already been added
 		return
 	}
-	node := newCollectorNode(col, g)
-	g.collectors[col] = node
-
-	g.nodes[node] = true
+	node := g.newCollectorNode(col)
 	children, err := node.init()
 	if err == nil {
 		g.initNodes(children)
@@ -66,8 +69,26 @@ func (g *collectorGraph) initNode(col Collector) {
 	}
 }
 
+func (g *collectorGraph) newCollectorNode(collector Collector) *collectorNode {
+	__nodeID++
+	node := &collectorNode{
+		collector: collector,
+		graph:     g,
+		uniqueID:  __nodeID,
+	}
+	g.insertCollectorNode(node)
+	return node
+}
+
+func (g *collectorGraph) insertCollectorNode(node *collectorNode) {
+	g.nodes[node] = true
+	g.nodeIDs[node.uniqueID] = node
+	g.collectors[node.collector] = node
+}
+
 func (g *collectorGraph) deleteCollector(node *collectorNode) {
 	delete(g.nodes, node)
+	delete(g.nodeIDs, node.uniqueID)
 	delete(g.filtered, node)
 	delete(g.failed, node)
 	// Keep the collector in the g.collectors map in case it needs to be
@@ -76,6 +97,7 @@ func (g *collectorGraph) deleteCollector(node *collectorNode) {
 
 func (g *collectorGraph) collectorFailed(node *collectorNode) {
 	delete(g.nodes, node)
+	delete(g.nodeIDs, node.uniqueID)
 	delete(g.filtered, node)
 	if !g.failed[node] {
 		g.failed[node] = true
@@ -86,6 +108,7 @@ func (g *collectorGraph) collectorFailed(node *collectorNode) {
 func (g *collectorGraph) collectorFiltered(node *collectorNode) {
 	if !g.failed[node] {
 		delete(g.nodes, node)
+		delete(g.nodeIDs, node.uniqueID)
 		g.filtered[node] = true
 	}
 }
@@ -267,16 +290,10 @@ func sortGraph(graph graph.Directed) []*collectorNode {
 }
 
 func createCollectorSubGraph(nodes []graph.Node) *collectorGraph {
-	newGraph := &collectorGraph{
-		nodes:      make(map[*collectorNode]bool),
-		failed:     make(map[*collectorNode]bool),
-		filtered:   make(map[*collectorNode]bool),
-		collectors: make(map[Collector]*collectorNode),
-	}
+	newGraph := newEmptyGraph()
 	for _, graphNode := range nodes {
 		node := graphNode.(*collectorNode)
-		newGraph.nodes[node] = true
-		newGraph.collectors[node.collector] = node
+		newGraph.insertCollectorNode(node)
 	}
 	return newGraph
 }

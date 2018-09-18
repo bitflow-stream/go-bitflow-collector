@@ -13,12 +13,12 @@ const (
 	ToleratedUpdateFailures = 2
 )
 
-var __nodeID = 0
+var __nodeID = int64(0)
 
 type collectorNode struct {
 	collector Collector
 	graph     *collectorGraph
-	uniqueID  int
+	uniqueID  int64
 
 	failedUpdates int
 	hasFailed     bool
@@ -29,15 +29,6 @@ type collectorNode struct {
 	postconditions []*golib.BoolCondition
 
 	UpdateFrequency time.Duration
-}
-
-func newCollectorNode(collector Collector, graph *collectorGraph) *collectorNode {
-	__nodeID++
-	return &collectorNode{
-		collector: collector,
-		graph:     graph,
-		uniqueID:  __nodeID,
-	}
 }
 
 func (node *collectorNode) String() string {

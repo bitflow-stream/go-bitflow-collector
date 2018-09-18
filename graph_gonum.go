@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"strconv"
 
-	"github.com/gonum/graph"
-	"github.com/gonum/graph/encoding/dot"
-	"github.com/gonum/graph/simple"
 	log "github.com/sirupsen/logrus"
+	"gonum.org/v1/gonum/graph"
+	"gonum.org/v1/gonum/graph/encoding/dot"
+	"gonum.org/v1/gonum/graph/simple"
 )
 
 func (g *collectorGraph) WriteGraphPNG(filename string) error {
@@ -53,11 +53,12 @@ func (g *collectorGraph) WriteGraphDOT(filename string) error {
 
 // =========================== Implementation of github.com/gonum/graph.Directed and Undirected interfaces ===========================
 
-func (g *collectorGraph) Has(graphNode graph.Node) bool {
-	node, ok := graphNode.(*collectorNode)
-	if ok {
-		_, ok = g.nodes[node]
-	}
+var _ graph.Graph = new(collectorGraph)
+var _ graph.Directed = new(collectorGraph)
+var _ graph.Node = new(collectorNode)
+
+func (g *collectorGraph) Has(id int64) bool {
+	_, ok := g.nodeIDs[id]
 	return ok
 }
 
@@ -69,8 +70,8 @@ func (g *collectorGraph) Nodes() []graph.Node {
 	return nodes
 }
 
-func (g *collectorGraph) From(graphNode graph.Node) []graph.Node {
-	node, ok := graphNode.(*collectorNode)
+func (g *collectorGraph) From(id int64) []graph.Node {
+	node, ok := g.nodeIDs[id]
 	if !ok {
 		return nil
 	}
@@ -81,24 +82,23 @@ func (g *collectorGraph) From(graphNode graph.Node) []graph.Node {
 	return nodes
 }
 
-func (g *collectorGraph) HasEdgeBetween(x, y graph.Node) bool {
+func (g *collectorGraph) HasEdgeBetween(x, y int64) bool {
 	return g.HasEdgeFromTo(x, y) || g.HasEdgeFromTo(y, x)
 }
 
-func (g *collectorGraph) Edge(u, v graph.Node) graph.Edge {
+func (g *collectorGraph) Edge(u, v int64) graph.Edge {
 	return simple.Edge{
-		F: u,
-		T: v,
-		W: 1,
+		F: g.nodeIDs[u],
+		T: g.nodeIDs[v],
 	}
 }
 
-func (g *collectorGraph) HasEdgeFromTo(xNode, yNode graph.Node) bool {
-	from, ok := xNode.(*collectorNode)
+func (g *collectorGraph) HasEdgeFromTo(xNode, yNode int64) bool {
+	from, ok := g.nodeIDs[xNode]
 	if !ok {
 		return false
 	}
-	to, ok := yNode.(*collectorNode)
+	to, ok := g.nodeIDs[yNode]
 	if !ok {
 		return false
 	}
@@ -111,8 +111,8 @@ func (g *collectorGraph) HasEdgeFromTo(xNode, yNode graph.Node) bool {
 	return false
 }
 
-func (g *collectorGraph) To(graphNode graph.Node) []graph.Node {
-	target, ok := graphNode.(*collectorNode)
+func (g *collectorGraph) To(id int64) []graph.Node {
+	target, ok := g.nodeIDs[id]
 	if !ok {
 		return nil
 	}
@@ -125,7 +125,7 @@ func (g *collectorGraph) To(graphNode graph.Node) []graph.Node {
 	return nodes
 }
 
-func (node *collectorNode) ID() int {
+func (node *collectorNode) ID() int64 {
 	return node.uniqueID
 }
 
