@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gonum.org/v1/gonum/graph"
 	"gonum.org/v1/gonum/graph/encoding/dot"
+	"gonum.org/v1/gonum/graph/iterator"
 	"gonum.org/v1/gonum/graph/simple"
 )
 
@@ -62,15 +63,15 @@ func (g *collectorGraph) Has(id int64) bool {
 	return ok
 }
 
-func (g *collectorGraph) Nodes() []graph.Node {
+func (g *collectorGraph) Nodes() graph.Nodes {
 	nodes := make([]graph.Node, 0, len(g.nodes))
 	for node := range g.nodes {
 		nodes = append(nodes, node)
 	}
-	return nodes
+	return iterator.NewOrderedNodes(nodes)
 }
 
-func (g *collectorGraph) From(id int64) []graph.Node {
+func (g *collectorGraph) From(id int64) graph.Nodes {
 	node, ok := g.nodeIDs[id]
 	if !ok {
 		return nil
@@ -79,7 +80,7 @@ func (g *collectorGraph) From(id int64) []graph.Node {
 	for _, depends := range node.collector.Depends() {
 		nodes = append(nodes, g.resolve(depends))
 	}
-	return nodes
+	return iterator.NewOrderedNodes(nodes)
 }
 
 func (g *collectorGraph) HasEdgeBetween(x, y int64) bool {
@@ -111,7 +112,7 @@ func (g *collectorGraph) HasEdgeFromTo(xNode, yNode int64) bool {
 	return false
 }
 
-func (g *collectorGraph) To(id int64) []graph.Node {
+func (g *collectorGraph) To(id int64) graph.Nodes {
 	target, ok := g.nodeIDs[id]
 	if !ok {
 		return nil
@@ -122,7 +123,7 @@ func (g *collectorGraph) To(id int64) []graph.Node {
 	for i, node := range depending {
 		nodes[i] = node
 	}
-	return nodes
+	return iterator.NewOrderedNodes(nodes)
 }
 
 func (node *collectorNode) ID() int64 {
