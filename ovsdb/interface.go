@@ -1,8 +1,8 @@
 package ovsdb
 
 import (
-	"github.com/antongulenko/go-bitflow-collector"
-	"github.com/antongulenko/go-bitflow-collector/psutil"
+	"github.com/bitflow-stream/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow-collector/psutil"
 )
 
 type ovsdbInterfaceCollector struct {

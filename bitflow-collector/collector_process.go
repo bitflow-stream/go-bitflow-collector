@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antongulenko/go-bitflow-collector"
-	"github.com/antongulenko/go-bitflow-collector/psutil"
-	"github.com/antongulenko/go-bitflow-pipeline/collector_helpers"
 	"github.com/antongulenko/golib"
+	"github.com/bitflow-stream/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow-collector/psutil"
+	"github.com/bitflow-stream/go-bitflow-pipeline/plugin/cmd_collector"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
@@ -23,7 +23,7 @@ func init() {
 	flag.DurationVar(&proc_update_pids, "proc-interval", 1500*time.Millisecond, "Interval for updating list of observed pids")
 }
 
-func createProcessCollectors(cmd *collector_helpers.CmdDataCollector) []collector.Collector {
+func createProcessCollectors(cmd *cmd_collector.CmdDataCollector) []collector.Collector {
 	psutilRoot := psutil.NewPsutilRootCollector(&ringFactory)
 	psutilProcesses := psutilRoot.NewMultiProcessCollector("processes")
 	multiProcs := &MonitorProcessesRestApi{

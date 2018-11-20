@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antongulenko/go-bitflow"
+	"github.com/bitflow-stream/go-bitflow"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -30,7 +30,7 @@ type ValueRing struct {
 	previousDiff bitflow.Value
 
 	// Serializes GetDiff()/GetHead() and FlushHead()
-	// Writing access must be serialized extnerallly!
+	// Writing access must be serialized externally!
 	lock sync.Mutex
 }
 

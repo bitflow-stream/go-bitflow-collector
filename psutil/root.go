@@ -1,6 +1,6 @@
 package psutil
 
-import "github.com/antongulenko/go-bitflow-collector"
+import "github.com/bitflow-stream/go-bitflow-collector"
 
 type RootCollector struct {
 	collector.AbstractCollector

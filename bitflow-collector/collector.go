@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/antongulenko/go-bitflow-collector"
-	"github.com/antongulenko/go-bitflow-collector/libvirt"
-	"github.com/antongulenko/go-bitflow-collector/mock"
-	"github.com/antongulenko/go-bitflow-collector/ovsdb"
-	"github.com/antongulenko/go-bitflow-collector/psutil"
-	"github.com/antongulenko/go-bitflow-pipeline/collector_helpers"
 	"github.com/antongulenko/golib"
+	"github.com/bitflow-stream/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow-collector/libvirt"
+	"github.com/bitflow-stream/go-bitflow-collector/mock"
+	"github.com/bitflow-stream/go-bitflow-collector/ovsdb"
+	"github.com/bitflow-stream/go-bitflow-collector/psutil"
+	"github.com/bitflow-stream/go-bitflow-pipeline/plugin/cmd_collector"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
@@ -91,7 +91,7 @@ func init() {
 		"monitoring of process network IO (/proc/.../net-pcap/...). Defaults to all physical NICs.")
 }
 
-func createCollectorSource(cmd *collector_helpers.CmdDataCollector) *collector.SampleSource {
+func createCollectorSource(cmd *cmd_collector.CmdDataCollector) *collector.SampleSource {
 	psutil.PcapNics = pcap_nics
 	ringFactory.Length = int(float64(ringFactory.Interval) / float64(collect_local_interval) * 10) // Make sure enough samples can be buffered
 	if ringFactory.Length <= 0 {

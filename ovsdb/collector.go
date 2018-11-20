@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow-collector"
 	"github.com/socketplane/libovsdb"
 )
 

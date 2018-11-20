@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antongulenko/go-bitflow"
 	"github.com/antongulenko/golib"
+	"github.com/bitflow-stream/go-bitflow"
 	log "github.com/sirupsen/logrus"
 )
 
 // For the update and sink interval, the sleep duration accuracy is increased by
-// waking up regularly inbetween and checking of the desired sleep time has passed already.
+// waking up regularly and checking of the desired sleep time has passed already.
 // This stabilizes sleep times in high-CPU and low-priority situations.
 const timeoutLoopFactor = 0.1
 

@@ -3,7 +3,7 @@ package psutil
 import (
 	"fmt"
 
-	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow-collector"
 	psnet "github.com/shirou/gopsutil/net"
 )
 

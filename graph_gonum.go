@@ -14,7 +14,7 @@ import (
 )
 
 func (g *collectorGraph) WriteGraphPNG(filename string) error {
-	dotData, err := dot.Marshal(g, "Collectors", "", "", false)
+	dotData, err := dot.Marshal(g, "Collectors", "", "")
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func (g *collectorGraph) WriteGraphPNG(filename string) error {
 }
 
 func (g *collectorGraph) WriteGraphDOT(filename string) error {
-	dotData, err := dot.Marshal(g, "Collectors", "", "", false)
+	dotData, err := dot.Marshal(g, "Collectors", "", "")
 	if err != nil {
 		return err
 	}
@@ -57,6 +57,10 @@ func (g *collectorGraph) WriteGraphDOT(filename string) error {
 var _ graph.Graph = new(collectorGraph)
 var _ graph.Directed = new(collectorGraph)
 var _ graph.Node = new(collectorNode)
+
+func (g *collectorGraph) Node(id int64) graph.Node {
+	return g.nodeIDs[id]
+}
 
 func (g *collectorGraph) Has(id int64) bool {
 	_, ok := g.nodeIDs[id]

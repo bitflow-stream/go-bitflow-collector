@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/antongulenko/go-bitflow"
-	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow"
+	"github.com/bitflow-stream/go-bitflow-collector"
 	"github.com/shirou/gopsutil/cpu"
 	log "github.com/sirupsen/logrus"
 )

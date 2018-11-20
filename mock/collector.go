@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/antongulenko/go-bitflow"
-	"github.com/antongulenko/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow"
+	"github.com/bitflow-stream/go-bitflow-collector"
 	log "github.com/sirupsen/logrus"
 )
 

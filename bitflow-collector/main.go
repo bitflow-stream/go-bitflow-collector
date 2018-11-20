@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/antongulenko/go-bitflow-pipeline/collector_helpers"
 	"github.com/antongulenko/golib"
+	"github.com/bitflow-stream/go-bitflow-pipeline/plugin/cmd_collector"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,7 +22,7 @@ func do_main() int {
 	print_graph_dot := flag.String("graph-dot", "", "Create dot-file for the collector-graph and exit")
 
 	// Parse command line flags
-	cmd := collector_helpers.CmdDataCollector{DefaultOutput: "box://-"}
+	cmd := cmd_collector.CmdDataCollector{DefaultOutput: "box://-"}
 	cmd.ParseFlags()
 	if flag.NArg() > 0 {
 		golib.Fatalln("Stray command line argument(s):", flag.Args())

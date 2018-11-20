@@ -6,11 +6,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/antongulenko/go-bitflow"
-	"github.com/antongulenko/go-bitflow-collector/pcap"
-	"github.com/antongulenko/go-bitflow-collector/pcap/pcap_impl"
 	"github.com/antongulenko/golib"
 	"github.com/antongulenko/golib/gotermBox"
+	"github.com/bitflow-stream/go-bitflow"
+	"github.com/bitflow-stream/go-bitflow-collector/pcap"
+	"github.com/bitflow-stream/go-bitflow-collector/pcap/pcap_impl"
 	log "github.com/sirupsen/logrus"
 )
 

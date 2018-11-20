@@ -7,10 +7,10 @@ import (
 	"io"
 	"log"
 
-	"github.com/antongulenko/go-bitflow"
-	"github.com/antongulenko/go-bitflow-collector/pcap"
-	"github.com/antongulenko/go-bitflow-collector/pcap/pcap_impl"
 	"github.com/antongulenko/golib"
+	"github.com/bitflow-stream/go-bitflow"
+	"github.com/bitflow-stream/go-bitflow-collector/pcap"
+	"github.com/bitflow-stream/go-bitflow-collector/pcap/pcap_impl"
 	"github.com/google/gopacket"
 )
 

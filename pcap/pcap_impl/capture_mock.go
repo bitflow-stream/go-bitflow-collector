@@ -5,7 +5,7 @@ package pcap_impl
 import (
 	"log"
 
-	"github.com/antongulenko/go-bitflow-collector/pcap"
+	"github.com/bitflow-stream/go-bitflow-collector/pcap"
 )
 
 var (
@@ -46,7 +46,7 @@ func OpenSources(filename string, nics []string, _ bool) ([]pcap.PacketSource, e
 		nics = []string{"mock_nic"}
 	}
 
-	log.Println("Capturing mocck packets from interface(s):", nics)
+	log.Println("Capturing mock packets from interface(s):", nics)
 	res := make([]pcap.PacketSource, len(nics))
 	for i := range nics {
 		res[i] = packetSource

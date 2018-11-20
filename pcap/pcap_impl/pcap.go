@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/antongulenko/go-bitflow-collector/pcap"
+	"github.com/bitflow-stream/go-bitflow-collector/pcap"
 	"github.com/google/gopacket"
 	pcaplib "github.com/google/gopacket/pcap"
 	log "github.com/sirupsen/logrus"
@@ -104,8 +104,8 @@ func OpenLivePcapDefault(nic string) (PacketSource, error) {
 	return OpenLivePcap(nic, PacketFilter, SnapLen)
 }
 
-func OpenLivePcap(nic string, packetFilter string, snaplen int32) (PacketSource, error) {
-	if handle, err := pcaplib.OpenLive(nic, snaplen, true, pcaplib.BlockForever); err != nil {
+func OpenLivePcap(nic string, packetFilter string, snapLength int32) (PacketSource, error) {
+	if handle, err := pcaplib.OpenLive(nic, snapLength, true, pcaplib.BlockForever); err != nil {
 		return PacketSource{}, err
 	} else {
 		return newPacketSource(handle, packetFilter)

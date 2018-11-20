@@ -1,6 +1,6 @@
 package libvirt
 
-import "github.com/antongulenko/go-bitflow-collector"
+import "github.com/bitflow-stream/go-bitflow-collector"
 
 type cpuCollector struct {
 	vmSubCollectorImpl
