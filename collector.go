@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/bitflow-stream/go-bitflow"
+	"github.com/bitflow-stream/go-bitflow/bitflow"
 )
 
 type MetricReader func() bitflow.Value

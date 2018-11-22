@@ -42,10 +42,11 @@ func (cons *Connections) CapturePackets(sources []PacketSource, errorCallback fu
 				}
 			} else {
 				con, err := pkg.Packet.Info()
+				if err == nil {
+					err = cons.LogPacket(con, pkg.Size)
+				}
 				if err != nil {
 					errorCallback(err)
-				} else {
-					cons.LogPacket(con, pkg.Size)
 				}
 			}
 		}

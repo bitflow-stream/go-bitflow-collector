@@ -51,7 +51,9 @@ func (d *DriverImpl) connection() (*lib.Connect, error) {
 	if conn != nil {
 		if alive, err := conn.IsAlive(); err != nil || !alive {
 			log.Warnln("Libvirt alive connection check failed:", err)
-			d.Close()
+			if err := d.Close(); err != nil {
+				return nil, err
+			}
 			conn = nil
 		}
 	}

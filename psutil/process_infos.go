@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bitflow-stream/go-bitflow"
 	"github.com/bitflow-stream/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/shirou/gopsutil/process"
 )
 
@@ -198,8 +198,10 @@ func (col *processFdCollector) procNumFds(info *processInfo) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer d.Close()
 	fileNames, err := d.Readdirnames(-1)
+	if err := d.Close(); err != nil {
+		return 0, err
+	}
 	numFDs := int32(len(fileNames))
 	return numFDs, err
 }

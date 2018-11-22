@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bitflow-stream/go-bitflow"
 	"github.com/bitflow-stream/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/shirou/gopsutil/disk"
 )
 

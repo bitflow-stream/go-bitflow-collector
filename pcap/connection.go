@@ -66,13 +66,13 @@ func (con *Connection) ReverseHash() interface{} {
 
 func HashConnection(typ string, ip string, port int, fip string, fport int) interface{} {
 	hash := fnv.New64()
-	hash.Write([]byte(typ))
-	hash.Write([]byte(ip))
-	hash.Write([]byte(fip))
+	_, _ = hash.Write([]byte(typ))
+	_, _ = hash.Write([]byte(ip))
+	_, _ = hash.Write([]byte(fip))
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(port))
-	hash.Write(b)
+	_, _ = hash.Write(b)
 	binary.LittleEndian.PutUint32(b, uint32(fport))
-	hash.Write(b)
+	_, _ = hash.Write(b)
 	return hash.Sum64()
 }

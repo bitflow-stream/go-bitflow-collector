@@ -16,7 +16,7 @@ import (
 	"github.com/bitflow-stream/go-bitflow-collector/mock"
 	"github.com/bitflow-stream/go-bitflow-collector/ovsdb"
 	"github.com/bitflow-stream/go-bitflow-collector/psutil"
-	"github.com/bitflow-stream/go-bitflow-pipeline/plugin/cmd_collector"
+	"github.com/bitflow-stream/go-bitflow/cmd"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
@@ -91,7 +91,7 @@ func init() {
 		"monitoring of process network IO (/proc/.../net-pcap/...). Defaults to all physical NICs.")
 }
 
-func createCollectorSource(cmd *cmd_collector.CmdDataCollector) *collector.SampleSource {
+func createCollectorSource(helper *cmd.CmdDataCollector) *collector.SampleSource {
 	psutil.PcapNics = pcap_nics
 	ringFactory.Length = int(float64(ringFactory.Interval) / float64(collect_local_interval) * 10) // Make sure enough samples can be buffered
 	if ringFactory.Length <= 0 {
@@ -100,7 +100,7 @@ func createCollectorSource(cmd *cmd_collector.CmdDataCollector) *collector.Sampl
 	var cols []collector.Collector
 
 	cols = append(cols, mock.NewMockCollector(&ringFactory))
-	cols = append(cols, createProcessCollectors(cmd)...)
+	cols = append(cols, createProcessCollectors(helper)...)
 	cols = append(cols, libvirt.NewLibvirtCollector(libvirt_uri, libvirt.NewDriver(), &ringFactory))
 	cols = append(cols, ovsdb.NewOvsdbCollector(ovsdb_host, &ringFactory))
 
@@ -136,7 +136,7 @@ func createCollectorSource(cmd *cmd_collector.CmdDataCollector) *collector.Sampl
 		FailedCollectorCheckInterval:   FailedCollectorCheckInterval,
 		FilteredCollectorCheckInterval: FilteredCollectorCheckInterval,
 	}
-	cmd.RestApis = append(cmd.RestApis, &AvailableMetricsApi{Source: source})
+	helper.RestApis = append(helper.RestApis, &AvailableMetricsApi{Source: source})
 	return source
 }
 

@@ -8,9 +8,9 @@ import (
 
 	"github.com/antongulenko/golib"
 	"github.com/antongulenko/golib/gotermBox"
-	"github.com/bitflow-stream/go-bitflow"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap/pcap_impl"
+	"github.com/bitflow-stream/go-bitflow/bitflow"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -52,13 +52,17 @@ func traceConnections(nics ...string) {
 		noData := 0
 		for _, con := range cons.Sorted() {
 			if con.HasData() {
-				fmt.Fprintln(out, con)
+				if _, err := fmt.Fprintln(out, con); err != nil {
+					return err
+				}
 			} else {
 				noData++
 			}
 		}
 		if noData > 0 {
-			fmt.Fprintf(out, "\n(+ %v connections without data)\n", noData)
+			if _, err := fmt.Fprintf(out, "\n(+ %v connections without data)\n", noData); err != nil {
+				return err
+			}
 		}
 		return nil
 	}

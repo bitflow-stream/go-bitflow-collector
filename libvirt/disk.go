@@ -3,8 +3,8 @@ package libvirt
 import (
 	"fmt"
 
-	"github.com/bitflow-stream/go-bitflow"
 	"github.com/bitflow-stream/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"gopkg.in/xmlpath.v1"
 )
 

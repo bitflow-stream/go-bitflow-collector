@@ -5,10 +5,10 @@ import (
 	"io"
 	"sync"
 
-	"github.com/bitflow-stream/go-bitflow"
 	"github.com/bitflow-stream/go-bitflow-collector"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap/pcap_impl"
+	"github.com/bitflow-stream/go-bitflow/bitflow"
 	log "github.com/sirupsen/logrus"
 )
 

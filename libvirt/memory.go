@@ -1,8 +1,8 @@
 package libvirt
 
 import (
-	"github.com/bitflow-stream/go-bitflow"
 	"github.com/bitflow-stream/go-bitflow-collector"
+	"github.com/bitflow-stream/go-bitflow/bitflow"
 )
 
 type memoryStatCollector struct {

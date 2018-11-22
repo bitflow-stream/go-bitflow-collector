@@ -8,9 +8,9 @@ import (
 	"log"
 
 	"github.com/antongulenko/golib"
-	"github.com/bitflow-stream/go-bitflow"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap/pcap_impl"
+	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/google/gopacket"
 )
 
