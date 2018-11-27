@@ -270,6 +270,7 @@ func (source *SampleSource) loopCheck(wg *sync.WaitGroup, stopper golib.StopChan
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		checkTime := time.Now()
 		for {
 			for _, node := range *nodes {
 				check(node)
@@ -277,7 +278,7 @@ func (source *SampleSource) loopCheck(wg *sync.WaitGroup, stopper golib.StopChan
 					return
 				}
 			}
-			if !stopper.WaitTimeout(interval) {
+			if !stopper.WaitTimeoutPrecise(interval, timeoutLoopFactor, &checkTime) {
 				return
 			}
 		}
