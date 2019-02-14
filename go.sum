@@ -14,6 +14,8 @@ github.com/antongulenko/golearn v0.0.0-20180917161504-d3c9efc653e9 h1:n3G6Jc7K40
 github.com/antongulenko/golearn v0.0.0-20180917161504-d3c9efc653e9/go.mod h1:ISOuvVjm+Gs4yqKZoCO9RbAGrrJVf4FyyK1G2ugEEiQ=
 github.com/antongulenko/golib v0.0.2 h1:z6Whx7LXHbMEJv9bW/HN9521Mw3xVbecBWUEHBG3zXk=
 github.com/antongulenko/golib v0.0.2/go.mod h1:F2KHKU4vzCr4rM7hhG7twH1for9iBqaEl1t+YxUGw8g=
+github.com/antongulenko/golib v0.0.4 h1:1xnv1QTLP9DyQdVcUhoLpqFEljWIMO0kxhBGkHd0vGo=
+github.com/antongulenko/golib v0.0.4/go.mod h1:F2KHKU4vzCr4rM7hhG7twH1for9iBqaEl1t+YxUGw8g=
 github.com/antongulenko/goterm v0.0.3 h1:ggti0j41NgsbrXYol4x+UMKOr7Pfg6ttFvfy5d1d2W8=
 github.com/antongulenko/goterm v0.0.3/go.mod h1:6oWLrlayrVujfKUWrbsBQT3aKilCnnzfhfJcR3LpAWo=
 github.com/bitflow-stream/go-bitflow v0.0.10 h1:FHpWagX/JsXPERElPMjI69uS2+2jR5ErDHfLXI3Uqwk=
@@ -22,6 +24,14 @@ github.com/bitflow-stream/go-bitflow v0.0.12 h1:lzxLwmjgcmX7re79gq30TpuR8fsuD7Zu
 github.com/bitflow-stream/go-bitflow v0.0.12/go.mod h1:WJd8Y+QbyDaU7sliPmMo98u/2yQyoxHJojcV7tqrTz0=
 github.com/bitflow-stream/go-bitflow v0.0.13 h1:3/JhYr+QF/3Tbn2Q30JRLlNp1hcehQLS5R8NErhuoio=
 github.com/bitflow-stream/go-bitflow v0.0.13/go.mod h1:WJd8Y+QbyDaU7sliPmMo98u/2yQyoxHJojcV7tqrTz0=
+github.com/bitflow-stream/go-bitflow v0.0.14 h1:5YVScKkIeeRQv9VQvGbI8TZRIiTo5P2azQN0t2m9WFk=
+github.com/bitflow-stream/go-bitflow v0.0.14/go.mod h1:zzGCc5VH6j3UTeAuOMJ0KsfYTxecTu0KzsVRuKqJhFE=
+github.com/bitflow-stream/go-bitflow v0.0.15 h1:PxM1Gmk9/wtolVgi7+Q94gQiEflLF+5HaBx01jaMTvU=
+github.com/bitflow-stream/go-bitflow v0.0.15/go.mod h1:zzGCc5VH6j3UTeAuOMJ0KsfYTxecTu0KzsVRuKqJhFE=
+github.com/bitflow-stream/go-bitflow v0.0.16 h1:023cvmU9Uz6Ys4WpFYvOxFrsiL563jVFJ4RAYT/bqAQ=
+github.com/bitflow-stream/go-bitflow v0.0.16/go.mod h1:zzGCc5VH6j3UTeAuOMJ0KsfYTxecTu0KzsVRuKqJhFE=
+github.com/bitflow-stream/go-bitflow v0.0.17 h1:uJqHyPchd9xUsqfg3c8xAs0RbMvz7mpEkkj4xXgzNXw=
+github.com/bitflow-stream/go-bitflow v0.0.17/go.mod h1:zzGCc5VH6j3UTeAuOMJ0KsfYTxecTu0KzsVRuKqJhFE=
 github.com/bugsnag/bugsnag-go v1.4.0 h1:CLCt5wO6/P0GelBEMRrlF52XveQMnnXHoCoxGZ+8a5g=
 github.com/bugsnag/bugsnag-go v1.4.0/go.mod h1:2oa8nejYd4cQ/b0hMIopN0lCRxU0bueqREvZLWFrtK8=
 github.com/cenk/hub v1.0.0 h1:oc6XoRZa09H06bpQFH6T4XkLzeUkUbyFiIAQkIpFXlA=
