@@ -23,9 +23,9 @@ func do_main() int {
 	// Parse command line flags
 	helper := cmd.CmdDataCollector{DefaultOutput: "box://-"}
 	helper.RegisterFlags()
-	cmd.ParseFlags()
-	if flag.NArg() > 0 {
-		golib.Fatalln("Stray command line argument(s):", flag.Args())
+	_, args := cmd.ParseFlags()
+	if len(args) > 0 {
+		golib.Fatalln("Stray command line argument(s):", args)
 	}
 	defer golib.ProfileCpu()()
 

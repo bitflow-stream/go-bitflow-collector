@@ -10,12 +10,11 @@ import (
 	"github.com/antongulenko/golib"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap/pcap_impl"
-	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/google/gopacket"
 )
 
 func main() {
-	bitflow.RegisterGolibFlags()
+	golib.RegisterFlags(golib.FlagsAll)
 	filename := flag.String("f", "", "PCAP file to parse")
 	flag.Parse()
 	golib.ConfigureLogging()

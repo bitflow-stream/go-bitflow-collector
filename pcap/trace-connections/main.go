@@ -10,14 +10,13 @@ import (
 	"github.com/antongulenko/golib/gotermBox"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap"
 	"github.com/bitflow-stream/go-bitflow-collector/pcap/pcap_impl"
-	"github.com/bitflow-stream/go-bitflow/bitflow"
 	log "github.com/sirupsen/logrus"
 )
 
 const refreshInterval = 500 * time.Millisecond
 
 func main() {
-	bitflow.RegisterGolibFlags()
+	golib.RegisterFlags(golib.FlagsAll)
 	var nics golib.StringSlice
 	flag.Var(&nics, "n", "One or more network interfaces to capture packets from")
 	flag.Parse()
