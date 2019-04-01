@@ -12,8 +12,9 @@ import (
 
 type CpuCollector struct {
 	collector.AbstractCollector
-	factory *collector.ValueRingFactory
-	ring    *collector.ValueRing
+	factory   *collector.ValueRingFactory
+	ring      *collector.ValueRing
+	cycleRing *collector.ValueRing
 }
 
 func newCpuCollector(root *RootCollector) *CpuCollector {
@@ -25,12 +26,14 @@ func newCpuCollector(root *RootCollector) *CpuCollector {
 
 func (col *CpuCollector) Init() ([]collector.Collector, error) {
 	col.ring = col.factory.NewValueRing()
+	col.cycleRing = col.factory.NewValueRing()
 	return nil, nil
 }
 
 func (col *CpuCollector) Metrics() collector.MetricReaderMap {
 	return collector.MetricReaderMap{
-		"cpu": col.ring.GetDiff,
+		"cpu":         col.ring.GetDiff,
+		"cpu-jiffies": col.cycleRing.GetDiff,
 	}
 }
 
@@ -40,7 +43,9 @@ func (col *CpuCollector) Update() (err error) {
 		if len(times) != 1 {
 			err = fmt.Errorf("gopsutil/cpu.Times() returned %v cpu.TimesStat instead of %v", len(times), 1)
 		} else {
-			col.ring.Add(&cpuTime{times[0]})
+			ct := cpuTime{times[0]}
+			col.ring.Add(&ct)
+			col.cycleRing.Add(&cpuCycles{ct})
 		}
 	}
 	return
@@ -98,7 +103,31 @@ func (t *cpuTime) AddValue(incoming collector.LogbackValue) collector.LogbackVal
 	}
 }
 
-func (t *cpuTime) GetValue() bitflow.Value {
-	_, busy := t.getAllBusy()
-	return bitflow.Value(busy)
+type cpuCycles struct {
+	cpuTime
+}
+
+func (t *cpuCycles) AddValue(incoming collector.LogbackValue) collector.LogbackValue {
+	if other, ok := incoming.(*cpuCycles); ok {
+		return &cpuCycles{
+			cpuTime: *t.cpuTime.AddValue(&other.cpuTime).(*cpuTime),
+		}
+	} else {
+		log.Errorf("Cannot add %v (%T) and %v (%T)", t, t, incoming, incoming)
+		return collector.StoredValue(0)
+	}
+}
+
+func (t *cpuCycles) DiffValue(logback collector.LogbackValue, timeDelta time.Duration) bitflow.Value {
+	if previous, ok := logback.(*cpuCycles); ok {
+		_, t1Busy := previous.getAllBusy()
+		_, t2Busy := t.getAllBusy()
+
+		log.Println("SECONDS: ", timeDelta.Seconds(), " BUSY2: ", t2Busy)
+
+		return bitflow.Value((t2Busy - t1Busy) / timeDelta.Seconds())
+	} else {
+		log.Errorf("Cannot diff %v (%T) and %v (%T)", t, t, logback, logback)
+		return bitflow.Value(0)
+	}
 }
