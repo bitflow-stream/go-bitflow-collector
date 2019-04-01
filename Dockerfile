@@ -1,4 +1,4 @@
-# hub.docker.com/r/antongulenko/bitflow-collector
+# antongulenko/bitflow-collector
 FROM golang:1.11-alpine as build
 ENV GO111MODULE=on
 RUN apk --no-cache add git gcc g++ libvirt-dev libvirt-common-drivers libpcap-dev
