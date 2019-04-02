@@ -21,6 +21,10 @@ func (col *processCpuCollector) metrics(parent *ProcessCollector) collector.Metr
 			func(proc *processInfo) bitflow.Value {
 				return proc.cpu.GetDiff()
 			}),
+		parent.prefix() + "/cpu-jiffies": parent.sum(
+			func(proc *processInfo) bitflow.Value {
+				return proc.cpuJiffies.GetDiff()
+			}),
 	}
 }
 
@@ -28,8 +32,9 @@ func (col *processCpuCollector) updateProc(info *processInfo) error {
 	if cpu, err := info.Times(); err != nil {
 		return fmt.Errorf("Failed to get CPU info: %v", err)
 	} else {
-		busy := (cpu.Total() - cpu.Idle) * cpu_factor
-		info.cpu.Add(collector.StoredValue(busy))
+		busy := cpu.Total() - cpu.Idle
+		info.cpu.Add(collector.StoredValue(busy * cpu_factor))
+		info.cpuJiffies.Add(collector.StoredValue(busy))
 	}
 	return nil
 }

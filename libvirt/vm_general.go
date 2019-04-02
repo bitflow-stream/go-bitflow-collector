@@ -71,7 +71,3 @@ func (val LogbackCpuVal) AddValue(logback collector.LogbackValue) collector.Logb
 		return LogbackCpuVal(0)
 	}
 }
-
-func (val LogbackCpuVal) GetValue() bitflow.Value {
-	return bitflow.Value(val)
-}

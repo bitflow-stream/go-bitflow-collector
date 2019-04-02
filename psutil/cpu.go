@@ -12,8 +12,9 @@ import (
 
 type CpuCollector struct {
 	collector.AbstractCollector
-	factory *collector.ValueRingFactory
-	ring    *collector.ValueRing
+	factory    *collector.ValueRingFactory
+	cpuTimes   *collector.ValueRing
+	cpuJiffies *collector.ValueRing
 }
 
 func newCpuCollector(root *RootCollector) *CpuCollector {
@@ -24,13 +25,15 @@ func newCpuCollector(root *RootCollector) *CpuCollector {
 }
 
 func (col *CpuCollector) Init() ([]collector.Collector, error) {
-	col.ring = col.factory.NewValueRing()
+	col.cpuTimes = col.factory.NewValueRing()
+	col.cpuJiffies = col.factory.NewValueRing()
 	return nil, nil
 }
 
 func (col *CpuCollector) Metrics() collector.MetricReaderMap {
 	return collector.MetricReaderMap{
-		"cpu": col.ring.GetDiff,
+		"cpu":         col.cpuTimes.GetDiff,
+		"cpu-jiffies": col.cpuJiffies.GetDiff,
 	}
 }
 
@@ -40,7 +43,10 @@ func (col *CpuCollector) Update() (err error) {
 		if len(times) != 1 {
 			err = fmt.Errorf("gopsutil/cpu.Times() returned %v cpu.TimesStat instead of %v", len(times), 1)
 		} else {
-			col.ring.Add(&cpuTime{times[0]})
+			ct := cpuTime{times[0]}
+			col.cpuTimes.Add(&ct)
+			_, busy := ct.getAllBusy()
+			col.cpuJiffies.Add(collector.StoredValue(busy))
 		}
 	}
 	return
@@ -96,9 +102,4 @@ func (t *cpuTime) AddValue(incoming collector.LogbackValue) collector.LogbackVal
 		log.Errorf("Cannot add %v (%T) and %v (%T)", t, t, incoming, incoming)
 		return collector.StoredValue(0)
 	}
-}
-
-func (t *cpuTime) GetValue() bitflow.Value {
-	_, busy := t.getAllBusy()
-	return bitflow.Value(busy)
 }

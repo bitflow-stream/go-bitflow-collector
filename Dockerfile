@@ -1,12 +1,18 @@
-# hub.docker.com/r/antongulenko/bitflow-collector
-FROM golang:alpine as build
-RUN apk --no-cache add libvirt-dev libpcap-dev gcc libc-dev
-RUN mkdir -p /go/src/github.com/antongulenko/go-bitflow-collector
-COPY . /go/src/github.com/antongulenko/go-bitflow-collector/
-RUN go get github.com/antongulenko/go-bitflow-collector/bitflow-collector
+# antongulenko/bitflow-collector
+FROM golang:1.11-alpine as build
+ENV GO111MODULE=on
+RUN apk --no-cache add git gcc g++ libvirt-dev libvirt-common-drivers libpcap-dev
+WORKDIR /build
+COPY . .
+
+# TODO this workaround should not be necessary
+RUN rm go.sum
+
+RUN go build -o /bitflow-collector ./bitflow-collector
+ENTRYPOINT ["/bitflow-collector"]
 
 FROM alpine
-RUN apk --no-cache add libvirt-dev libpcap-dev
-WORKDIR /root/
-COPY --from=build /go/bitflow-collector .
-ENTRYPOINT ["./bitflow-collector"]
+RUN apk --no-cache add libvirt-dev libpcap-dev libstdc++ curl
+COPY --from=build /bitflow-collector /
+ENTRYPOINT ["/bitflow-collector"]
+

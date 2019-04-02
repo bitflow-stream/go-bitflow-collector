@@ -37,7 +37,6 @@ type ValueRing struct {
 type LogbackValue interface {
 	DiffValue(previousValue LogbackValue, interval time.Duration) bitflow.Value
 	AddValue(val LogbackValue) LogbackValue
-	GetValue() bitflow.Value
 }
 
 type TimedValue struct {
@@ -115,14 +114,6 @@ func (ring *ValueRing) GetHead() LogbackValue {
 	ring.lock.Lock()
 	defer ring.lock.Unlock()
 	return ring.getHead().val
-}
-
-func (ring *ValueRing) GetHeadValue() bitflow.Value {
-	head := ring.GetHead()
-	if head == nil {
-		return bitflow.Value(0)
-	}
-	return head.GetValue()
 }
 
 // ============================ Internal functions ============================
@@ -223,8 +214,4 @@ func (val StoredValue) AddValue(incoming LogbackValue) LogbackValue {
 		log.Errorf("Cannot add %v (%T) and %v (%T)", val, val, incoming, incoming)
 		return StoredValue(0)
 	}
-}
-
-func (val StoredValue) GetValue() bitflow.Value {
-	return bitflow.Value(val)
 }

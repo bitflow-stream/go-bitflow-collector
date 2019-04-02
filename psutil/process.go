@@ -217,6 +217,7 @@ func (col *ProcessCollector) newProcess(proc *process.Process) *processInfo {
 	return &processInfo{
 		Process:              proc,
 		cpu:                  col.factory.NewValueRing(),
+		cpuJiffies:           col.factory.NewValueRing(),
 		ioRead:               col.factory.NewValueRing(),
 		ioWrite:              col.factory.NewValueRing(),
 		ioTotal:              col.factory.NewValueRing(),
@@ -320,6 +321,7 @@ type processInfo struct {
 	*process.Process
 
 	cpu                  *collector.ValueRing
+	cpuJiffies           *collector.ValueRing
 	ioRead               *collector.ValueRing
 	ioWrite              *collector.ValueRing
 	ioTotal              *collector.ValueRing
