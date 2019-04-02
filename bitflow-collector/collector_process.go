@@ -17,22 +17,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var proc_update_pids time.Duration
+var (
+	proc_update_pids time.Duration
+	multiProcApi     MonitorProcessesRestApi
+)
 
 func init() {
 	flag.DurationVar(&proc_update_pids, "proc-interval", 1500*time.Millisecond, "Interval for updating list of observed pids")
+	multiProcApi.RegisterFlags()
 }
 
 func createProcessCollectors(helper *cmd.CmdDataCollector) []collector.Collector {
 	psutilRoot := psutil.NewPsutilRootCollector(&ringFactory)
 	psutilProcesses := psutilRoot.NewMultiProcessCollector("processes")
-	multiProcs := &MonitorProcessesRestApi{
-		procs: psutilProcesses,
-	}
-	if err := multiProcs.updateCollectors(); err != nil {
+	multiProcApi.procs = psutilProcesses
+	if err := multiProcApi.updateCollectors(); err != nil {
 		golib.Checkerr(err)
 	}
-	helper.RestApis = append(helper.RestApis, multiProcs)
+	helper.RestApis = append(helper.RestApis, &multiProcApi)
 	psutil.PidUpdateInterval = proc_update_pids
 	return []collector.Collector{psutilRoot, psutilProcesses}
 }
