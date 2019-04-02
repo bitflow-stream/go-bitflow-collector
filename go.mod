@@ -2,8 +2,8 @@ module github.com/bitflow-stream/go-bitflow-collector
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705 // indirect
-	github.com/antongulenko/golib v0.0.9
-	github.com/bitflow-stream/go-bitflow v0.0.25
+	github.com/antongulenko/golib v0.0.10
+	github.com/bitflow-stream/go-bitflow v0.0.26
 	github.com/cenk/hub v1.0.0 // indirect
 	github.com/cenkalti/hub v1.0.0-20160327091400-11382a9960d39b0ecda16fd01c424c11ff765a34 // indirect
 	github.com/cenkalti/rpc2 v0.0.0-20180727162946-9642ea02d0aa // indirect
