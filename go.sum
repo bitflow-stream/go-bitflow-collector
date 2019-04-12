@@ -17,6 +17,8 @@ github.com/bitflow-stream/go-bitflow v0.0.25 h1:6iscAJyiFzqMbnlcP08zL1Wet29c0qfL
 github.com/bitflow-stream/go-bitflow v0.0.25/go.mod h1:brBlNftRAfCTUvtNRtdFEqOxBMPYeHqpDW3VvSs4N8Q=
 github.com/bitflow-stream/go-bitflow v0.0.26 h1:RnL8Y4tkFyCz7gvFIy/+nLiaW52Cc0J3QyzP8o/x7TM=
 github.com/bitflow-stream/go-bitflow v0.0.26/go.mod h1:brBlNftRAfCTUvtNRtdFEqOxBMPYeHqpDW3VvSs4N8Q=
+github.com/bitflow-stream/go-bitflow v0.0.27 h1:kIkIZN/NtpwZmydL5SmVSppbDXZulmuouAHNVjuFlaw=
+github.com/bitflow-stream/go-bitflow v0.0.27/go.mod h1:MWvXJTlWJxR7+rTe1fIQfviScvh/E1Uxdik5nMWyfH8=
 github.com/bugsnag/bugsnag-go v1.4.0/go.mod h1:2oa8nejYd4cQ/b0hMIopN0lCRxU0bueqREvZLWFrtK8=
 github.com/cenk/hub v1.0.0 h1:oc6XoRZa09H06bpQFH6T4XkLzeUkUbyFiIAQkIpFXlA=
 github.com/cenk/hub v1.0.0/go.mod h1:rJM1LNAW0ppT8FMMuPK6c2NP/R2nH/UthtuRySSaf6Y=
