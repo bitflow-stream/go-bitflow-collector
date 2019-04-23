@@ -9,9 +9,8 @@ COPY . .
 RUN rm go.sum
 
 RUN go build -o /bitflow-collector ./bitflow-collector
-ENTRYPOINT ["/bitflow-collector"]
 
-FROM alpine
+FROM alpine:3.9
 RUN apk --no-cache add libvirt-dev libpcap-dev libstdc++ curl
 COPY --from=build /bitflow-collector /
 ENTRYPOINT ["/bitflow-collector"]
