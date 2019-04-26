@@ -87,71 +87,83 @@ func (d *DomainImpl) GetName() (string, error) {
 	return d.domain.GetName()
 }
 
-func (d *DomainImpl) CpuStats() (VirDomainCpuStats, error) {
-	var res VirDomainCpuStats
-	statSlice, err := d.domain.GetCPUStats(-1, 1, NO_FLAGS)
+func (d *DomainImpl) CpuStats() (res VirDomainCpuStats, err error) {
+	var statSlice []lib.DomainCPUStats
+	statSlice, err = d.domain.GetCPUStats(-1, 1, NO_FLAGS)
 	if err == nil && len(statSlice) != 1 {
 		err = fmt.Errorf("Libvirt returned %v CPU stats instead of 1: %v", len(statSlice), statSlice)
 	}
-	if err != nil {
-		return res, err
-	}
-	stats := statSlice[0]
-	res.CpuTime = stats.CpuTime
-	res.SystemTime = stats.SystemTime
-	res.UserTime = stats.UserTime
-	res.VcpuTime = stats.VcpuTime
-	return res, nil
-}
-
-func (d *DomainImpl) BlockStats(dev string) (VirDomainBlockStats, error) {
-	stats, err := d.domain.BlockStats(dev)
-	return VirDomainBlockStats{
-		RdReq:   stats.RdReq,
-		WrReq:   stats.WrReq,
-		RdBytes: stats.RdBytes,
-		WrBytes: stats.WrBytes,
-	}, err
-}
-
-func (d *DomainImpl) BlockInfo(dev string) (VirDomainBlockInfo, error) {
-	stats, err := d.domain.GetBlockInfo(dev, NO_FLAGS)
-	return VirDomainBlockInfo{
-		Allocation: stats.Allocation,
-		Capacity:   stats.Capacity,
-		Physical:   stats.Physical,
-	}, err
-}
-
-func (d *DomainImpl) MemoryStats() (VirDomainMemoryStat, error) {
-	var res VirDomainMemoryStat
-	stats, err := d.domain.MemoryStats(MAX_NUM_MEMORY_STATS, NO_FLAGS)
-	if err != nil {
-		return res, err
-	}
-	for _, stat := range stats {
-		switch stat.Tag {
-		case int32(lib.DOMAIN_MEMORY_STAT_UNUSED):
-			res.Unused = stat.Val
-		case int32(lib.DOMAIN_MEMORY_STAT_AVAILABLE):
-			res.Available = stat.Val
+	if err == nil {
+		stats := statSlice[0]
+		res = VirDomainCpuStats{
+			CpuTime:    stats.CpuTime,
+			SystemTime: stats.SystemTime,
+			UserTime:   stats.UserTime,
+			VcpuTime:   stats.VcpuTime,
 		}
 	}
-	return res, nil
+	return
 }
 
-func (d *DomainImpl) InterfaceStats(interfaceName string) (VirDomainInterfaceStats, error) {
-	stats, err := d.domain.InterfaceStats(interfaceName)
-	return VirDomainInterfaceStats{
-		RxBytes:   stats.RxBytes,
-		RxPackets: stats.RxPackets,
-		RxErrs:    stats.RxErrs,
-		RxDrop:    stats.RxDrop,
-		TxBytes:   stats.TxBytes,
-		TxPackets: stats.TxPackets,
-		TxErrs:    stats.TxErrs,
-		TxDrop:    stats.TxDrop,
-	}, err
+func (d *DomainImpl) BlockStats(dev string) (res VirDomainBlockStats, err error) {
+	var stats *lib.DomainBlockStats
+	stats, err = d.domain.BlockStats(dev)
+	if err == nil {
+		res = VirDomainBlockStats{
+			RdReq:   stats.RdReq,
+			WrReq:   stats.WrReq,
+			RdBytes: stats.RdBytes,
+			WrBytes: stats.WrBytes,
+		}
+	}
+	return
+}
+
+func (d *DomainImpl) BlockInfo(dev string) (res VirDomainBlockInfo, err error) {
+	var stats *lib.DomainBlockInfo
+	stats, err = d.domain.GetBlockInfo(dev, NO_FLAGS)
+	if err == nil {
+		res = VirDomainBlockInfo{
+			Allocation: stats.Allocation,
+			Capacity:   stats.Capacity,
+			Physical:   stats.Physical,
+		}
+	}
+	return
+}
+
+func (d *DomainImpl) MemoryStats() (res VirDomainMemoryStat, err error) {
+	var stats []lib.DomainMemoryStat
+	stats, err = d.domain.MemoryStats(MAX_NUM_MEMORY_STATS, NO_FLAGS)
+	if err == nil {
+		for _, stat := range stats {
+			switch stat.Tag {
+			case int32(lib.DOMAIN_MEMORY_STAT_UNUSED):
+				res.Unused = stat.Val
+			case int32(lib.DOMAIN_MEMORY_STAT_AVAILABLE):
+				res.Available = stat.Val
+			}
+		}
+	}
+	return
+}
+
+func (d *DomainImpl) InterfaceStats(interfaceName string) (res VirDomainInterfaceStats, err error) {
+	var stats *lib.DomainInterfaceStats
+	stats, err = d.domain.InterfaceStats(interfaceName)
+	if err == nil {
+		res = VirDomainInterfaceStats{
+			RxBytes:   stats.RxBytes,
+			RxPackets: stats.RxPackets,
+			RxErrs:    stats.RxErrs,
+			RxDrop:    stats.RxDrop,
+			TxBytes:   stats.TxBytes,
+			TxPackets: stats.TxPackets,
+			TxErrs:    stats.TxErrs,
+			TxDrop:    stats.TxDrop,
+		}
+	}
+	return
 }
 
 func (d *DomainImpl) GetXML() (string, error) {
@@ -161,11 +173,10 @@ func (d *DomainImpl) GetXML() (string, error) {
 func (d *DomainImpl) GetInfo() (res DomainInfo, err error) {
 	var info *lib.DomainInfo
 	info, err = d.domain.GetInfo()
-	if err != nil {
-		return
+	if err == nil {
+		res.CpuTime = info.CpuTime
+		res.MaxMem = info.MaxMem
+		res.Mem = info.Memory
 	}
-	res.CpuTime = info.CpuTime
-	res.MaxMem = info.MaxMem
-	res.Mem = info.Memory
 	return
 }
