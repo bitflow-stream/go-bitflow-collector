@@ -43,7 +43,7 @@ func traceConnections(nics ...string) {
 		if captureErr, ok := err.(pcap.CaptureError); ok {
 			log.Warnln("Capture error:", captureErr)
 		} else {
-			golib.Fatalln(err)
+			log.Fatalln(err)
 		}
 	})
 

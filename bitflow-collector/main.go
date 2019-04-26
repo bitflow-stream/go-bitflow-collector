@@ -25,7 +25,7 @@ func do_main() int {
 	helper.RegisterFlags()
 	_, args := cmd.ParseFlags()
 	if len(args) > 0 {
-		golib.Fatalln("Stray command line argument(s):", args)
+		log.Fatalln("Stray command line argument(s):", args)
 	}
 	defer golib.ProfileCpu()()
 
