@@ -36,7 +36,7 @@ pipeline {
                     def scannerHome = tool 'sonar-scanner-linux'
                     withSonarQubeEnv('CIT SonarQube') {
                         sh """
-                            ${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=go-bitflow \
+                            ${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=go-bitflow-collector \
                                 -Dsonar.sources=. -Dsonar.tests=. \
                                 -Dsonar.inclusions="**/*.go" -Dsonar.test.inclusions="**/*_test.go" \
                                 -Dsonar.go.golint.reportPath=reports/lint.txt \
