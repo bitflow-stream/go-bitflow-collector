@@ -12,6 +12,7 @@ pipeline {
     stages {
         stage('Build & test') { 
             steps {
+                    sh 'apt install -y libvirt-dev libvirt-common-drivers libpcap-dev'
                     sh 'go clean -i -v ./...'
                     sh 'go install -v ./...'
                     sh 'rm -rf reports && mkdir -p reports'
