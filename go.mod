@@ -17,6 +17,7 @@ require (
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
 	github.com/sirupsen/logrus v1.4.1
 	github.com/socketplane/libovsdb v0.0.0-20170116174820-4de3618546de
+	github.com/stretchr/testify v1.3.0
 	gonum.org/v1/gonum v0.0.0-20190409070159-6e46824336d2
 	gopkg.in/xmlpath.v1 v1.0.0-20140413065638-a146725ea6e7
 )
