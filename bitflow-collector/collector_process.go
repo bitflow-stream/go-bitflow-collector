@@ -87,7 +87,7 @@ func (api *MonitorProcessesRestApi) createCollectors(parameters golib.KeyValueSt
 			regexes[key] = append(regexes[key], regex)
 		}
 		for key, list := range regexes {
-            desc := psutil.ProcessCollectorDescription{Name: key, Filter: list, PrintErrors: api.proc_show_errors, IncludeChildProcesses: includeChildren}
+			desc := psutil.ProcessCollectorDescription{Name: key, Filter: list, PrintErrors: api.proc_show_errors, IncludeChildProcesses: includeChildren}
 			res = append(res, desc)
 		}
 	}
