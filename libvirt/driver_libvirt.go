@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	NO_FLAGS             = 0
-	FETCH_DOMAINS_FLAGS  = lib.CONNECT_LIST_DOMAINS_ACTIVE | lib.CONNECT_LIST_DOMAINS_RUNNING
-	MAX_NUM_MEMORY_STATS = 8
+	NoFlags           = 0
+	FetchDomainsFlags = lib.CONNECT_LIST_DOMAINS_ACTIVE | lib.CONNECT_LIST_DOMAINS_RUNNING
+	MaxNumMemoryStats = 8
 )
 
 func NewDriver() Driver {
@@ -35,7 +35,7 @@ func (d *DriverImpl) ListDomains() ([]Domain, error) {
 	if err != nil {
 		return nil, err
 	}
-	virDomains, err := conn.ListAllDomains(FETCH_DOMAINS_FLAGS)
+	virDomains, err := conn.ListAllDomains(FetchDomainsFlags)
 	if err != nil {
 		return nil, err
 	}
@@ -51,15 +51,15 @@ func (d *DriverImpl) connection() (*lib.Connect, error) {
 	if conn != nil {
 		if alive, err := conn.IsAlive(); err != nil || !alive {
 			log.Warnln("Libvirt alive connection check failed:", err)
-			if err := d.Close(); err != nil {
-				return nil, err
+			if closeErr := d.Close(); closeErr != nil {
+				return nil, closeErr
 			}
 			conn = nil
 		}
 	}
 	if conn == nil {
 		if d.uri == "" {
-			return nil, errors.New("Drier.Connect() has not yet been called.")
+			return nil, errors.New("Driver.Connect() has not yet been called.")
 		}
 		var err error
 		conn, err = lib.NewConnect(d.uri)
@@ -89,7 +89,7 @@ func (d *DomainImpl) GetName() (string, error) {
 
 func (d *DomainImpl) CpuStats() (res VirDomainCpuStats, err error) {
 	var statSlice []lib.DomainCPUStats
-	statSlice, err = d.domain.GetCPUStats(-1, 1, NO_FLAGS)
+	statSlice, err = d.domain.GetCPUStats(-1, 1, NoFlags)
 	if err == nil && len(statSlice) != 1 {
 		err = fmt.Errorf("Libvirt returned %v CPU stats instead of 1: %v", len(statSlice), statSlice)
 	}
@@ -121,7 +121,7 @@ func (d *DomainImpl) BlockStats(dev string) (res VirDomainBlockStats, err error)
 
 func (d *DomainImpl) BlockInfo(dev string) (res VirDomainBlockInfo, err error) {
 	var stats *lib.DomainBlockInfo
-	stats, err = d.domain.GetBlockInfo(dev, NO_FLAGS)
+	stats, err = d.domain.GetBlockInfo(dev, NoFlags)
 	if err == nil {
 		res = VirDomainBlockInfo{
 			Allocation: stats.Allocation,
@@ -134,7 +134,7 @@ func (d *DomainImpl) BlockInfo(dev string) (res VirDomainBlockInfo, err error) {
 
 func (d *DomainImpl) MemoryStats() (res VirDomainMemoryStat, err error) {
 	var stats []lib.DomainMemoryStat
-	stats, err = d.domain.MemoryStats(MAX_NUM_MEMORY_STATS, NO_FLAGS)
+	stats, err = d.domain.MemoryStats(MaxNumMemoryStats, NoFlags)
 	if err == nil {
 		for _, stat := range stats {
 			switch stat.Tag {
@@ -167,7 +167,7 @@ func (d *DomainImpl) InterfaceStats(interfaceName string) (res VirDomainInterfac
 }
 
 func (d *DomainImpl) GetXML() (string, error) {
-	return d.domain.GetXMLDesc(NO_FLAGS)
+	return d.domain.GetXMLDesc(NoFlags)
 }
 
 func (d *DomainImpl) GetInfo() (res DomainInfo, err error) {
