@@ -1,4 +1,7 @@
 pipeline {
+    options {
+        timeout(time: 1, unit: 'HOURS')
+    }
     agent {
         docker {
             image 'teambitflow/golang-build:1.12-stretch'
@@ -23,6 +26,7 @@ pipeline {
         }
         stage('Build & test') { 
             steps {
+                    sh 'apt update'
                     sh 'apt install -y libvirt-dev libpcap-dev'
                     sh 'go clean -i -v ./...'
                     sh 'go install -v ./...'
