@@ -26,6 +26,7 @@ pipeline {
         }
         stage('Build & test') { 
             steps {
+                    sh 'apt update'
                     sh 'apt install -y libvirt-dev libpcap-dev'
                     sh 'go clean -i -v ./...'
                     sh 'go install -v ./...'
