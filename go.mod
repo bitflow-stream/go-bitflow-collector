@@ -21,4 +21,3 @@ require (
 	gonum.org/v1/gonum v0.0.0-20190608115022-c5f01565d866
 	gopkg.in/xmlpath.v1 v1.0.0-20140413065638-a146725ea6e7
 )
-
