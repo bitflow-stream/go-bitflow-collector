@@ -1,3 +1,4 @@
+# teambitflow/bitflow-collector:latest-arm32v7
 FROM teambitflow/golang-build:1.12-stretch as build
 
 ENV LIBPCAP_VERSION=1.9.0
