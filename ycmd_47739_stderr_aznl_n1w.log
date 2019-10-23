@@ -1,7 +1,0 @@
-2019-09-09 13:22:22,843 - ERROR - ycm_core library not detected; you need to compile it by running the build.py script. See the documentation for more details.
-Traceback (most recent call last):
-  File "/home/soeren/dotfiles/.vim/bundle/YouCompleteMe/third_party/ycmd/ycmd/server_utils.py", line 96, in CompatibleWithCurrentCore
-    ycm_core = ImportCore()
-  File "/home/soeren/dotfiles/.vim/bundle/YouCompleteMe/third_party/ycmd/ycmd/server_utils.py", line 88, in ImportCore
-    import ycm_core as ycm_core
-ModuleNotFoundError: No module named 'ycm_core'
