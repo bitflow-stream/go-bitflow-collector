@@ -31,12 +31,11 @@ func do_main() int {
 
 	// Configure the data collector pipeline
 	collector := createCollectorSource(&helper)
-	p, err := helper.BuildPipeline()
+	p, err := helper.BuildPipeline(collector)
 	golib.Checkerr(err)
 	if p == nil {
 		return 0
 	}
-	p.Source = collector
 
 	// Print requested information
 	stop := false
