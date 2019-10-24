@@ -12,6 +12,8 @@ pipeline {
         registry = 'teambitflow/bitflow-collector'
         registryCredential = 'dockerhub'
         dockerImage = '' // Empty variable must be declared here to allow passing an object between the stages.
+        dockerImageARM32 = ''
+        dockerImageARM64 = ''
     }
     stages {
         stage('Git') {
@@ -68,6 +70,8 @@ pipeline {
             steps {
                 script {
                     dockerImage = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER'
+                    dockerImageARM32 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f arm32v7.Dockerfile .'
+                    dockerImageARM64 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f arm64v8.Dockerfile .'
                 }
             }
         }
@@ -79,8 +83,30 @@ pipeline {
                 script {
                     docker.withRegistry('', registryCredential) {
                         dockerImage.push("build-$BUILD_NUMBER")
-                        dockerImage.push("latest")
+                        dockerImage.push("latest-amd64")
+                        dockerImageARM32.push("build-$BUILD_NUMBER-arm32v7")
+                        dockerImageARM32.push("latest-arm32v7")
+                        dockerImageARM64.push("build-$BUILD_NUMBER-arm64v8")
+                        dockerImageARM64.push("latest-arm64v8")
                     }
+                }
+                withCredentials([
+                  [
+                    $class: 'UsernamePasswordMultiBinding',
+                    credentialsId: 'dockerhub',
+                    usernameVariable: 'DOCKERUSER',
+                    passwordVariable: 'DOCKERPASS'
+                  ]
+                ]) {
+                    // Dockerhub Login
+                    sh '''#! /bin/bash
+                    echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
+                    '''
+                    // teambitflow/bitflow4j:latest manifest
+                    sh "docker manifest create ${registry}:latest ${registry}:latest-amd64 ${registry}:latest-arm32v7 ${registry}:latest-arm64v8"
+                    sh "docker manifest annotate ${registry}:latest ${registry}:latest-arm32v7 --os=linux --arch=arm --variant=v7"
+                    sh "docker manifest annotate ${registry}:latest ${registry}:latest-arm64v8 --os=linux --arch=arm64 --variant=v8"
+                    sh "docker manifest push --purge ${registry}:latest"
                 }
             }
         }
