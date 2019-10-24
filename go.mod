@@ -7,7 +7,7 @@ require (
 	github.com/antongulenko/golib v0.0.21
 	github.com/bitflow-stream/go-bitflow v0.0.51
 	github.com/cenk/hub v1.0.0 // indirect
-	github.com/cenkalti/hub v1.0.0-20160327091400-11382a9960d3 // indirect
+	github.com/cenkalti/hub v1.0.1 // indirect
 	github.com/cenkalti/rpc2 v0.0.0-20180727162946-9642ea02d0aa // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/google/gopacket v1.1.17
