@@ -8,7 +8,8 @@ import (
 	"gopkg.in/xmlpath.v1"
 )
 
-var DomainBlockXPath = xmlpath.MustCompile("/domain/devices/disk[@type=\"file\"]/target/@dev")
+// We should possibly add a filter on the type, such as [@type=\"file\"] or [@type=\"network\"]
+var DomainBlockXPath = xmlpath.MustCompile("/domain/devices/disk[@device=\"disk\"]/target/@dev")
 
 type vmBlockCollector struct {
 	vmSubCollectorImpl
