@@ -1,6 +1,11 @@
 # teambitflow/bitflow-collector:latest-arm64v8
 FROM teambitflow/golang-build:1.12-stretch as build
 
+ENV CC=aarch64-linux-gnu-gcc
+ENV CGO_ENABLED=1
+ENV GOOS=linux
+ENV GOARCH=arm64
+ENV CGO_LDFLAGS="-L/tmp/libpcap-1.9.0"
 ENV LIBPCAP_VERSION=1.9.0
 
 RUN apt-get update && apt-get install -y \
@@ -19,13 +24,18 @@ RUN cd /tmp && \
     make
 
 WORKDIR /build
+
+# Copy go.mod first and download dependencies, to enable the Docker build cache
+COPY go.mod .
+RUN sed -i $(find -name go.mod) -e '\_//.*gitignore$_d' -e '\_#.*gitignore$_d'
+RUN go mod download
+
+# Copy rest of the source code and build
+# Delete go.sum files and clean go.mod files form local 'replace' directives
 COPY . .
-RUN env CC=aarch64-linux-gnu-gcc \
-        CGO_ENABLED=1 \
-        GOOS=linux \
-        GOARCH=arm64 \
-        CGO_LDFLAGS="-L/tmp/libpcap-${LIBPCAP_VERSION}" \
-        go build -tags "nolibvirt" -o /bitflow-collector ./bitflow-collector
+RUN find -name go.sum -delete
+RUN sed -i $(find -name go.mod) -e '\_//.*gitignore$_d' -e '\_#.*gitignore$_d'
+RUN go build -tags "nolibvirt" -o /bitflow-collector ./bitflow-collector
 
 FROM arm64v8/debian:buster-slim
 COPY --from=build /bitflow-collector /
