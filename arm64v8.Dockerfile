@@ -1,7 +1,7 @@
 # teambitflow/bitflow-collector:latest-arm64v8
 FROM teambitflow/golang-build:1.12-stretch as build
 
-ENV CC=arm64-linux-gnueabi-gcc
+ENV CC=aarch64-linux-gnu-gcc
 ENV CGO_ENABLED=1
 ENV GOOS=linux
 ENV GOARCH=arm64
