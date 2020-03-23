@@ -3,6 +3,7 @@ module github.com/bitflow-stream/go-bitflow-collector
 go 1.12
 
 require (
+	cloud.google.com/go v0.38.0 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/antongulenko/golib v0.0.23
 	github.com/bitflow-stream/go-bitflow v0.0.55
@@ -18,6 +19,12 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/socketplane/libovsdb v0.0.0-20170116174820-4de3618546de
 	github.com/stretchr/testify v1.4.0
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
 	gonum.org/v1/gonum v0.0.0-20190911200027-40d3308efe80
+	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/xmlpath.v1 v1.0.0-20140413065638-a146725ea6e7
+	k8s.io/api v0.17.4
+	k8s.io/apimachinery v0.17.4
+	k8s.io/client-go v11.0.0+incompatible
+	sigs.k8s.io/controller-runtime v0.5.1
 )
