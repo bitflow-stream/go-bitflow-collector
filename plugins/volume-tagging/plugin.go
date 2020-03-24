@@ -30,6 +30,6 @@ func (*pluginImpl) Name() string {
 
 func (p *pluginImpl) Init(registry reg.ProcessorRegistry) error {
 	plugin.LogPluginProcessor(p, "tag-volume")
-	RegisterZeropsDataSourceNotifier("tag-volume", registry)
+	RegisterLibvirtVolumeTagger("tag-volume", registry)
 	return nil
 }

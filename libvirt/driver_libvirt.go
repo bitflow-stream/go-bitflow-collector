@@ -11,9 +11,11 @@ import (
 )
 
 const (
-	NoFlags           = 0
-	FetchDomainsFlags = lib.CONNECT_LIST_DOMAINS_ACTIVE | lib.CONNECT_LIST_DOMAINS_RUNNING
-	MaxNumMemoryStats = 8
+	NoFlags                       = 0
+	FetchDomainsFlags             = lib.CONNECT_LIST_DOMAINS_ACTIVE | lib.CONNECT_LIST_DOMAINS_RUNNING
+	MaxNumMemoryStats             = 8
+	domainQemuMonitorCommandFlags = lib.DOMAIN_QEMU_MONITOR_COMMAND_HMP
+	qemuMonitorCommand            = "info block"
 )
 
 func NewDriver() Driver {
@@ -179,4 +181,16 @@ func (d *DomainImpl) GetInfo() (res DomainInfo, err error) {
 		res.Mem = info.Memory
 	}
 	return
+}
+
+func (d *DomainImpl) GetVolumeInfo() (res []VolumeInfo, err error) {
+	volumeInfoStr, err := d.domain.QemuMonitorCommand(qemuMonitorCommand, domainQemuMonitorCommandFlags)
+	if err == nil {
+		res = d.parseVolumeInfo(volumeInfoStr)
+	}
+	return
+}
+
+func (d *DomainImpl) parseVolumeInfo(volumeInfoStr string) []VolumeInfo {
+	return nil
 }
