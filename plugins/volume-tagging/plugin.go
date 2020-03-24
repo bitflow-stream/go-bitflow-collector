@@ -30,6 +30,8 @@ func (*pluginImpl) Name() string {
 
 func (p *pluginImpl) Init(registry reg.ProcessorRegistry) error {
 	plugin.LogPluginProcessor(p, "tag-volume")
-	RegisterZeropsDataSourceNotifier("tag-volume", registry)
+
+	// TODO initialize and register the plugin named "tag-volume"
+
 	return nil
 }

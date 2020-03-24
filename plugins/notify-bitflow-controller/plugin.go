@@ -25,11 +25,11 @@ type pluginImpl struct {
 }
 
 func (*pluginImpl) Name() string {
-	return "zerops-collector-plugin"
+	return "controller-data-source-plugin"
 }
 
 func (p *pluginImpl) Init(registry reg.ProcessorRegistry) error {
-	plugin.LogPluginProcessor(p, "zerops-notify")
-	RegisterZeropsDataSourceNotifier("zerops-notify", registry)
+	plugin.LogPluginProcessor(p, "notify-bitflow-controller")
+	RegisterBitflowDataSourceNotifier("notify-bitflow-controller", registry)
 	return nil
 }

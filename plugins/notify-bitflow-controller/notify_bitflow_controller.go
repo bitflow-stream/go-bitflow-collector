@@ -12,12 +12,11 @@ import (
 	"time"
 
 	"github.com/antongulenko/golib"
+	bitflowv1 "github.com/bitflow-stream/bitflow-k8s-operator/bitflow-controller/pkg/apis/bitflow/v1"
+	"github.com/bitflow-stream/bitflow-k8s-operator/bitflow-controller/pkg/common"
 	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/bitflow-stream/go-bitflow/script/reg"
 	"github.com/bitflow-stream/go-bitflow/steps"
-	zeropsv1 "github.com/citlab/zerops-operator/pkg/apis/zerops/v1"
-	"github.com/citlab/zerops-operator/pkg/common"
-	"github.com/citlab/zerops-operator/pkg/request"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,9 +31,9 @@ const (
 	obtainIpRetryTimeout = 5 * time.Second
 )
 
-// Kubernetes ZerOpsDataSource objects are created automatically when samples appear containing a previously unseen value
+// Kubernetes BitflowSource objects are created automatically when samples appear containing a previously unseen value
 // for a configured tag. The DataSource objects are checked (and when necessary re-created) in intervals given by UpdateInterval.
-type ZeropsDataSourceNotifier struct {
+type BitflowControllerNotifier struct {
 	steps.TagChangeListener
 	Orchestrator string
 
@@ -49,9 +48,9 @@ type ZeropsDataSourceNotifier struct {
 	namespace       string
 }
 
-func RegisterZeropsDataSourceNotifier(name string, b reg.ProcessorRegistry) {
+func RegisterBitflowDataSourceNotifier(name string, b reg.ProcessorRegistry) {
 	step := b.RegisterStep(name, func(p *bitflow.SamplePipeline, params map[string]interface{}) error {
-		client, err := request.GetKubernetesClient(params["kube"].(string))
+		client, err := common.GetKubernetesClient(params["kube"].(string))
 		if err != nil {
 			return fmt.Errorf("Failed to initialize Kubernetes client: %v", err)
 		}
@@ -62,10 +61,10 @@ func RegisterZeropsDataSourceNotifier(name string, b reg.ProcessorRegistry) {
 		var pod *corev1.Pod
 		if podName == "" {
 			log.Warnf("Environment variable %v is not set, cannot obtain own Pod. Managed %v will not have an ownerReference.",
-				EnvOwnPodName, zeropsv1.DataSourcesKind)
+				EnvOwnPodName, bitflowv1.DataSourcesKind)
 		} else {
 			log.Printf("Requesting information on own pod %v...", podName)
-			pod, err = request.RequestPod(client, podName, namespace)
+			pod, err = common.RequestPod(client, podName, namespace)
 			if err != nil {
 				return fmt.Errorf("Failed to query pod named %v: %v", podName, err)
 			}
@@ -86,7 +85,7 @@ func RegisterZeropsDataSourceNotifier(name string, b reg.ProcessorRegistry) {
 			log.Warnf("The path and query of the dataSourceUrl will be ignored: %v", dataSourceUrl)
 		}
 
-		step := &ZeropsDataSourceNotifier{
+		step := &BitflowControllerNotifier{
 			Orchestrator:      orchestrator,
 			DataSourceName:    params["name"].(string),
 			DataSourceLabels:  params["labels"].(map[string]string),
@@ -100,7 +99,7 @@ func RegisterZeropsDataSourceNotifier(name string, b reg.ProcessorRegistry) {
 		step.TagChangeListener.ReadParameters(params)
 		p.Add(step)
 		return nil
-	}, "Notify the ZerOps controller about new tag values, where each tag value represents one stream of data").
+	}, "Notify the Bitflow controller about new tag values, where each tag value represents one stream of data").
 		Optional("orchestrator", reg.String(), "").
 		Optional("kube", reg.String(), "").
 		Optional("kube-namespace", reg.String(), "").
@@ -110,24 +109,24 @@ func RegisterZeropsDataSourceNotifier(name string, b reg.ProcessorRegistry) {
 	steps.AddTagChangeListenerParams(step)
 }
 
-func (t *ZeropsDataSourceNotifier) Start(wg *sync.WaitGroup) golib.StopChan {
+func (t *BitflowControllerNotifier) Start(wg *sync.WaitGroup) golib.StopChan {
 	if t.Orchestrator != "" {
 		t.obtainDataSourceHost()
 	}
 	return t.TagChangeListener.Start(wg)
 }
 
-func (t *ZeropsDataSourceNotifier) String() string {
-	return fmt.Sprintf("%v: ZerOps data-source notifier. Data source labels: %v", t.TagChangeListener.String(), t.DataSourceLabels)
+func (t *BitflowControllerNotifier) String() string {
+	return fmt.Sprintf("%v: Bitflow controller notifier. Data source labels: %v", t.TagChangeListener.String(), t.DataSourceLabels)
 }
 
-func (t *ZeropsDataSourceNotifier) Expired(value string, _ []string) bool {
+func (t *BitflowControllerNotifier) Expired(value string, _ []string) bool {
 	name, ok := t.dataSourceNames[value]
 	if !ok {
 		log.Warnf("The name of the data source for the tag value '%v' is not known, cannot delete it.", value)
 		return true
 	}
-	source := &zeropsv1.ZerOpsDataSource{
+	source := &bitflowv1.BitflowSource{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: t.namespace,
 			Name:      name,
@@ -136,7 +135,7 @@ func (t *ZeropsDataSourceNotifier) Expired(value string, _ []string) bool {
 	return t.delete(source)
 }
 
-func (t *ZeropsDataSourceNotifier) delete(obj runtime.Object) bool {
+func (t *BitflowControllerNotifier) delete(obj runtime.Object) bool {
 	if err := t.client.Delete(context.TODO(), obj); err != nil {
 		if errors.IsNotFound(err) {
 			log.Debugf("Failed to delete %v: %v", obj, err)
@@ -149,7 +148,7 @@ func (t *ZeropsDataSourceNotifier) delete(obj runtime.Object) bool {
 	return true
 }
 
-func (t *ZeropsDataSourceNotifier) Updated(value string, sample *bitflow.Sample, _ []string) {
+func (t *BitflowControllerNotifier) Updated(value string, sample *bitflow.Sample, _ []string) {
 	// Construct the data source and make sure it exists. Store the name so it can be deleted if necessary.
 	source := t.makeDataSource(value, sample)
 	sourceName, err := t.ensureDataSource(source)
@@ -160,23 +159,23 @@ func (t *ZeropsDataSourceNotifier) Updated(value string, sample *bitflow.Sample,
 	}
 }
 
-func (t *ZeropsDataSourceNotifier) obtainDataSourceHost() {
-	log.Printf("Trying to contact ZerOps orchestrator to obtain data source IP...")
+func (t *BitflowControllerNotifier) obtainDataSourceHost() {
+	log.Printf("Trying to contact Bitflow controller to obtain data source IP...")
 	for {
 		ipString, err := readRequest(http.StatusOK)(http.Get("http://" + t.Orchestrator + "/ip"))
 		if err != nil {
-			log.Warnf("Failed to obtain own IP by contacting ZerOps orchestrator: %v", err)
+			log.Warnf("Failed to obtain own IP by contacting Bitflow controller: %v", err)
 			log.Warnf("Trying again in %v...", obtainIpRetryTimeout)
 			time.Sleep(obtainIpRetryTimeout)
 		} else {
-			log.Printf("Obtained own IP from ZerOps orchestrator: %v", ipString)
+			log.Printf("Obtained own IP from Bitflow controller: %v", ipString)
 			t.dataSourceHost = ipString
 			break
 		}
 	}
 }
 
-func (t *ZeropsDataSourceNotifier) makeDataSource(tagVal string, sample *bitflow.Sample) *zeropsv1.ZerOpsDataSource {
+func (t *BitflowControllerNotifier) makeDataSource(tagVal string, sample *bitflow.Sample) *bitflowv1.BitflowSource {
 	urlEndpoint := t.constructDataSourceEndpoint(tagVal)
 	name := bitflow.ResolveTagTemplate(t.DataSourceName, "", sample)
 	sourceLabels := make(map[string]string)
@@ -186,9 +185,9 @@ func (t *ZeropsDataSourceNotifier) makeDataSource(tagVal string, sample *bitflow
 	}
 	name = common.HashName(name+"-", append(listKeysAndValues(sourceLabels), urlEndpoint)...)
 
-	return &zeropsv1.ZerOpsDataSource{
+	return &bitflowv1.BitflowSource{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       zeropsv1.DataSourcesKind,
+			Kind:       bitflowv1.DataSourcesKind,
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -197,7 +196,7 @@ func (t *ZeropsDataSourceNotifier) makeDataSource(tagVal string, sample *bitflow
 			Labels:          sourceLabels,
 			OwnerReferences: makeOwnerReferences(t.pod, false, false),
 		},
-		Spec: zeropsv1.ZerOpsDataSourceSpec{
+		Spec: bitflowv1.BitflowSourceSpec{
 			URL: urlEndpoint,
 		},
 	}
@@ -239,7 +238,7 @@ func makeOwnerReferences(pod *corev1.Pod, isController, blockOwnerDeletion bool)
 	}}
 }
 
-func (t *ZeropsDataSourceNotifier) constructDataSourceEndpoint(val string) string {
+func (t *BitflowControllerNotifier) constructDataSourceEndpoint(val string) string {
 	u := *t.DataSourceBaseUrl // Copy
 	if t.dataSourceHost != "" {
 		port := u.Port()
@@ -252,14 +251,14 @@ func (t *ZeropsDataSourceNotifier) constructDataSourceEndpoint(val string) strin
 	return u.String()
 }
 
-func (t *ZeropsDataSourceNotifier) ensureDataSource(source *zeropsv1.ZerOpsDataSource) (string, error) {
+func (t *BitflowControllerNotifier) ensureDataSource(source *bitflowv1.BitflowSource) (string, error) {
 	// Query all data sources with exactly our labels (do not specify the name)
 	selector := labels.SelectorFromSet(source.Labels)
 
-	var list zeropsv1.ZerOpsDataSourceList
+	var list bitflowv1.BitflowSourceList
 	err := t.client.List(context.TODO(), &controllerClient.ListOptions{LabelSelector: selector}, &list)
 	if err != nil {
-		return "", fmt.Errorf("Failed to query %v objects with labels: %v: %v", zeropsv1.DataSourcesKind, source.Labels, err)
+		return "", fmt.Errorf("Failed to query %v objects with labels: %v: %v", bitflowv1.DataSourcesKind, source.Labels, err)
 	}
 
 	existingName := ""
