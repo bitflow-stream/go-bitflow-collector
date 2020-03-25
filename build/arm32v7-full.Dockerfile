@@ -1,4 +1,7 @@
 # teambitflow/bitflow-collector:latest-arm32v7
+# Builds the entire collector an all plugins from scratch inside the container.
+# Build from the parent directory:
+# docker build -t teambitflow/bitflow-collector:latest-arm32v7 -f build/arm32v7-full.Dockerfile .
 FROM teambitflow/golang-build:1.12-stretch as build
 
 ENV CC=arm-linux-gnueabi-gcc
@@ -37,7 +40,12 @@ RUN find -name go.sum -delete
 RUN sed -i $(find -name go.mod) -e '\_//.*gitignore$_d' -e '\_#.*gitignore$_d'
 RUN go build -tags "nolibvirt" -o /bitflow-collector ./bitflow-collector
 
+# Build the plugins
+RUN ./plugins/build-plugins.sh
+
 FROM arm32v7/debian:buster-slim
 RUN ln -s /lib/arm-linux-gnueabihf/ld-linux.so.3 /lib/ld-linux.so.3
 COPY --from=build /bitflow-collector /
-ENTRYPOINT ["/bitflow-collector"]
+COPY --from=build /build/plugins/_output /bitflow-collector-plugins
+COPY build/run-collector-with-plugins.sh /
+ENTRYPOINT ["/run-collector-with-plugins.sh"]

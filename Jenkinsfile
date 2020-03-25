@@ -5,7 +5,7 @@ pipeline {
     agent {
         docker {
             image 'teambitflow/golang-build'
-            args '-v /root/.goroot:/go -v /var/run/docker.sock:/var/run/docker.sock'
+            args '-v /tmp:/tmp -v /root/.goroot:/go -v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
     environment {
@@ -28,14 +28,14 @@ pipeline {
         }
         stage('Build & test') { 
             steps {
-                    sh 'apt update'
-                    sh 'apt install -y libvirt-dev libpcap-dev'
-                    sh 'go clean -i -v ./...'
-                    sh 'go install -v ./...'
-                    sh 'rm -rf reports && mkdir -p reports'
-                    sh 'go test -v ./... -coverprofile=reports/test-coverage.txt 2>&1 | go-junit-report > reports/test.xml'
-                    sh 'go vet ./... &> reports/vet.txt'
-                    sh 'golint $(go list -f "{{.Dir}}" ./...) &> reports/lint.txt'
+                sh 'apt update'
+                sh 'apt install -y libvirt-dev libpcap-dev'
+                sh 'go clean -i -v ./...'
+                sh 'go install -v ./...'
+                sh 'rm -rf reports && mkdir -p reports'
+                sh 'go test -v ./... -coverprofile=reports/test-coverage.txt 2>&1 | go-junit-report > reports/test.xml'
+                sh 'go vet ./... &> reports/vet.txt'
+                sh 'golint $(go list -f "{{.Dir}}" ./...) &> reports/lint.txt'
             }
             post {
                 always {
@@ -66,12 +66,19 @@ pipeline {
                 }
             }
         }
+        stage('Prepare Docker build') {
+            steps {
+                sh './build/alpine-build.sh /tmp/go-mod-cache'
+                sh './build/arm32v7-build.sh /tmp/go-mod-cache'
+                sh './build/arm64v8-build.sh /tmp/go-mod-cache'
+            }
+        }
         stage('Docker build') {
             steps {
                 script {
-                    dockerImage = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER'
-                    dockerImageARM32 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f arm32v7.Dockerfile .'
-                    dockerImageARM64 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f arm64v8.Dockerfile .'
+                    dockerImage = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER', '-f build/alpine-prebuilt.Dockerfile build'
+                    dockerImageARM32 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f build/arm32v7-prebuilt.Dockerfile build'
+                    dockerImageARM64 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f build/arm64v8-prebuilt.Dockerfile build'
                 }
             }
         }

@@ -6,12 +6,15 @@ require (
 	github.com/antongulenko/golib v0.0.24
 	github.com/bitflow-stream/bitflow-k8s-operator/bitflow-controller v0.0.0-20200324123409-bdae63e3d812
 	github.com/bitflow-stream/go-bitflow v0.0.55
+	github.com/bitflow-stream/go-bitflow-collector v0.0.0-00010101000000-000000000000 // indirect
 	github.com/sirupsen/logrus v1.4.2
-	k8s.io/api v0.0.0-20190612125737-db0771252981
-	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
+	k8s.io/api v0.17.4
+	k8s.io/apimachinery v0.17.4
 	k8s.io/client-go v11.0.0+incompatible
-	sigs.k8s.io/controller-runtime v0.1.12
+	sigs.k8s.io/controller-runtime v0.5.1
 )
+
+replace github.com/bitflow-stream/go-bitflow-collector => ../..
 
 // Pinned to kubernetes-1.13.4
 replace (
