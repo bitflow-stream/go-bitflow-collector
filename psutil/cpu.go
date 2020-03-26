@@ -58,7 +58,7 @@ type cpuTime struct {
 
 func (t *cpuTime) getAllBusy() (float64, float64) {
 	busy := t.User + t.System + t.Nice + t.Irq +
-		t.Softirq + t.Steal + t.Guest + t.GuestNice + t.Stolen
+		t.Softirq + t.Steal + t.Guest + t.GuestNice
 	return busy + t.Idle + t.Iowait, busy
 }
 
@@ -95,7 +95,6 @@ func (t *cpuTime) AddValue(incoming collector.LogbackValue) collector.LogbackVal
 				Steal:     t.Steal + other.Steal,
 				Guest:     t.Guest + other.Guest,
 				GuestNice: t.GuestNice + other.GuestNice,
-				Stolen:    t.Stolen + other.Stolen,
 			},
 		}
 	} else {

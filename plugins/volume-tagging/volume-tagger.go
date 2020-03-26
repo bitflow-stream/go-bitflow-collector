@@ -13,8 +13,6 @@ import (
 
 func RegisterLibvirtVolumeTagger(name string, b reg.ProcessorRegistry) {
 	step := b.RegisterStep(name, func(p *bitflow.SamplePipeline, params map[string]interface{}) error {
-
-
 		step := NewLibvirtVolumeTagger(params["uri"].(string), libvirt.NewDriver(), params["volumeKey"].(string),
 			params["libvirtInstanceKey"].(string))
 		p.Add(step)
@@ -22,7 +20,7 @@ func RegisterLibvirtVolumeTagger(name string, b reg.ProcessorRegistry) {
 	}, "Append volume IDs to libvirt VM samples.").
 		Optional("uri", reg.String(), libvirt.LocalUri).
 		Optional("volumeKey", reg.String(), "volumes").
-		Optional("libvirtInstanceKey", reg.String(), "instanceKey")
+		Optional("libvirtInstanceKey", reg.String(), "vm")
 	steps.AddTagChangeListenerParams(step)
 }
 
@@ -89,7 +87,7 @@ func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Hea
 	if libvirtInstance != "" {
 		if _, ok := l.domains[libvirtInstance]; !ok { // Currently loaded domains do not contain sample's libvirt instance ID
 			if err := l.fetchDomains(false); err != nil { // Update domains
-				log.Println("Error while updating libvirt domains.")
+				log.Warn("Error while updating libvirt domains.")
 				return l.NoopProcessor.Sample(sample, header)
 			}
 		}

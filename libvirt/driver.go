@@ -15,6 +15,7 @@ type Domain interface {
 	CpuStats() (VirDomainCpuStats, error)
 	BlockStats(dev string) (VirDomainBlockStats, error)
 	BlockInfo(dev string) (VirDomainBlockInfo, error)
+	InterfaceStats(interfaceName string) (VirDomainInterfaceStats, error)
 	MemoryStats() (VirDomainMemoryStat, error)
 }
 
