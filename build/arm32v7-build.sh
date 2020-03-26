@@ -1,3 +1,4 @@
 #!/bin/bash
 home=`dirname $(readlink -f $0)`
-"$home/build.sh" arm32v7 $@
+test $# -ge 1 || { echo "Parameters: <Go-mod-cache directory> <Build args (optional)>"; exit 1; }
+"$home/build.sh" arm32v7 $@ -tags nolibvirt

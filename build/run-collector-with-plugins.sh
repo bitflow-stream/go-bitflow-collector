@@ -1,8 +1,16 @@
 #!/bin/sh
-# Assume the collector binary at /bitflow-collector and plugins at /bitflow-collector-plugins/*
+home=`dirname $(readlink -f $0)`
 
-commandline="/bitflow-collector"
-for plugin in /bitflow-collector-plugins/*; do
+if [ $# -ge 2 -a "$1" = "-root" ]; then
+  root="$2"
+  shift 2
+else
+  # By default, execute the native build
+  root="$home/_output/native"
+fi
+
+commandline="$root/bitflow-collector"
+for plugin in "$root/bitflow-collector-plugins"/*; do
   commandline="$commandline -p $plugin"
 done
-$commandline
+$commandline $@

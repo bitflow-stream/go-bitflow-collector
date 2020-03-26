@@ -5,6 +5,6 @@
 FROM arm64v8/debian:buster-slim
 RUN ln -s /lib/arm-linux-gnueabihf/ld-linux.so.3 /lib/ld-linux.so.3
 COPY _output/arm64v8/bitflow-collector /
-COPY _output/arm64v8/plugins /bitflow-collector-plugins
+COPY _output/arm64v8/bitflow-collector-plugins /bitflow-collector-plugins
 COPY run-collector-with-plugins.sh /
-ENTRYPOINT ["/run-collector-with-plugins.sh"]
+ENTRYPOINT ["/run-collector-with-plugins.sh", "-root", ""]

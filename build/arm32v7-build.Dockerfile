@@ -1,8 +1,8 @@
-# teambitflow/bitflow-collector:build-arm32v7
+# teambitflow/bitflow-collector-build:arm32v7
 # This image is used to build the collector for the ARM processor. The purpose of this separate container
 # is to mount the Go mod-cache into the container during the build, which is not possible with the 'docker build' command.
 # See arm32v7-prebuilt.Dockerfile for further instructions.
-# docker build -f arm32v7-build.Dockerfile -t teambitflow/bitflow-collector:build-arm32v7 .
+# docker build -f arm32v7-build.Dockerfile -t teambitflow/bitflow-collector-build:arm32v7 .
 FROM teambitflow/golang-build:1.12-stretch
 
 ENV CC=arm-linux-gnueabi-gcc

@@ -9,6 +9,6 @@ FROM alpine:3.9
 RUN apk --no-cache add libvirt-dev libpcap-dev libstdc++
 RUN ln -fs libpcap.so /usr/lib/libpcap.so.0.8
 COPY _output/native/bitflow-collector /
-COPY _output/native/plugins /bitflow-collector-plugins
+COPY _output/native/bitflow-collector-plugins /bitflow-collector-plugins
 COPY run-collector-with-plugins.sh /
-ENTRYPOINT ["/run-collector-with-plugins.sh"]
+ENTRYPOINT ["/run-collector-with-plugins.sh", "-root", ""]
