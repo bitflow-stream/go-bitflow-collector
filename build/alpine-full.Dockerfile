@@ -19,7 +19,7 @@ RUN sed -i $(find -name go.mod) -e '\_//.*gitignore$_d' -e '\_#.*gitignore$_d'
 RUN go build -o /bitflow-collector ./bitflow-collector
 
 # Build the plugins
-RUN ./plugins/build-plugins.sh
+RUN ./plugins/build-plugins.sh ./plugins/_output
 
 FROM alpine:3.9
 RUN apk --no-cache add libvirt-dev libpcap-dev libstdc++ curl
