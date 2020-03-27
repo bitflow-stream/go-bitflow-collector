@@ -21,6 +21,8 @@ const (
 	qemuMonitorCommand            = "info block"
 )
 
+var volumeJsonRegex = regexp.MustCompile("json:{(.*)}")
+
 func NewDriver() Driver {
 	return new(DriverImpl)
 }
@@ -162,7 +164,7 @@ func (d *DomainImpl) InterfaceStats(interfaceName string) (res VirDomainInterfac
 			RxPackets: stats.RxPackets,
 			RxErrs:    stats.RxErrs,
 			RxDrop:    stats.RxDrop,
-			TxBytes:   stats.TxBytes,
+			TxBytes:   stats.TxBytes,volumeJsonRegex
 			TxPackets: stats.TxPackets,
 			TxErrs:    stats.TxErrs,
 			TxDrop:    stats.TxDrop,
@@ -196,9 +198,8 @@ func (d *DomainImpl) GetVolumeInfo() (res []VolumeInfo, err error) {
 func (d *DomainImpl) parseVolumeInfo(volumeInfoStr string) []VolumeInfo {
 	var result []VolumeInfo
 	split := strings.Split(volumeInfoStr, "\n")
-	r, _ := regexp.Compile("json:{(.*)}")
 	for _, line := range split {
-		if match := r.FindString(line); match != "" {
+		if match := volumeJsonRegex.FindString(line); match != "" {
 			var objmap1 map[string]json.RawMessage
 			var objmap2 map[string]string
 			b := []byte(match[5:]) // match without the "json:" prefix
