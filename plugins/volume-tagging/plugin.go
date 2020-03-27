@@ -29,7 +29,7 @@ func (*pluginImpl) Name() string {
 }
 
 func (p *pluginImpl) Init(registry reg.ProcessorRegistry) error {
-	plugin.LogPluginProcessor(p, "tag_volume")
-	RegisterLibvirtVolumeTagger("tag_volume", registry)
+	plugin.LogPluginProcessor(p, "tag-volume")
+	RegisterLibvirtVolumeTagger("tag-volume", registry)
 	return nil
 }

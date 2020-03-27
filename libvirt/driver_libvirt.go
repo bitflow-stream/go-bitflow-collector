@@ -204,30 +204,11 @@ func (d *DomainImpl) parseVolumeInfo(volumeInfoStr string) []VolumeInfo {
 			b := []byte(match[5:]) // match without the "json:" prefix
 			if err := json.Unmarshal(b, &objmap1); err == nil {
 				if err := json.Unmarshal(objmap1["file"], &objmap2); err == nil {
-					pool := ""
-					if val, ok := objmap2["pool"]; ok {
-						pool = val
-					}
-
-					image := ""
-					if val, ok := objmap2["image"]; ok {
-						image = val
-					}
-
-					driver := ""
-					if val, ok := objmap2["driver"]; ok {
-						driver = val
-					}
-
-					user := ""
-					if val, ok := objmap2["user"]; ok {
-						user = val
-					}
 					result = append(result, VolumeInfo{
-						Pool:   pool,
-						Image:  image,
-						Driver: driver,
-						User:   user,
+						Pool:   objmap2["pool"],
+						Image:  objmap2["image"],
+						Driver: objmap2["driver"],
+						User:   objmap2["user"],
 					})
 				}
 			}

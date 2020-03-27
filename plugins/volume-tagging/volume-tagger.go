@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/antongulenko/golib"
-	collector "github.com/bitflow-stream/go-bitflow-collector"
 	"github.com/bitflow-stream/go-bitflow-collector/libvirt"
 	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/bitflow-stream/go-bitflow/script/reg"
@@ -22,7 +21,6 @@ func RegisterLibvirtVolumeTagger(name string, b reg.ProcessorRegistry) {
 		Optional("uri", reg.String(), libvirt.LocalUri).
 		Optional("volumeKey", reg.String(), "volumes").
 		Optional("libvirtInstanceKey", reg.String(), "vm")
-	//steps.AddTagChangeListenerParams(step)
 }
 
 func NewLibvirtVolumeTagger(uri string, driver libvirt.Driver, volumeKey string, libvirtInstanceKey string) *LibvirtVolumeTagger {
@@ -46,7 +44,7 @@ type LibvirtVolumeTagger struct {
 
 func (l *LibvirtVolumeTagger) Init() error {
 	l.domains = make(map[string]libvirt.Domain)
-	if err := l.fetchDomains(false); err != nil {
+	if err := l.fetchDomains(); err != nil {
 		return err
 	}
 	return nil
@@ -59,7 +57,7 @@ func (l *LibvirtVolumeTagger) Start(wg *sync.WaitGroup) golib.StopChan {
 	return l.NoopProcessor.Start(wg)
 }
 
-func (l *LibvirtVolumeTagger) fetchDomains(checkChange bool) error {
+func (l *LibvirtVolumeTagger) fetchDomains() error {
 	if err := l.driver.Connect(l.connectUri); err != nil {
 		return err
 	}
@@ -67,18 +65,10 @@ func (l *LibvirtVolumeTagger) fetchDomains(checkChange bool) error {
 	if err != nil {
 		return err
 	}
-	if checkChange && len(l.domains) != len(domains) {
-		return collector.MetricsChanged
-	}
 	for _, domain := range domains {
 		if name, err := domain.GetName(); err != nil {
 			return err
 		} else {
-			if checkChange {
-				if _, ok := l.domains[name]; !ok {
-					return collector.MetricsChanged
-				}
-			}
 			l.domains[name] = domain
 		}
 	}
@@ -94,8 +84,8 @@ func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Hea
 	libvirtInstance := sample.Tag(l.libvirtInstanceKey)
 	if libvirtInstance != "" {
 		if _, ok := l.domains[libvirtInstance]; !ok { // Currently loaded domains do not contain sample's libvirt instance ID
-			if err := l.fetchDomains(false); err != nil { // Update domains
-				log.Warn("Error while updating libvirt domains.")
+			if err := l.fetchDomains(); err != nil { // Update domains
+				log.Warn("Error while updating libvirt domains: ", err)
 				return l.NoopProcessor.Sample(sample, header)
 			}
 		}
