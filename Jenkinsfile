@@ -31,7 +31,6 @@ pipeline {
                 }
                 stage('Build & test') {
                     steps {
-                        sh 'apt update'
                         sh 'go clean -i -v ./...'
                         sh 'go install -v ./...'
                         sh 'rm -rf reports && mkdir -p reports'
