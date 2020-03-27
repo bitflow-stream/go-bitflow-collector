@@ -186,7 +186,7 @@ pipeline {
                         sh "docker manifest annotate ${registry}:latest ${registry}:latest-arm32v7 --os=linux --arch=arm --variant=v7"
                         sh "docker manifest annotate ${registry}:latest ${registry}:latest-arm64v8 --os=linux --arch=arm64 --variant=v8"
                         sh "docker manifest push --purge ${registry}:latest"
-                    }}
+                    }
                 }
             }
         }
@@ -222,4 +222,3 @@ pipeline {
         }
     }
 }
-
