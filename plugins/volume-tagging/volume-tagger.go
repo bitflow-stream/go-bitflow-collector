@@ -119,7 +119,7 @@ func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Hea
 
 func (l *LibvirtVolumeTagger) Close() {
 	if err := l.driver.Close(); err != nil {
-		log.Errorln("Error closing libvirt connection to %v:", l.connectUri, err)
+		log.Errorln("Error closing libvirt connection to", l.connectUri, err)
 	}
 	l.NoopProcessor.Close()
 }
