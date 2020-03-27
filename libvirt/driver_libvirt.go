@@ -164,7 +164,7 @@ func (d *DomainImpl) InterfaceStats(interfaceName string) (res VirDomainInterfac
 			RxPackets: stats.RxPackets,
 			RxErrs:    stats.RxErrs,
 			RxDrop:    stats.RxDrop,
-			TxBytes:   stats.TxBytes,volumeJsonRegex
+			TxBytes:   stats.TxBytes,
 			TxPackets: stats.TxPackets,
 			TxErrs:    stats.TxErrs,
 			TxDrop:    stats.TxDrop,
