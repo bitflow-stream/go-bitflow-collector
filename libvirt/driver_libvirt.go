@@ -187,8 +187,7 @@ func (d *DomainImpl) GetInfo() (res DomainInfo, err error) {
 }
 
 func (d *DomainImpl) GetVolumeInfo() (res []VolumeInfo, err error) {
-	volumeInfoStr, err := d.domain.QemuMonitorCommand(qemuMonitorCommand, domainQemuMonitorCommandFlags)
-	if err != nil {
+	if volumeInfoStr, err := d.domain.QemuMonitorCommand(qemuMonitorCommand, domainQemuMonitorCommandFlags); err == nil {
 		res = d.parseVolumeInfo(volumeInfoStr)
 	}
 	return
@@ -201,28 +200,28 @@ func (d *DomainImpl) parseVolumeInfo(volumeInfoStr string) []VolumeInfo {
 	for _, line := range split {
 		if match := r.FindString(line); match != "" {
 			var objmap1 map[string]json.RawMessage
-			var objmap2 map[string]json.RawMessage
+			var objmap2 map[string]string
 			b := []byte(match[5:]) // match without the "json:" prefix
 			if err := json.Unmarshal(b, &objmap1); err == nil {
 				if err := json.Unmarshal(objmap1["file"], &objmap2); err == nil {
 					pool := ""
 					if val, ok := objmap2["pool"]; ok {
-						pool = string(val)
+						pool = val
 					}
 
 					image := ""
 					if val, ok := objmap2["image"]; ok {
-						image = string(val)
+						image = val
 					}
 
 					driver := ""
 					if val, ok := objmap2["driver"]; ok {
-						driver = string(val)
+						driver = val
 					}
 
 					user := ""
 					if val, ok := objmap2["user"]; ok {
-						user = string(val)
+						user = val
 					}
 					result = append(result, VolumeInfo{
 						Pool:   pool,

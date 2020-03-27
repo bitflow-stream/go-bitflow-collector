@@ -2,17 +2,18 @@ package main
 
 import (
 	"fmt"
+	"github.com/antongulenko/golib"
 	collector "github.com/bitflow-stream/go-bitflow-collector"
 	"github.com/bitflow-stream/go-bitflow-collector/libvirt"
 	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/bitflow-stream/go-bitflow/script/reg"
-	"github.com/bitflow-stream/go-bitflow/steps"
 	log "github.com/sirupsen/logrus"
 	"strings"
+	"sync"
 )
 
 func RegisterLibvirtVolumeTagger(name string, b reg.ProcessorRegistry) {
-	step := b.RegisterStep(name, func(p *bitflow.SamplePipeline, params map[string]interface{}) error {
+	_ = b.RegisterStep(name, func(p *bitflow.SamplePipeline, params map[string]interface{}) error {
 		step := NewLibvirtVolumeTagger(params["uri"].(string), libvirt.NewDriver(), params["volumeKey"].(string),
 			params["libvirtInstanceKey"].(string))
 		p.Add(step)
@@ -21,7 +22,7 @@ func RegisterLibvirtVolumeTagger(name string, b reg.ProcessorRegistry) {
 		Optional("uri", reg.String(), libvirt.LocalUri).
 		Optional("volumeKey", reg.String(), "volumes").
 		Optional("libvirtInstanceKey", reg.String(), "vm")
-	steps.AddTagChangeListenerParams(step)
+	//steps.AddTagChangeListenerParams(step)
 }
 
 func NewLibvirtVolumeTagger(uri string, driver libvirt.Driver, volumeKey string, libvirtInstanceKey string) *LibvirtVolumeTagger {
@@ -49,6 +50,13 @@ func (l *LibvirtVolumeTagger) Init() error {
 		return err
 	}
 	return nil
+}
+
+func (l *LibvirtVolumeTagger) Start(wg *sync.WaitGroup) golib.StopChan {
+	if err := l.Init(); err != nil {
+		log.Warn("Error while initially updating libvirt domains.")
+	}
+	return l.NoopProcessor.Start(wg)
 }
 
 func (l *LibvirtVolumeTagger) fetchDomains(checkChange bool) error {
@@ -95,13 +103,23 @@ func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Hea
 			var volumeIds []string
 			if volumeInfo, err := domain.GetVolumeInfo(); err == nil { // If yes, get volume info
 				for _, info := range volumeInfo { // Make a list out of the IDs
-					volumeIds = append(volumeIds, info.Image)
+					if info.Image != "" { // Only consider non-empty entries
+						volumeIds = append(volumeIds, info.Image)
+					}
 				}
 				if len(volumeIds) > 0 {
-					sample.SetTag(l.volumeKey, strings.Join(volumeIds, ",")) // String list representation as tag
+					volumeIdsStr := strings.Join(volumeIds, "|")
+					sample.SetTag(l.volumeKey, volumeIdsStr) // String list representation as tag
 				}
 			}
 		}
 	}
 	return l.NoopProcessor.Sample(sample, header)
+}
+
+func (l *LibvirtVolumeTagger) Close() {
+	if err := l.driver.Close(); err != nil {
+		log.Errorln("Error closing libvirt connection to %v:", l.connectUri, err)
+	}
+	l.NoopProcessor.Close()
 }
