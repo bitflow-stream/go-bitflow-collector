@@ -14,7 +14,7 @@ pipeline {
         stage('Build & test') {
             agent {
                 docker {
-                    image 'teambitflow/collector-build:debian'
+                    image 'teambitflow/bitflow-collector-build:debian'
                     args '-v /tmp/go-mod-cache/debian:/go'
                 }
             }
@@ -73,7 +73,7 @@ pipeline {
         stage('Docker alpine') {
             agent {
                 docker {
-                    image 'teambitflow/collector-build:alpine'
+                    image 'teambitflow/bitflow-collector-build:alpine'
                     args '-v /tmp/go-mod-cache/alpine:/go -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -104,7 +104,7 @@ pipeline {
         stage('Docker arm32v7') {
             agent {
                 docker {
-                    image 'teambitflow/collector-build:arm32v7'
+                    image 'teambitflow/bitflow-collector-build:arm32v7'
                     args '-v /tmp/go-mod-cache/arm32v7:/go -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -135,7 +135,7 @@ pipeline {
         stage('Docker arm64v8') {
             agent {
                 docker {
-                    image 'teambitflow/collector-build:arm64v8'
+                    image 'teambitflow/bitflow-collector-build:arm64v8'
                     args '-v /tmp/go-mod-cache/arm64v8:/go -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
