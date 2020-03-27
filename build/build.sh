@@ -9,14 +9,18 @@ BUILD_DIR="build/_output/$BUILD_TARGET"
 echo "Building into $BUILD_DIR"
 shift
 
-mod_cache_dir=$(readlink -f "$1/$BUILD_TARGET")
+mkdir -p "$BUILD_DIR"
+cp "$home/run-collector-with-plugins.sh" "$target"
+
+mod_cache_dir="$1/$BUILD_TARGET"
 echo "Using Go-mod-cache directory: $mod_cache_dir"
+mkdir -p "$mod_cache_dir"
 shift
 
 build_args="$@"
 
 # Build inside the container, but mount relevant directories to get access to the build results.
-docker run -ti -v "$mod_cache_dir:/go" -v "$root:/build/src" "$BUILD_IMAGE" \
+docker run -v "$mod_cache_dir:/go" -v "$root:/build/src" "$BUILD_IMAGE" \
   sh -c "
     # Copy entire source-tree in order to make changes to go.mod/go.sum
     cp -r src build

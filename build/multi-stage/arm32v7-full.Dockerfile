@@ -1,7 +1,7 @@
 # teambitflow/bitflow-collector:latest-arm32v7
-# Builds the entire collector an all plugins from scratch inside the container.
-# Build from the parent directory:
-# docker build -t teambitflow/bitflow-collector:latest-arm32v7 -f build/arm32v7-full.Dockerfile .
+# Builds the entire collector and all plugins from scratch inside the container.
+# Build from the repository root directory:
+# docker build -t teambitflow/bitflow-collector:latest-arm32v7 -f build/multi-stage/arm32v7-full.Dockerfile .
 FROM teambitflow/golang-build:1.12-stretch as build
 
 ENV CC=arm-linux-gnueabi-gcc
@@ -35,7 +35,7 @@ RUN go mod download
 
 # Copy rest of the source code and build
 # Delete go.sum files and clean go.mod files form local 'replace' directives
-COPY . .
+COPY .. .
 RUN find -name go.sum -delete
 RUN sed -i $(find -name go.mod) -e '\_//.*gitignore$_d' -e '\_#.*gitignore$_d'
 RUN go build -tags "nolibvirt" -o /bitflow-collector ./bitflow-collector

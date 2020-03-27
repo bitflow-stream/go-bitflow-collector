@@ -1,7 +1,7 @@
 # teambitflow/bitflow-collector
-# Builds the entire collector an all plugins from scratch inside the container.
-# Build from the parent directory:
-# docker build -t teambitflow/bitflow-collector -f build/alpine-full.Dockerfile .
+# Builds the entire collector and all plugins from scratch inside the container.
+# Build from the repository root directory:
+# docker build -t teambitflow/bitflow-collector -f build/multi-stage/alpine-full.Dockerfile .
 FROM golang:1.12-alpine as build
 RUN apk --no-cache add git mercurial gcc g++ libvirt-dev libvirt-common-drivers libpcap-dev
 WORKDIR /build
@@ -13,7 +13,7 @@ RUN go mod download
 
 # Copy rest of the source code and build
 # Delete go.sum files and clean go.mod files form local 'replace' directives
-COPY . .
+COPY .. .
 RUN find -name go.sum -delete
 RUN sed -i $(find -name go.mod) -e '\_//.*gitignore$_d' -e '\_#.*gitignore$_d'
 RUN go build -o /bitflow-collector ./bitflow-collector
