@@ -97,7 +97,9 @@ func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Hea
 				for _, info := range volumeInfo { // Make a list out of the IDs
 					volumeIds = append(volumeIds, info.Image)
 				}
-				sample.SetTag(l.volumeKey, strings.Join(volumeIds, ",")) // String list representation as tag
+				if len(volumeIds) > 0 {
+					sample.SetTag(l.volumeKey, strings.Join(volumeIds, ",")) // String list representation as tag
+				}
 			}
 		}
 	}
