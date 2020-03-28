@@ -6,5 +6,5 @@ cd "$home"
 target="$home/_output/native"
 mkdir -p "$target"
 cp "$home/run-collector-with-plugins.sh" "$target"
-go build -o "$target/bitflow-collector" $@ "$root/bitflow-collector"
+go build -o "$target/bitflow-collector" $@ "$root/bitflow-collector" && \
 "$root/plugins/build-plugins.sh" "$target/bitflow-collector-plugins" $@
