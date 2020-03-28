@@ -112,7 +112,7 @@ pipeline {
                 stage('Docker build') {
                     steps {
                         sh 'rm -rf ./build/_output'
-                        sh './build/native-build.sh -tags nolibvirt'
+                        sh './build/native-build.sh -tags nolibvirt,nopcap'
                         script {
                             dockerImageARM32 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f build/arm32v7-prebuilt.Dockerfile build/_output/native'
                         }
