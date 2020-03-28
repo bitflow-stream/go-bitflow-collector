@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"strings"
 	"sync"
+	"time"
 )
 
 func RegisterLibvirtVolumeTagger(name string, b reg.ProcessorRegistry) {
@@ -34,12 +35,19 @@ func NewLibvirtVolumeTagger(uri string, driver libvirt.Driver, volumeKey string,
 
 type LibvirtVolumeTagger struct {
 	bitflow.NoopProcessor
+
 	connectUri string
 	driver     libvirt.Driver
-	domains    map[string]libvirt.Domain
 
 	volumeKey          string
 	libvirtInstanceKey string
+
+	domains             map[string]libvirt.Domain
+	instance2VolumeInfo map[string][]libvirt.VolumeInfo
+
+
+	updateDelay time.Duration
+	lastUpdate  time.Time
 }
 
 func (l *LibvirtVolumeTagger) Init() error {
@@ -55,6 +63,10 @@ func (l *LibvirtVolumeTagger) Start(wg *sync.WaitGroup) golib.StopChan {
 		log.Warn("Error while initially updating libvirt domains.")
 	}
 	return l.NoopProcessor.Start(wg)
+}
+
+func (l *LibvirtVolumeTagger) String() string {
+	return fmt.Sprintf("Libvirt volume tagger connected to libvirt via %v", l.connectUri)
 }
 
 func (l *LibvirtVolumeTagger) fetchDomains() error {
@@ -75,32 +87,40 @@ func (l *LibvirtVolumeTagger) fetchDomains() error {
 	return nil
 }
 
-func (l *LibvirtVolumeTagger) String() string {
-	return fmt.Sprintf("Libvirt volume tagger connected to libvirt via %v", l.connectUri)
+func (l *LibvirtVolumeTagger) updateVolumeInfos(libvirtInstance string) error {
+	if err := l.fetchDomains(); err != nil {
+		return err
+	}
+	if domain, ok := l.domains[libvirtInstance]; ok {
+		if volumeInfo, err := domain.GetVolumeInfo(); err == nil {
+			l.instance2VolumeInfo[libvirtInstance] = volumeInfo
+		} else {
+			return err
+		}
+	}
+	l.lastUpdate = time.Now()
+	return nil
 }
 
 func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Header) error {
 	// Check sample tag for vm
 	libvirtInstance := sample.Tag(l.libvirtInstanceKey)
 	if libvirtInstance != "" {
-		if _, ok := l.domains[libvirtInstance]; !ok { // Currently loaded domains do not contain sample's libvirt instance ID
-			if err := l.fetchDomains(); err != nil { // Update domains
-				log.Warn("Error while updating libvirt domains: ", err)
-				return l.NoopProcessor.Sample(sample, header)
+		if l.lastUpdate.After(l.lastUpdate.Add(l.updateDelay)) { // Reloading buffered information
+			if err := l.updateVolumeInfos(libvirtInstance); err != nil {
+				log.Warn("Error while loading volume information: ", err)
 			}
 		}
-		if domain, ok := l.domains[libvirtInstance]; ok { // Check if they are containing it now
+		if volumeInfo, ok := l.instance2VolumeInfo[libvirtInstance]; ok { // There are buffered volume information
 			var volumeIds []string
-			if volumeInfo, err := domain.GetVolumeInfo(); err == nil { // If yes, get volume info
-				for _, info := range volumeInfo { // Make a list out of the IDs
-					if info.Image != "" { // Only consider non-empty entries
-						volumeIds = append(volumeIds, info.Image)
-					}
+			for _, info := range volumeInfo { // Make a list out of the IDs
+				if info.Image != "" { // Only consider non-empty entries
+					volumeIds = append(volumeIds, info.Image)
 				}
-				if len(volumeIds) > 0 {
-					volumeIdsStr := strings.Join(volumeIds, "|")
-					sample.SetTag(l.volumeKey, volumeIdsStr) // String list representation as tag
-				}
+			}
+			if len(volumeIds) > 0 {
+				volumeIdsStr := strings.Join(volumeIds, "|")
+				sample.SetTag(l.volumeKey, volumeIdsStr) // String list representation as tag
 			}
 		}
 	}
