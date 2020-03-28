@@ -14,11 +14,12 @@ import (
 )
 
 const (
-	NoFlags                       = 0
-	FetchDomainsFlags             = lib.CONNECT_LIST_DOMAINS_ACTIVE | lib.CONNECT_LIST_DOMAINS_RUNNING
-	MaxNumMemoryStats             = 8
-	domainQemuMonitorCommandFlags = lib.DOMAIN_QEMU_MONITOR_COMMAND_HMP
-	qemuMonitorCommand            = "info block"
+	NoFlags           = 0
+	FetchDomainsFlags = lib.CONNECT_LIST_DOMAINS_ACTIVE | lib.CONNECT_LIST_DOMAINS_RUNNING
+	MaxNumMemoryStats = 8
+
+	volumeMonitorCommand      = "info block"
+	volumeMonitorCommandFlags = lib.DOMAIN_QEMU_MONITOR_COMMAND_HMP
 )
 
 var volumeJsonRegex = regexp.MustCompile("json:{(.*)}")
@@ -189,7 +190,7 @@ func (d *DomainImpl) GetInfo() (res DomainInfo, err error) {
 }
 
 func (d *DomainImpl) GetVolumeInfo() (res []VolumeInfo, err error) {
-	if volumeInfoStr, err := d.domain.QemuMonitorCommand(qemuMonitorCommand, domainQemuMonitorCommandFlags); err == nil {
+	if volumeInfoStr, err := d.domain.QemuMonitorCommand(volumeMonitorCommand, volumeMonitorCommandFlags); err == nil {
 		res = d.parseVolumeInfo(volumeInfoStr)
 	}
 	return
