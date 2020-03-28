@@ -53,8 +53,7 @@ type LibvirtVolumeTagger struct {
 }
 
 func (l *LibvirtVolumeTagger) Init() error {
-	l.domains = make(map[string]libvirt.Domain)
-	return l.fetchDomains()
+	return l.updateAllVolumeInfos()
 }
 
 func (l *LibvirtVolumeTagger) Start(wg *sync.WaitGroup) golib.StopChan {
@@ -87,9 +86,6 @@ func (l *LibvirtVolumeTagger) fetchDomains() error {
 }
 
 func (l *LibvirtVolumeTagger) updateVolumeInfos(libvirtInstance string) error {
-	if err := l.fetchDomains(); err != nil {
-		return err
-	}
 	if domain, ok := l.domains[libvirtInstance]; ok {
 		if volumeInfo, err := domain.GetVolumeInfo(); err == nil {
 			l.instance2VolumeInfo[libvirtInstance] = volumeInfo
@@ -97,8 +93,23 @@ func (l *LibvirtVolumeTagger) updateVolumeInfos(libvirtInstance string) error {
 			return err
 		}
 	}
-	l.lastUpdate = time.Now()
 	return nil
+}
+
+func (l *LibvirtVolumeTagger) updateAllVolumeInfos() error {
+	// Clear old entries
+	l.domains = make(map[string]libvirt.Domain)
+	l.instance2VolumeInfo = make(map[string][]libvirt.VolumeInfo)
+
+	if err := l.fetchDomains(); err != nil {
+		return err
+	}
+	var errors golib.MultiError
+	for instance := range l.domains {
+		errors.Add(l.updateVolumeInfos(instance))
+	}
+	l.lastUpdate = time.Now()
+	return errors.NilOrError()
 }
 
 func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Header) error {
@@ -106,7 +117,7 @@ func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Hea
 	libvirtInstance := sample.Tag(l.libvirtInstanceKey)
 	if libvirtInstance != "" {
 		if l.lastUpdate.After(l.lastUpdate.Add(l.updateDelay)) { // Reloading buffered information
-			if err := l.updateVolumeInfos(libvirtInstance); err != nil {
+			if err := l.updateAllVolumeInfos(); err != nil {
 				log.Warn("Error while loading volume information: ", err)
 			}
 		}
