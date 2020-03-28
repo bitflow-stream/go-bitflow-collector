@@ -141,7 +141,8 @@ pipeline {
             stages {
                 stage('Docker build') {
                     steps {
-                        sh './build/native-build.sh -tags nolibvirt'
+                        // TODO building with 'nopcap' for now because of PCAP-related compiler error
+                        sh './build/native-build.sh -tags nolibvirt,nopcap'
                         script {
                             dockerImageARM64 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f build/arm64v8-prebuilt.Dockerfile build/_output/native'
                         }
