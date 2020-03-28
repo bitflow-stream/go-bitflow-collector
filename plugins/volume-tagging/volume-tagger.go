@@ -19,20 +19,23 @@ func RegisterLibvirtVolumeTagger(name string, b reg.ProcessorRegistry) {
 			params["uri"].(string),
 			libvirt.NewDriver(),
 			params["volumeKey"].(string),
-			params["libvirtInstanceKey"].(string)))
+			params["libvirtInstanceKey"].(string),
+			params["infoUpdateDelay"].(time.Duration)))
 		return nil
 	}, "Append volume IDs to libvirt VM samples.").
 		Optional("uri", reg.String(), libvirt.LocalUri).
 		Optional("volumeKey", reg.String(), "volumes").
-		Optional("libvirtInstanceKey", reg.String(), "vm")
+		Optional("libvirtInstanceKey", reg.String(), "vm").
+		Optional("infoUpdateDelay", reg.Duration(), 30 * time.Second)
 }
 
-func NewLibvirtVolumeTagger(uri string, driver libvirt.Driver, volumeKey string, libvirtInstanceKey string) *LibvirtVolumeTagger {
+func NewLibvirtVolumeTagger(uri string, driver libvirt.Driver, volumeKey string, libvirtInstanceKey string, infoUpdateDelay time.Duration) *LibvirtVolumeTagger {
 	return &LibvirtVolumeTagger{
 		connectUri:         uri,
 		driver:             driver,
 		volumeKey:          volumeKey,
 		libvirtInstanceKey: libvirtInstanceKey,
+		updateDelay:        infoUpdateDelay,
 	}
 }
 
@@ -116,7 +119,7 @@ func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Hea
 	// Check sample tag for vm
 	libvirtInstance := sample.Tag(l.libvirtInstanceKey)
 	if libvirtInstance != "" {
-		if l.lastUpdate.After(l.lastUpdate.Add(l.updateDelay)) { // Reloading buffered information
+		if time.Now().After(l.lastUpdate.Add(l.updateDelay)) { // Reloading buffered information
 			if err := l.updateAllVolumeInfos(); err != nil {
 				log.Warn("Error while loading volume information: ", err)
 			}
