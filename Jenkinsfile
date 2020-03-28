@@ -79,6 +79,7 @@ pipeline {
             stages {
                 stage('Docker build') {
                     steps {
+                        sh 'rm -rf ./build/_output'
                         sh './build/native-build.sh'
                         script {
                             dockerImage = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER', '-f build/alpine-prebuilt.Dockerfile build/_output/native'
@@ -110,6 +111,7 @@ pipeline {
             stages {
                 stage('Docker build') {
                     steps {
+                        sh 'rm -rf ./build/_output'
                         sh './build/native-build.sh -tags nolibvirt'
                         script {
                             dockerImageARM32 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f build/arm32v7-prebuilt.Dockerfile build/_output/native'
@@ -141,6 +143,8 @@ pipeline {
             stages {
                 stage('Docker build') {
                     steps {
+                        sh 'rm -rf ./build/_output'
+                        
                         // TODO building with 'nopcap' for now because of PCAP-related compiler error
                         sh './build/native-build.sh -tags nolibvirt,nopcap'
                         script {
