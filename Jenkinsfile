@@ -100,7 +100,6 @@ pipeline {
                 }
             }
         }
-/*
         stage('Docker arm32v7') {
             agent {
                 docker {
@@ -194,7 +193,6 @@ pipeline {
                 }
             }
         }
-*/
     }
     post {
         success {
