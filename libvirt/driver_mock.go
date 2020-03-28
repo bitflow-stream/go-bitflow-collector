@@ -67,11 +67,11 @@ func (d *MockDomain) CpuStats() (VirDomainCpuStats, error) {
 	return VirDomainCpuStats{}, d.err()
 }
 
-func (d *MockDomain) BlockStats(dev string) (VirDomainBlockStats, error) {
+func (d *MockDomain) BlockStats(_ string) (VirDomainBlockStats, error) {
 	return VirDomainBlockStats{}, d.err()
 }
 
-func (d *MockDomain) BlockInfo(dev string) (VirDomainBlockInfo, error) {
+func (d *MockDomain) BlockInfo(_ string) (VirDomainBlockInfo, error) {
 	return VirDomainBlockInfo{}, d.err()
 }
 
@@ -79,6 +79,10 @@ func (d *MockDomain) MemoryStats() (VirDomainMemoryStat, error) {
 	return VirDomainMemoryStat{}, d.err()
 }
 
-func (d *MockDomain) InterfaceStats(interfaceName string) (VirDomainInterfaceStats, error) {
+func (d *MockDomain) InterfaceStats(_ string) (VirDomainInterfaceStats, error) {
 	return VirDomainInterfaceStats{}, d.err()
+}
+
+func (d *MockDomain) GetVolumeInfo() ([]VolumeInfo, error) {
+	return nil, d.err()
 }
