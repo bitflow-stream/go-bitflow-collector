@@ -144,7 +144,7 @@ pipeline {
                 stage('Docker build') {
                     steps {
                         sh 'rm -rf ./build/_output'
-                        
+
                         // TODO building with 'nopcap' for now because of PCAP-related compiler error
                         sh './build/native-build.sh -tags nolibvirt,nopcap'
                         script {
