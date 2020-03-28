@@ -2,21 +2,24 @@ package main
 
 import (
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/antongulenko/golib"
 	"github.com/bitflow-stream/go-bitflow-collector/libvirt"
 	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/bitflow-stream/go-bitflow/script/reg"
 	log "github.com/sirupsen/logrus"
-	"strings"
-	"sync"
-	"time"
 )
 
 func RegisterLibvirtVolumeTagger(name string, b reg.ProcessorRegistry) {
 	_ = b.RegisterStep(name, func(p *bitflow.SamplePipeline, params map[string]interface{}) error {
-		step := NewLibvirtVolumeTagger(params["uri"].(string), libvirt.NewDriver(), params["volumeKey"].(string),
-			params["libvirtInstanceKey"].(string))
-		p.Add(step)
+		p.Add(NewLibvirtVolumeTagger(
+			params["uri"].(string),
+			libvirt.NewDriver(),
+			params["volumeKey"].(string),
+			params["libvirtInstanceKey"].(string)))
 		return nil
 	}, "Append volume IDs to libvirt VM samples.").
 		Optional("uri", reg.String(), libvirt.LocalUri).
@@ -45,17 +48,13 @@ type LibvirtVolumeTagger struct {
 	domains             map[string]libvirt.Domain
 	instance2VolumeInfo map[string][]libvirt.VolumeInfo
 
-
 	updateDelay time.Duration
 	lastUpdate  time.Time
 }
 
 func (l *LibvirtVolumeTagger) Init() error {
 	l.domains = make(map[string]libvirt.Domain)
-	if err := l.fetchDomains(); err != nil {
-		return err
-	}
-	return nil
+	return l.fetchDomains()
 }
 
 func (l *LibvirtVolumeTagger) Start(wg *sync.WaitGroup) golib.StopChan {
@@ -129,7 +128,7 @@ func (l *LibvirtVolumeTagger) Sample(sample *bitflow.Sample, header *bitflow.Hea
 
 func (l *LibvirtVolumeTagger) Close() {
 	if err := l.driver.Close(); err != nil {
-		log.Errorln("Error closing libvirt connection to", l.connectUri, err)
+		log.Errorf("Error closing libvirt connection to %v: %v", l.connectUri, err)
 	}
 	l.NoopProcessor.Close()
 }
