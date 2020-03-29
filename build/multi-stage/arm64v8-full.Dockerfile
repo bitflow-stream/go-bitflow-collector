@@ -1,7 +1,7 @@
-# teambitflow/bitflow-collector:latest-arm64v8
+# bitflowstream/bitflow-collector:latest-arm64v8
 # Builds the entire collector and all plugins from scratch inside the container.
 # Build from the repository root directory:
-# docker build -t teambitflow/bitflow-collector:latest-arm64v8 -f build/multi-stage/arm64v8-full.Dockerfile .
+# docker build -t bitflowstream/bitflow-collector:latest-arm64v8 -f build/multi-stage/arm64v8-full.Dockerfile .
 FROM golang:1.14.1-buster as build
 RUN apt-get update && apt-get install -y git mercurial qemu-user gcc-aarch64-linux-gnu
 WORKDIR /build

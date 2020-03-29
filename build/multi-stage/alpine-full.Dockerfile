@@ -1,7 +1,7 @@
-# teambitflow/bitflow-collector
+# bitflowstream/bitflow-collector
 # Builds the entire collector and all plugins from scratch inside the container.
 # Build from the repository root directory:
-# docker build -t teambitflow/bitflow-collector -f build/multi-stage/alpine-full.Dockerfile .
+# docker build -t bitflowstream/bitflow-collector -f build/multi-stage/alpine-full.Dockerfile .
 FROM golang:1.14.1-alpine as build
 RUN apk --no-cache add git mercurial gcc g++ libvirt-dev libvirt-common-drivers libpcap-dev
 WORKDIR /build
