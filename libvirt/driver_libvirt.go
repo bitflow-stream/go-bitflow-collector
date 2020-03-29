@@ -3,8 +3,11 @@
 package libvirt
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 
 	lib "github.com/libvirt/libvirt-go"
 	log "github.com/sirupsen/logrus"
@@ -14,7 +17,12 @@ const (
 	NoFlags           = 0
 	FetchDomainsFlags = lib.CONNECT_LIST_DOMAINS_ACTIVE | lib.CONNECT_LIST_DOMAINS_RUNNING
 	MaxNumMemoryStats = 8
+
+	volumeMonitorCommand      = "info block"
+	volumeMonitorCommandFlags = lib.DOMAIN_QEMU_MONITOR_COMMAND_HMP
 )
+
+var volumeJsonRegex = regexp.MustCompile("json:{(.*)}")
 
 func NewDriver() Driver {
 	return new(DriverImpl)
@@ -179,4 +187,34 @@ func (d *DomainImpl) GetInfo() (res DomainInfo, err error) {
 		res.Mem = info.Memory
 	}
 	return
+}
+
+func (d *DomainImpl) GetVolumeInfo() (res []VolumeInfo, err error) {
+	if volumeInfoStr, err := d.domain.QemuMonitorCommand(volumeMonitorCommand, volumeMonitorCommandFlags); err == nil {
+		res = d.parseVolumeInfo(volumeInfoStr)
+	}
+	return
+}
+
+func (d *DomainImpl) parseVolumeInfo(volumeInfoStr string) []VolumeInfo {
+	var result []VolumeInfo
+	split := strings.Split(volumeInfoStr, "\n")
+	for _, line := range split {
+		if match := volumeJsonRegex.FindString(line); match != "" {
+			var objmap1 map[string]json.RawMessage
+			var objmap2 map[string]string
+			b := []byte(match[5:]) // match without the "json:" prefix
+			if err := json.Unmarshal(b, &objmap1); err == nil {
+				if err := json.Unmarshal(objmap1["file"], &objmap2); err == nil {
+					result = append(result, VolumeInfo{
+						Pool:   objmap2["pool"],
+						Image:  objmap2["image"],
+						Driver: objmap2["driver"],
+						User:   objmap2["user"],
+					})
+				}
+			}
+		}
+	}
+	return result
 }

@@ -10,18 +10,26 @@ type Domain interface {
 	GetName() (string, error)
 	GetXML() (string, error)
 	GetInfo() (DomainInfo, error)
+	GetVolumeInfo() ([]VolumeInfo, error)
 
 	CpuStats() (VirDomainCpuStats, error)
 	BlockStats(dev string) (VirDomainBlockStats, error)
 	BlockInfo(dev string) (VirDomainBlockInfo, error)
-	MemoryStats() (VirDomainMemoryStat, error)
 	InterfaceStats(interfaceName string) (VirDomainInterfaceStats, error)
+	MemoryStats() (VirDomainMemoryStat, error)
 }
 
 type DomainInfo struct {
 	CpuTime uint64
 	MaxMem  uint64
 	Mem     uint64
+}
+
+type VolumeInfo struct {
+	Pool   string
+	Image  string
+	Driver string
+	User   string
 }
 
 type VirDomainCpuStats struct {
