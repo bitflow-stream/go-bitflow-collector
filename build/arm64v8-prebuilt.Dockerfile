@@ -7,3 +7,5 @@ COPY bitflow-collector /
 COPY bitflow-collector-plugins /bitflow-collector-plugins
 COPY run-collector-with-plugins.sh /
 ENTRYPOINT ["/run-collector-with-plugins.sh", "-root", ""]
+
+# TODO In Jenkinsfile, pcap-support is deactivated for arm64v8 due to a linker error, should be debugged

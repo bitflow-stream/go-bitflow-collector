@@ -9,8 +9,8 @@ BUILD_DIR="build/_output/$BUILD_TARGET"
 echo "Building into $BUILD_DIR"
 shift
 
-mkdir -p "$BUILD_DIR"
-cp "$home/run-collector-with-plugins.sh" "$target"
+mkdir -p "$root/$BUILD_DIR"
+cp "$home/run-collector-with-plugins.sh" "$root/$BUILD_DIR"
 
 mod_cache_dir="$1/$BUILD_TARGET"
 echo "Using Go-mod-cache directory: $mod_cache_dir"

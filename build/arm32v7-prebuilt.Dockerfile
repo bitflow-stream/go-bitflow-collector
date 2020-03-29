@@ -10,4 +10,7 @@ RUN ln -s /lib/arm-linux-gnueabihf/ld-linux.so.3 /lib/ld-linux.so.3
 COPY bitflow-collector /
 COPY bitflow-collector-plugins /bitflow-collector-plugins
 COPY run-collector-with-plugins.sh /
-ENTRYPOINT ["/run-collector-with-plugins.sh", "-root", ""]
+
+# TODO Loading the plugins does not work ("cannot open shared object file: No such file or directory"), needs to be debugged
+# ENTRYPOINT ["/run-collector-with-plugins.sh", "-root", ""]
+ENTRYPOINT ["/bitflow-collector"]
