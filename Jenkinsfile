@@ -4,7 +4,7 @@ pipeline {
     }
     agent none
     environment {
-        registry = 'teambitflow/bitflow-collector'
+        registry = 'bitflowstream/bitflow-collector'
         registryCredential = 'dockerhub'
         dockerImage = '' // Empty variable must be declared here to allow passing an object between the stages.
         dockerImageARM32 = ''
@@ -14,7 +14,7 @@ pipeline {
         stage('Build & test') {
             agent {
                 docker {
-                    image 'teambitflow/bitflow-collector-build:debian'
+                    image 'bitflowstream/golang-collector-build:debian'
                     args '-v /tmp/go-mod-cache/debian:/go'
                 }
             }
@@ -72,14 +72,13 @@ pipeline {
         stage('Docker alpine') {
             agent {
                 docker {
-                    image 'teambitflow/bitflow-collector-build:alpine'
+                    image 'bitflowstream/golang-collector-build:alpine'
                     args '-v /tmp/go-mod-cache/alpine:/go -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
             stages {
                 stage('Docker build') {
                     steps {
-                        sh 'rm -rf ./build/_output'
                         sh './build/native-build.sh'
                         script {
                             dockerImage = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER', '-f build/alpine-prebuilt.Dockerfile build/_output/native'
@@ -104,14 +103,13 @@ pipeline {
         stage('Docker arm32v7') {
             agent {
                 docker {
-                    image 'teambitflow/bitflow-collector-build:arm32v7'
+                    image 'bitflowstream/golang-collector-build:arm32v7'
                     args '-v /tmp/go-mod-cache/debian:/go -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
             stages {
                 stage('Docker build') {
                     steps {
-                        sh 'rm -rf ./build/_output'
                         sh './build/native-build.sh -tags nolibvirt'
                         script {
                             dockerImageARM32 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f build/arm32v7-prebuilt.Dockerfile build/_output/native'
@@ -136,15 +134,13 @@ pipeline {
         stage('Docker arm64v8') {
             agent {
                 docker {
-                    image 'teambitflow/bitflow-collector-build:arm64v8'
+                    image 'bitflowstream/golang-collector-build:arm64v8'
                     args '-v /tmp/go-mod-cache/debian:/go -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
             stages {
                 stage('Docker build') {
                     steps {
-                        sh 'rm -rf ./build/_output'
-
                         // TODO building with 'nopcap' for now because of PCAP-related compiler error
                         sh './build/native-build.sh -tags nolibvirt,nopcap'
                         script {
@@ -173,7 +169,7 @@ pipeline {
             }
             agent {
                 docker {
-                    image 'teambitflow/bitflow-collector-build:debian'
+                    image 'bitflowstream/golang-collector-build:debian'
                     args '-v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -190,7 +186,7 @@ pipeline {
                     sh '''#! /bin/bash
                     echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
                     '''
-                    // teambitflow/bitflow4j:latest manifest
+                    // bitflowstream/bitflow4j:latest manifest
                     sh "docker manifest create ${registry}:latest ${registry}:latest-amd64 ${registry}:latest-arm32v7 ${registry}:latest-arm64v8"
                     sh "docker manifest annotate ${registry}:latest ${registry}:latest-arm32v7 --os=linux --arch=arm --variant=v7"
                     sh "docker manifest annotate ${registry}:latest ${registry}:latest-arm64v8 --os=linux --arch=arm64 --variant=v8"

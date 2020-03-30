@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # This script uses sh instead of bash, so it runs in most basic Docker containers (such as alpine)
-export home=`dirname $(readlink -f $0)`
+home=`dirname $(readlink -f $0)`
 test $# -ge 1 || { echo "Need 1 parameter: output folder for built plugin binaries"; exit 1; }
 export plugin_output=$(readlink -f "$1")
 shift

@@ -4,7 +4,7 @@ root=`readlink -f "$home/.."`
 
 test $# -ge 2 || { echo "Parameters: <container to build for (arm32v7/arm64v8/alpine)> <Go-mod-cache directory> <Build args (optional)>"; exit 1; }
 BUILD_TARGET="$1"
-BUILD_IMAGE="teambitflow/bitflow-collector-build:$BUILD_TARGET"
+BUILD_IMAGE="bitflowstream/golang-collector-build:$BUILD_TARGET"
 BUILD_DIR="build/_output/$BUILD_TARGET"
 echo "Building into $BUILD_DIR"
 shift
