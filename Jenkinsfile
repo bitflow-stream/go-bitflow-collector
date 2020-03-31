@@ -83,6 +83,7 @@ pipeline {
                         script {
                             dockerImage = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER', '-f build/alpine-prebuilt.Dockerfile build/_output/native'
                         }
+                        sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER"
                     }
                 }
                 stage('Docker push') {
@@ -114,6 +115,7 @@ pipeline {
                         script {
                             dockerImageARM32 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f build/arm32v7-prebuilt.Dockerfile build/_output/native'
                         }
+                        sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER-arm32v7"
                     }
                 }
                 stage('Docker push') {
@@ -146,6 +148,7 @@ pipeline {
                         script {
                             dockerImageARM64 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f build/arm64v8-prebuilt.Dockerfile build/_output/native'
                         }
+                        sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER-arm64v8"
                     }
                 }
                 stage('Docker push') {
