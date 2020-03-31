@@ -5,4 +5,4 @@ IMAGE="bitflowstream/bitflow-collector"
 TAG="$1"
 
 # Sanity check: image starts, outputs valid JSON, and terminates.
-docker run "$IMAGE:$TAG" -json-capabilities | jq . > /dev/null
+docker run "$IMAGE:$TAG" -json-capabilities | tee /dev/stderr | jq . > /dev/null
