@@ -11,7 +11,7 @@ fi
 
 commandline="$root/bitflow-collector"
 for plugin in "$root/bitflow-collector-plugins"/*; do
-  1>&2 echo "Adding plugin $plugin"
+    1>&2 echo "Adding plugin $plugin"
   commandline="$commandline -p $plugin"
 done
 $commandline $@
