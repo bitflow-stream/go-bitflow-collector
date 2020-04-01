@@ -121,10 +121,7 @@ pipeline {
 
         stage('Docker test & push arm32v7') {
             agent {
-                docker {
-                    image 'bitflowstream/golang-collector-build:arm32v7'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
-                }
+                label: 'master'
             }
             stages {
                 stage('Test container') {
