@@ -121,7 +121,7 @@ pipeline {
 
         stage('Docker test & push arm32v7') {
             agent {
-                label: 'master'
+                label 'master'
             }
             stages {
                 stage('Test container') {
