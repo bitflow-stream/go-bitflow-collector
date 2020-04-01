@@ -6,10 +6,8 @@ pipeline {
     environment {
         registry = 'bitflowstream/bitflow-collector'
         registryCredential = 'dockerhub'
-        dockerImage = '' // Empty variable must be declared here to allow passing an object between the stages.
-        dockerImageARM32 = ''
-        dockerImageARM64 = ''
     }
+
     stages {
         stage('Build & test') {
             agent {
@@ -22,13 +20,11 @@ pipeline {
                 stage('Git') {
                     steps {
                         script {
-                            env.GIT_COMMITTER_EMAIL = sh(
-                                script: "git --no-pager show -s --format='%ae'",
-                                returnStdout: true
-                                ).trim()
+                            env.GIT_COMMITTER_EMAIL = sh(script: "git --no-pager show -s --format='%ae'", returnStdout: true).trim()
                         }
                     }
                 }
+
                 stage('Build & test') {
                     steps {
                         sh 'go clean -i -v ./...'
@@ -45,10 +41,10 @@ pipeline {
                         }
                     }
                 }
+
                 stage('SonarQube') {
                     steps {
                         script {
-                            // sonar-scanner which don't rely on JVM
                             def scannerHome = tool 'sonar-scanner-linux'
                             withSonarQubeEnv('CIT SonarQube') {
                                 sh """
@@ -69,6 +65,7 @@ pipeline {
                 }
             }
         }
+
         stage('Docker alpine') {
             agent {
                 docker {
@@ -81,11 +78,12 @@ pipeline {
                     steps {
                         sh './build/native-build.sh'
                         script {
-                            dockerImage = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER', '-f build/alpine-prebuilt.Dockerfile build/_output/native'
+                            def image = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER', '-f build/alpine-prebuilt.Dockerfile build/_output/native'
                         }
                         sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER"
                     }
                 }
+
                 stage('Docker push') {
                     when {
                         branch 'master'
@@ -93,14 +91,15 @@ pipeline {
                     steps {
                         script {
                             docker.withRegistry('', registryCredential) {
-                                dockerImage.push("build-$BUILD_NUMBER")
-                                dockerImage.push("latest-amd64")
+                                image.push("build-$BUILD_NUMBER")
+                                image.push("latest-amd64")
                             }
                         }
                     }
                 }
             }
         }
+
         stage('Docker arm32v7') {
             agent {
                 docker {
@@ -113,11 +112,12 @@ pipeline {
                     steps {
                         sh './build/native-build.sh -tags nolibvirt'
                         script {
-                            dockerImageARM32 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f build/arm32v7-prebuilt.Dockerfile build/_output/native'
+                            def image = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm32v7', '-f build/arm32v7-prebuilt.Dockerfile build/_output/native'
                         }
                         sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER-arm32v7"
                     }
                 }
+
                 stage('Docker push') {
                     when {
                         branch 'master'
@@ -125,14 +125,15 @@ pipeline {
                     steps {
                         script {
                             docker.withRegistry('', registryCredential) {
-                                dockerImageARM32.push("build-$BUILD_NUMBER-arm32v7")
-                                dockerImageARM32.push("latest-arm32v7")
+                                image.push("build-$BUILD_NUMBER-arm32v7")
+                                image.push("latest-arm32v7")
                             }
                         }
                     }
                 }
             }
         }
+
         stage('Docker arm64v8') {
             agent {
                 docker {
@@ -146,7 +147,7 @@ pipeline {
                         // TODO building with 'nopcap' for now because of PCAP-related compiler error
                         sh './build/native-build.sh -tags nolibvirt,nopcap'
                         script {
-                            dockerImageARM64 = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f build/arm64v8-prebuilt.Dockerfile build/_output/native'
+                            def image = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f build/arm64v8-prebuilt.Dockerfile build/_output/native'
                         }
                         sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER-arm64v8"
                     }
@@ -158,14 +159,15 @@ pipeline {
                     steps {
                         script {
                             docker.withRegistry('', registryCredential) {
-                                dockerImageARM64.push("build-$BUILD_NUMBER-arm64v8")
-                                dockerImageARM64.push("latest-arm64v8")
+                                image.push("build-$BUILD_NUMBER-arm64v8")
+                                image.push("latest-arm64v8")
                             }
                         }
                     }
                 }
             }
         }
+
         stage('Docker manifests') {
             when {
                branch 'master'
@@ -177,19 +179,12 @@ pipeline {
                 }
             }
             steps {
-                withCredentials([
-                [
+                withCredentials([[
                     $class: 'UsernamePasswordMultiBinding',
-                    credentialsId: 'dockerhub',
-                    usernameVariable: 'DOCKERUSER',
-                    passwordVariable: 'DOCKERPASS'
-                ]
-                ]) {
+                    credentialsId: 'dockerhub', usernameVariable: 'DOCKERUSER', passwordVariable: 'DOCKERPASS'
+                ]]) {
                     // Dockerhub Login
-                    sh '''#! /bin/bash
-                    echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin
-                    '''
-                    // bitflowstream/bitflow4j:latest manifest
+                    sh 'echo $DOCKERPASS | docker login -u $DOCKERUSER --password-stdin'
                     sh "docker manifest create ${registry}:latest ${registry}:latest-amd64 ${registry}:latest-arm32v7 ${registry}:latest-arm64v8"
                     sh "docker manifest annotate ${registry}:latest ${registry}:latest-arm32v7 --os=linux --arch=arm --variant=v7"
                     sh "docker manifest annotate ${registry}:latest ${registry}:latest-arm64v8 --os=linux --arch=arm64 --variant=v8"
@@ -198,6 +193,7 @@ pipeline {
             }
         }
     }
+
     post {
         success {
             node('master') {
