@@ -121,12 +121,14 @@ pipeline {
 
         stage('Docker test & push arm32v7') {
             agent {
-                label 'master'
+                docker {
+                    image 'bitflowstream/golang-collector-build:arm32v7'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
             }
             stages {
                 stage('Test container') {
                     steps {
-                        sh 'docker run --rm --privileged multiarch/qemu-user-static:register --reset'
                         sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER-arm32v7"
                     }
                 }
