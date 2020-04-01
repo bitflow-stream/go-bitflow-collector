@@ -126,6 +126,7 @@ pipeline {
             stages {
                 stage('Test container') {
                     steps {
+                        sh 'docker run --rm --privileged multiarch/qemu-user-static:register --reset'
                         sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER-arm32v7"
                     }
                 }
