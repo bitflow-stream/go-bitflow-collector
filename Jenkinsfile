@@ -130,9 +130,9 @@ pipeline {
                     }
                 }
                 stage('Push container') {
-                    when {
-                        branch 'master'
-                    }
+                    //when {
+                    //    branch 'master'
+                    //}
                     steps {
                         script {
                             docker.withRegistry('', registryCredential) {
@@ -160,20 +160,6 @@ pipeline {
                         script {
                             image = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f build/arm64v8-prebuilt.Dockerfile build/_output/native'
                         }
-                        sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER-arm64v8"
-                    }
-                }
-                stage('Docker push') {
-                    when {
-                        branch 'master'
-                    }
-                    steps {
-                        script {
-                            docker.withRegistry('', registryCredential) {
-                                image.push("build-$BUILD_NUMBER-arm64v8")
-                                image.push("latest-arm64v8")
-                            }
-                        }
                     }
                 }
             }
@@ -181,23 +167,15 @@ pipeline {
 
         stage('Docker test & push arm64v8') {
             agent {
-                docker {
-                    image 'bitflowstream/golang-collector-build:arm64v8'
-                    args '-v /tmp/go-mod-cache/debian:/go -v /var/run/docker.sock:/var/run/docker.sock'
-                }
+                label 'master'
             }
             stages {
-                stage('Docker build') {
+                stage('Test container') {
                     steps {
-                        // TODO building with 'nopcap' for now because of PCAP-related compiler error
-                        sh './build/native-build.sh -tags nolibvirt,nopcap'
-                        script {
-                            image = docker.build registry + ':$BRANCH_NAME-build-$BUILD_NUMBER-arm64v8', '-f build/arm64v8-prebuilt.Dockerfile build/_output/native'
-                        }
                         sh "./build/test-image.sh $BRANCH_NAME-build-$BUILD_NUMBER-arm64v8"
                     }
                 }
-                stage('Docker push') {
+                stage('Push container') {
                     when {
                         branch 'master'
                     }
