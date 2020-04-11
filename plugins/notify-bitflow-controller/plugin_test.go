@@ -13,6 +13,7 @@ import (
 	"github.com/bitflow-stream/bitflow-k8s-operator/bitflow-controller/pkg/common"
 	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/bitflow-stream/go-bitflow/script/reg"
+	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,7 +23,7 @@ type ControllerNotifierTestSuite struct {
 }
 
 func TestControllerNotifier(t *testing.T) {
-	new(ControllerNotifierTestSuite).Run(t)
+	suite.Run(t, new(ControllerNotifierTestSuite))
 }
 
 func (s *ControllerNotifierTestSuite) TestCollector() {
