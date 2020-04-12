@@ -130,10 +130,9 @@ pipeline {
                     }
                 }
                 stage('Push container') {
-                    // TODO comment back in after fixing
-                    //when {
-                    //    branch 'master'
-                    //}
+                    when {
+                        branch 'master'
+                    }
                     steps {
                         script {
                             docker.withRegistry('', registryCredential) {
