@@ -256,7 +256,7 @@ func (t *BitflowControllerNotifier) ensureDataSource(source *bitflowv1.BitflowSo
 	selector := labels.SelectorFromSet(source.Labels)
 
 	var list bitflowv1.BitflowSourceList
-	err := t.client.List(context.TODO(), &controllerClient.ListOptions{LabelSelector: selector}, &list)
+	err := t.client.List(context.TODO(), &controllerClient.ListOptions{LabelSelector: selector, Namespace: t.namespace}, &list)
 	if err != nil {
 		return "", fmt.Errorf("Failed to query %v objects with labels: %v: %v", bitflowv1.DataSourcesKind, source.Labels, err)
 	}

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/antongulenko/golib"
+	"github.com/stretchr/testify/suite"
 )
 
 type ValueRingTestSuite struct {
@@ -11,7 +12,7 @@ type ValueRingTestSuite struct {
 }
 
 func TestValueRing(t *testing.T) {
-	new(ValueRingTestSuite).Run(t)
+	suite.Run(t, new(ValueRingTestSuite))
 }
 
 func (suite *ValueRingTestSuite) TestRing() {

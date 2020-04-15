@@ -4,9 +4,9 @@ go 1.14
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
-	github.com/antongulenko/golib v0.0.24
-	github.com/bitflow-stream/bitflow-k8s-operator/bitflow-controller v0.0.1
-	github.com/bitflow-stream/go-bitflow v0.0.56
+	github.com/antongulenko/golib v0.0.25
+	github.com/bitflow-stream/bitflow-k8s-operator/bitflow-controller v0.0.2
+	github.com/bitflow-stream/go-bitflow v0.0.58
 	github.com/cenk/hub v1.0.0 // indirect
 	github.com/cenkalti/hub v1.0.1 // indirect
 	github.com/cenkalti/rpc2 v0.0.0-20180727162946-9642ea02d0aa // indirect

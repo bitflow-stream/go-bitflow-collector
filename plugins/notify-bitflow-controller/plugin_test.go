@@ -13,6 +13,7 @@ import (
 	"github.com/bitflow-stream/bitflow-k8s-operator/bitflow-controller/pkg/common"
 	"github.com/bitflow-stream/go-bitflow/bitflow"
 	"github.com/bitflow-stream/go-bitflow/script/reg"
+	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,7 +23,7 @@ type ControllerNotifierTestSuite struct {
 }
 
 func TestControllerNotifier(t *testing.T) {
-	new(ControllerNotifierTestSuite).Run(t)
+	suite.Run(t, new(ControllerNotifierTestSuite))
 }
 
 func (s *ControllerNotifierTestSuite) TestCollector() {
@@ -35,7 +36,7 @@ func (s *ControllerNotifierTestSuite) TestBitflowSourceNotifier() {
 	s.True(notifier.Expired("test", make([]string, 0)))
 	s.assertSources(notifier.client, 2)
 	s.True(notifier.Expired("source1", make([]string, 0)))
-	s.assertSources(notifier.client, 2)
+	s.assertSources(notifier.client, 1)
 }
 
 func (s *ControllerNotifierTestSuite) TestNotifierUpdate() {
@@ -56,7 +57,7 @@ func (s *ControllerNotifierTestSuite) TestReadRequest() {
 	}
 	str, err := readFunc(resp, nil)
 	s.NoError(err)
-	s.Equal(response, str, "Wrong response")
+	s.Equal(response, str)
 
 	resp = &http.Response{
 		Body:       ioutil.NopCloser(bytes.NewReader([]byte(response))),
@@ -64,7 +65,9 @@ func (s *ControllerNotifierTestSuite) TestReadRequest() {
 	}
 	readFunc = readRequest(500)
 	str, err = readFunc(resp, nil)
-	s.NoError(err)
+	s.Error(err)
+	s.Contains(err.Error(), "status code 200")
+	s.Contains(err.Error(), "Body: Hello world")
 	s.Equal(response, str)
 }
 
