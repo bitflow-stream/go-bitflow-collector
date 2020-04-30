@@ -6,7 +6,7 @@ if [ $# -ge 2 -a "$1" = "-root" ]; then
   shift 2
 else
   # By default, execute the native build
-  root="$home/_output/native"
+  root="/"
 fi
 
 commandline="$root/bitflow-collector"
