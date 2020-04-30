@@ -42,4 +42,4 @@ FROM arm64v8/debian:buster-slim
 COPY --from=build /build/build/_output/native/bitflow-collector /
 COPY --from=build /build/build/_output/native/bitflow-collector-plugins /bitflow-collector-plugins
 COPY --from=build /build/build/run-collector-with-plugins.sh /
-ENTRYPOINT ["/run-collector-with-plugins.sh"]
+ENTRYPOINT ["/run-collector-with-plugins.sh", "-root", ""]
